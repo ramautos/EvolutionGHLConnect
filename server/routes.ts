@@ -121,9 +121,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cuentaPrincipal: installerDetails.company.name || null,
       });
 
-      // Redirigir al dashboard con éxito, incluyendo companyId
+      // (Opcional) Notificar a n8n que se instaló la app
+      const n8nWebhookUrl = process.env.N8N_INSTALL_WEBHOOK_URL;
+      if (n8nWebhookUrl) {
+        try {
+          await fetch(n8nWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: 'ghl_app_installed',
+              companyId: tokenResponse.companyId || installerDetails.company.id,
+              locationId: tokenResponse.locationId || installerDetails.location?.id,
+              userId: tokenResponse.userId || installerDetails.user.id,
+              companyName: installerDetails.company.name,
+              locationName: installerDetails.location?.name,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to notify n8n:', error);
+          // No bloqueamos el flujo si falla el webhook
+        }
+      }
+
+      // Redirigir al dashboard de locations con éxito, incluyendo companyId
       const companyId = tokenResponse.companyId || installerDetails.company.id;
-      res.redirect(`/dashboard?ghl_installed=true&company_id=${companyId}`);
+      res.redirect(`/locations?ghl_installed=true&company_id=${companyId}`);
     } catch (error) {
       console.error("Error in GHL OAuth callback:", error);
       res.status(500).json({ error: "OAuth callback failed" });
