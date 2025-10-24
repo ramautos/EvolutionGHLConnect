@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
+import { ghlStorage } from "./ghl-storage";
+import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { insertUserSchema, insertSubaccountSchema, insertWhatsappInstanceSchema, updateWhatsappInstanceSchema } from "@shared/schema";
 import { z } from "zod";
@@ -65,6 +67,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // GoHighLevel OAuth Callback
+  app.get("/api/auth/ghl/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+
+      if (!code || typeof code !== "string") {
+        res.status(400).json({ error: "Missing authorization code" });
+        return;
+      }
+
+      // Intercambiar código por token
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/ghl/callback`;
+      const tokenResponse = await ghlApi.exchangeCodeForToken(code, redirectUri);
+
+      if (!tokenResponse) {
+        res.status(500).json({ error: "Failed to exchange code for token" });
+        return;
+      }
+
+      // Obtener detalles del instalador
+      const installerDetails = await ghlApi.getInstallerDetails(tokenResponse.access_token);
+
+      if (!installerDetails) {
+        res.status(500).json({ error: "Failed to get installer details" });
+        return;
+      }
+
+      // Guardar en la base de datos de GoHighLevel
+      const expiresAt = new Date(Date.now() + tokenResponse.expires_in * 1000);
+      
+      await ghlStorage.createOrUpdateCliente({
+        locationid: tokenResponse.locationId || installerDetails.location?.id || null,
+        companyid: tokenResponse.companyId || installerDetails.company.id,
+        userid: tokenResponse.userId || installerDetails.user.id,
+        accesstoken: tokenResponse.access_token,
+        refreshtoken: tokenResponse.refresh_token,
+        refreshtokenid: null,
+        expiresat: expiresAt,
+        scopes: tokenResponse.scope,
+        isactive: true,
+        isbulkinstallation: false,
+        appclientid: process.env.GHL_CLIENT_ID || null,
+        lastrefreshed: new Date(),
+        uninstalledat: null,
+        nombreCliente: installerDetails.user.name || null,
+        emailCliente: installerDetails.user.email || null,
+        telefonoCliente: null,
+        subcuenta: installerDetails.location?.name || null,
+        cuentaPrincipal: installerDetails.company.name || null,
+      });
+
+      // Redirigir al dashboard con éxito
+      res.redirect(`/dashboard?ghl_installed=true&location_id=${tokenResponse.locationId || ''}`);
+    } catch (error) {
+      console.error("Error in GHL OAuth callback:", error);
+      res.status(500).json({ error: "OAuth callback failed" });
+    }
+  });
+
+  // Obtener locations del usuario por company ID
+  app.get("/api/ghl/locations/:companyId", async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const clientes = await ghlStorage.getClientesByCompanyId(companyId);
+      
+      // Obtener detalles de cada location
+      const locations = await Promise.all(
+        clientes.map(async (cliente) => {
+          if (!cliente.locationid || !cliente.accesstoken) {
+            return null;
+          }
+
+          const validToken = await ghlApi.getValidAccessToken(cliente.locationid);
+          if (!validToken) {
+            return null;
+          }
+
+          const location = await ghlApi.getLocation(cliente.locationid, validToken);
+          return location ? {
+            ...location,
+            clienteId: cliente.id,
+            // NO exponer accessToken al cliente
+          } : null;
+        })
+      );
+
+      res.json(locations.filter(Boolean));
+    } catch (error) {
+      console.error("Error getting locations:", error);
+      res.status(500).json({ error: "Failed to get locations" });
+    }
+  });
+
+  // Obtener location específica
+  app.get("/api/ghl/location/:locationId", async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const cliente = await ghlStorage.getClienteByLocationId(locationId);
+
+      if (!cliente) {
+        res.status(404).json({ error: "Location not found" });
+        return;
+      }
+
+      const validToken = await ghlApi.getValidAccessToken(locationId);
+      if (!validToken) {
+        res.status(401).json({ error: "Failed to get valid access token" });
+        return;
+      }
+
+      const location = await ghlApi.getLocation(locationId, validToken);
+      
+      if (!location) {
+        res.status(404).json({ error: "Location details not found" });
+        return;
+      }
+
+      res.json({
+        ...location,
+        clienteId: cliente.id,
+      });
+    } catch (error) {
+      console.error("Error getting location:", error);
+      res.status(500).json({ error: "Failed to get location" });
     }
   });
 
