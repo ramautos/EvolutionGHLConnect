@@ -10,6 +10,7 @@ export interface IStorage {
   getSubaccounts(userId: string): Promise<Subaccount[]>;
   createSubaccount(subaccount: InsertSubaccount): Promise<Subaccount>;
   
+  getWhatsappInstance(id: string): Promise<WhatsappInstance | undefined>;
   getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]>;
   getAllUserInstances(userId: string): Promise<WhatsappInstance[]>;
   createWhatsappInstance(instance: InsertWhatsappInstance): Promise<WhatsappInstance>;
@@ -48,11 +49,20 @@ export class DatabaseStorage implements IStorage {
     return subaccount;
   }
 
+  async getWhatsappInstance(id: string): Promise<WhatsappInstance | undefined> {
+    const [instance] = await db.select().from(whatsappInstances).where(eq(whatsappInstances.id, id));
+    return instance || undefined;
+  }
+
   async getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]> {
     return await db.select().from(whatsappInstances).where(eq(whatsappInstances.subaccountId, subaccountId));
   }
 
   async getAllUserInstances(userId: string): Promise<WhatsappInstance[]> {
+    if (userId === "all") {
+      return await db.select().from(whatsappInstances);
+    }
+    
     const userSubaccounts = await this.getSubaccounts(userId);
     const subaccountIds = userSubaccounts.map(sub => sub.id);
     

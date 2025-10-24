@@ -14,8 +14,7 @@ export default function Dashboard() {
   const { user, isLoading: userLoading } = useUser();
   const { toast } = useToast();
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
-  const [phoneDetected, setPhoneDetected] = useState<string>();
+  const [selectedInstance, setSelectedInstance] = useState<string>("");
 
   const { data: instances = [], isLoading: instancesLoading, error } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/instances/user", user?.id],
@@ -66,11 +65,6 @@ export default function Dashboard() {
   const handleGenerateQR = (id: string) => {
     setSelectedInstance(id);
     setQrModalOpen(true);
-    setPhoneDetected(undefined);
-
-    setTimeout(() => {
-      setPhoneDetected("+1 (555) 999-8888");
-    }, 3000);
   };
 
   const handleDisconnect = async (id: string) => {
@@ -189,9 +183,7 @@ export default function Dashboard() {
       <QRModal
         isOpen={qrModalOpen}
         onClose={() => setQrModalOpen(false)}
-        qrValue="https://wa.me/qr/SAMPLE123456"
-        isScanning={!phoneDetected}
-        phoneDetected={phoneDetected}
+        instanceId={selectedInstance}
       />
     </div>
   );

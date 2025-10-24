@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { Server as SocketIOServer } from "socket.io";
 import { storage } from "./storage";
+import { evolutionAPI } from "./evolution-api";
 import { insertUserSchema, insertSubaccountSchema, insertWhatsappInstanceSchema, updateWhatsappInstanceSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -131,7 +133,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/instances/:id/generate-qr", async (req, res) => {
+    try {
+      const whatsappInstance = await storage.getWhatsappInstance(req.params.id);
+      if (!whatsappInstance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+      
+      try {
+        await evolutionAPI.createInstance(whatsappInstance.instanceName);
+      } catch (error) {
+        console.log("Instance may already exist, continuing...");
+      }
+
+      const qrData = await evolutionAPI.getQRCode(whatsappInstance.instanceName);
+
+      await storage.updateWhatsappInstance(req.params.id, {
+        status: "qr_generated",
+        qrCode: qrData.code,
+      });
+
+      res.json({
+        qrCode: qrData.code,
+        pairingCode: qrData.pairingCode,
+      });
+    } catch (error) {
+      console.error("Error generating QR:", error);
+      res.status(500).json({ error: "Failed to generate QR code" });
+    }
+  });
+
+  app.get("/api/instances/:id/status", async (req, res) => {
+    try {
+      const whatsappInstance = await storage.getWhatsappInstance(req.params.id);
+      if (!whatsappInstance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+      
+      try {
+        const stateData = await evolutionAPI.getInstanceState(whatsappInstance.instanceName);
+        
+        if (stateData.instance.state === "open") {
+          await storage.updateWhatsappInstance(req.params.id, {
+            status: "connected",
+            connectedAt: new Date(),
+          });
+        }
+
+        res.json({
+          state: stateData.instance.state,
+          status: whatsappInstance.status,
+        });
+      } catch (error) {
+        res.json({
+          state: "disconnected",
+          status: whatsappInstance.status,
+        });
+      }
+    } catch (error) {
+      console.error("Error checking status:", error);
+      res.status(500).json({ error: "Failed to check instance status" });
+    }
+  });
+
+  app.post("/api/webhooks/evolution", async (req, res) => {
+    try {
+      const event = req.body;
+      
+      if (event.event === "connection.update") {
+        const instanceName = event.instance;
+        const state = event.data?.state;
+
+        const allInstances = await storage.getAllUserInstances("all");
+        const instance = allInstances.find(i => i.instanceName === instanceName);
+
+        if (instance) {
+          if (state === "open") {
+            const phoneNumber = event.data?.phoneNumber || null;
+            
+            await storage.updateWhatsappInstance(instance.id, {
+              status: "connected",
+              phoneNumber,
+              connectedAt: new Date(),
+            });
+
+            if (instance.webhookUrl) {
+              try {
+                await fetch(instance.webhookUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    instanceId: instance.id,
+                    instanceName: instance.instanceName,
+                    phoneNumber,
+                    status: "connected",
+                    connectedAt: new Date(),
+                  }),
+                });
+              } catch (error) {
+                console.error("Error calling webhook:", error);
+              }
+            }
+          } else if (state === "close") {
+            await storage.updateWhatsappInstance(instance.id, {
+              status: "disconnected",
+            });
+          }
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
   const httpServer = createServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
+
+  io.on("connection", (socket: any) => {
+    console.log("Client connected:", socket.id);
+
+    socket.on("subscribe-instance", (instanceId: string) => {
+      socket.join(`instance-${instanceId}`);
+      console.log(`Client subscribed to instance ${instanceId}`);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
+    });
+  });
+
+  setInterval(async () => {
+    try {
+      const allInstances = await storage.getAllUserInstances("all");
+      
+      for (const instance of allInstances) {
+        if (instance.status === "qr_generated" || instance.status === "connected") {
+          try {
+            const stateData = await evolutionAPI.getInstanceState(instance.instanceName);
+            
+            if (stateData.instance.state === "open" && instance.status !== "connected") {
+              await storage.updateWhatsappInstance(instance.id, {
+                status: "connected",
+                connectedAt: new Date(),
+              });
+              
+              io.to(`instance-${instance.id}`).emit("instance-connected", {
+                instanceId: instance.id,
+                phoneNumber: instance.phoneNumber,
+              });
+            }
+          } catch (error) {
+            console.error(`Error checking instance ${instance.instanceName}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error in status check interval:", error);
+    }
+  }, 5000);
 
   return httpServer;
 }
