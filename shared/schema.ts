@@ -49,6 +49,7 @@ export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances
 });
 
 export const updateWhatsappInstanceSchema = z.object({
+  instanceName: z.string().optional(),
   phoneNumber: z.string().optional(),
   status: z.enum(["created", "qr_generated", "connected", "disconnected", "error"]).optional(),
   qrCode: z.string().optional(),

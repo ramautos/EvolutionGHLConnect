@@ -24,6 +24,16 @@ interface InstanceStateResponse {
   };
 }
 
+interface InstanceInfoResponse {
+  instance: {
+    instanceName: string;
+    owner: string;
+    profileName?: string;
+    profilePicUrl?: string;
+    phoneNumber?: string;
+  };
+}
+
 export class EvolutionAPIService {
   private config: EvolutionAPIConfig | null = null;
 
@@ -86,6 +96,10 @@ export class EvolutionAPIService {
 
   async getInstanceState(instanceName: string): Promise<InstanceStateResponse> {
     return this.request<InstanceStateResponse>('GET', `/instance/connectionState/${instanceName}`);
+  }
+
+  async getInstanceInfo(instanceName: string): Promise<InstanceInfoResponse> {
+    return this.request<InstanceInfoResponse>('GET', `/instance/fetchInstances?instanceName=${instanceName}`);
   }
 
   async deleteInstance(instanceName: string): Promise<void> {

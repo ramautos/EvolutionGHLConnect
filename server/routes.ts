@@ -316,14 +316,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const stateData = await evolutionAPI.getInstanceState(instance.instanceName);
             
             if (stateData.instance.state === "open" && instance.status !== "connected") {
+              let phoneNumber = instance.phoneNumber;
+              
+              try {
+                const instanceInfo = await evolutionAPI.getInstanceInfo(instance.instanceName);
+                phoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+              } catch (infoError) {
+                console.error(`Could not fetch instance info for ${instance.instanceName}:`, infoError);
+              }
+              
               await storage.updateWhatsappInstance(instance.id, {
                 status: "connected",
+                phoneNumber,
                 connectedAt: new Date(),
               });
               
               io.to(`instance-${instance.id}`).emit("instance-connected", {
                 instanceId: instance.id,
-                phoneNumber: instance.phoneNumber,
+                phoneNumber,
               });
             }
           } catch (error) {
