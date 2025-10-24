@@ -213,7 +213,7 @@ export default function Dashboard() {
                   key={instance.id}
                   instanceName={instance.instanceName}
                   phoneNumber={instance.phoneNumber || undefined}
-                  status={instance.status as "connected" | "created" | "connecting" | "disconnected"}
+                  status={instance.status as "created" | "qr_generated" | "connected" | "disconnected" | "error"}
                   onGenerateQR={() => handleGenerateQR(instance.id)}
                   onDisconnect={() => handleDisconnect(instance.id)}
                   onDelete={() => handleDelete(instance.id)}

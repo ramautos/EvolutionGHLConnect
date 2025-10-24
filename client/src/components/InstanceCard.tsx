@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 interface InstanceCardProps {
   instanceName: string;
   phoneNumber?: string;
-  status: "created" | "connecting" | "connected" | "disconnected";
+  status: "created" | "qr_generated" | "connected" | "disconnected" | "error";
   onGenerateQR: () => void;
   onDisconnect: () => void;
   onDelete: () => void;
@@ -26,9 +26,10 @@ interface InstanceCardProps {
 
 const statusConfig = {
   created: { label: "Creado", color: "bg-muted text-muted-foreground" },
-  connecting: { label: "Conectando", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  qr_generated: { label: "QR Generado", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   connected: { label: "Conectado", color: "bg-green-500/10 text-green-600 dark:text-green-400" },
   disconnected: { label: "Desconectado", color: "bg-red-500/10 text-red-600 dark:text-red-400" },
+  error: { label: "Error", color: "bg-destructive/10 text-destructive" },
 };
 
 export default function InstanceCard({
