@@ -11,8 +11,10 @@ export interface IStorage {
   createSubaccount(subaccount: InsertSubaccount): Promise<Subaccount>;
   
   getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]>;
+  getAllUserInstances(userId: string): Promise<WhatsappInstance[]>;
   createWhatsappInstance(instance: InsertWhatsappInstance): Promise<WhatsappInstance>;
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
+  deleteWhatsappInstance(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -50,6 +52,18 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(whatsappInstances).where(eq(whatsappInstances.subaccountId, subaccountId));
   }
 
+  async getAllUserInstances(userId: string): Promise<WhatsappInstance[]> {
+    const userSubaccounts = await this.getSubaccounts(userId);
+    const subaccountIds = userSubaccounts.map(sub => sub.id);
+    
+    if (subaccountIds.length === 0) {
+      return [];
+    }
+    
+    const instances = await db.select().from(whatsappInstances);
+    return instances.filter(inst => inst.subaccountId && subaccountIds.includes(inst.subaccountId));
+  }
+
   async createWhatsappInstance(insertInstance: InsertWhatsappInstance): Promise<WhatsappInstance> {
     const [instance] = await db
       .insert(whatsappInstances)
@@ -65,6 +79,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(whatsappInstances.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  async deleteWhatsappInstance(id: string): Promise<boolean> {
+    const result = await db
+      .delete(whatsappInstances)
+      .where(eq(whatsappInstances.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

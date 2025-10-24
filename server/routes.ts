@@ -91,6 +91,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/instances/user/:userId", async (req, res) => {
+    try {
+      const instances = await storage.getAllUserInstances(req.params.userId);
+      res.json(instances);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get user instances" });
+    }
+  });
+
   app.patch("/api/instances/:id", async (req, res) => {
     try {
       const validatedData = updateWhatsappInstanceSchema.parse(req.body);
@@ -106,6 +115,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ error: "Failed to update instance" });
       }
+    }
+  });
+
+  app.delete("/api/instances/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteWhatsappInstance(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete instance" });
     }
   });
 

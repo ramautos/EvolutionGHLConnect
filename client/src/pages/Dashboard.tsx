@@ -1,47 +1,113 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useUser } from "@/contexts/UserContext";
 import DashboardStats from "@/components/DashboardStats";
 import InstanceCard from "@/components/InstanceCard";
 import QRModal from "@/components/QRModal";
 import { Button } from "@/components/ui/button";
 import { Plus, Sparkles, Settings } from "lucide-react";
-
-// todo: remove mock functionality
-const mockInstances = [
-  { id: "1", instanceName: "Agencia Principal", phoneNumber: "+1 (555) 123-4567", status: "connected" as const },
-  { id: "2", instanceName: "Ventas Departamento", phoneNumber: "+1 (555) 987-6543", status: "connected" as const },
-  { id: "3", instanceName: "Soporte Cliente", status: "created" as const },
-  { id: "4", instanceName: "Marketing Team", status: "connecting" as const },
-];
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { WhatsappInstance } from "@shared/schema";
 
 export default function Dashboard() {
-  const [instances, setInstances] = useState(mockInstances);
+  const { user, isLoading: userLoading } = useUser();
+  const { toast } = useToast();
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
   const [phoneDetected, setPhoneDetected] = useState<string>();
-  
+
+  const { data: instances = [], isLoading: instancesLoading, error } = useQuery<WhatsappInstance[]>({
+    queryKey: ["/api/instances/user", user?.id],
+    enabled: !!user?.id,
+  });
+
+  const updateInstanceMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<WhatsappInstance> }) => {
+      const res = await apiRequest("PATCH", `/api/instances/${id}`, updates);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+      toast({
+        title: "Instancia actualizada",
+        description: "Los cambios se han guardado correctamente",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteInstanceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/instances/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+      toast({
+        title: "Instancia eliminada",
+        description: "La instancia se ha eliminado correctamente",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleGenerateQR = (id: string) => {
     setSelectedInstance(id);
     setQrModalOpen(true);
     setPhoneDetected(undefined);
-    
-    // Simulate phone detection
+
     setTimeout(() => {
       setPhoneDetected("+1 (555) 999-8888");
     }, 3000);
   };
-  
-  const handleDisconnect = (id: string) => {
-    setInstances(prev =>
-      prev.map(inst =>
-        inst.id === id ? { ...inst, status: "disconnected" as const, phoneNumber: undefined } : inst
-      )
+
+  const handleDisconnect = async (id: string) => {
+    await updateInstanceMutation.mutateAsync({
+      id,
+      updates: { status: "disconnected", phoneNumber: null },
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteInstanceMutation.mutateAsync(id);
+  };
+
+  if (userLoading || instancesLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando dashboard...</p>
+        </div>
+      </div>
     );
-  };
-  
-  const handleDelete = (id: string) => {
-    setInstances(prev => prev.filter(inst => inst.id !== id));
-  };
-  
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Error al cargar las instancias</p>
+          <Button onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border bg-card/30 backdrop-blur-lg">
@@ -55,19 +121,21 @@ export default function Dashboard() {
                 WhatsApp AI
               </span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" data-testid="button-settings">
                 <Settings className="w-5 h-5" />
               </Button>
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-semibold text-primary">U</span>
+                <span className="text-sm font-semibold text-primary">
+                  {user?.name?.[0].toUpperCase() || "U"}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </nav>
-      
+
       <div className="container mx-auto px-6 lg:px-12 py-8">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -84,28 +152,40 @@ export default function Dashboard() {
               Nueva Instancia
             </Button>
           </div>
-          
+
           <DashboardStats />
         </div>
-        
+
         <div>
           <h2 className="text-xl font-semibold mb-4">Instancias de WhatsApp</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {instances.map((instance) => (
-              <InstanceCard
-                key={instance.id}
-                instanceName={instance.instanceName}
-                phoneNumber={instance.phoneNumber}
-                status={instance.status}
-                onGenerateQR={() => handleGenerateQR(instance.id)}
-                onDisconnect={() => handleDisconnect(instance.id)}
-                onDelete={() => handleDelete(instance.id)}
-              />
-            ))}
-          </div>
+          {instances.length === 0 ? (
+            <div className="text-center py-12" data-testid="empty-state">
+              <p className="text-muted-foreground mb-4">
+                No tienes instancias de WhatsApp configuradas
+              </p>
+              <Button className="gap-2">
+                <Plus className="w-5 h-5" />
+                Crear Primera Instancia
+              </Button>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {instances.map((instance) => (
+                <InstanceCard
+                  key={instance.id}
+                  instanceName={instance.instanceName}
+                  phoneNumber={instance.phoneNumber || undefined}
+                  status={instance.status as "connected" | "created" | "connecting" | "disconnected"}
+                  onGenerateQR={() => handleGenerateQR(instance.id)}
+                  onDisconnect={() => handleDisconnect(instance.id)}
+                  onDelete={() => handleDelete(instance.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-      
+
       <QRModal
         isOpen={qrModalOpen}
         onClose={() => setQrModalOpen(false)}
