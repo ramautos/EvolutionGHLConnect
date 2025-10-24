@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useUser } from "@/contexts/UserContext";
-import DashboardStats from "@/components/DashboardStats";
 import InstanceCard from "@/components/InstanceCard";
 import QRModal from "@/components/QRModal";
 import { Button } from "@/components/ui/button";
@@ -188,8 +187,6 @@ export default function Dashboard() {
               Nueva Instancia
             </Button>
           </div>
-
-          <DashboardStats />
         </div>
 
         <div>
