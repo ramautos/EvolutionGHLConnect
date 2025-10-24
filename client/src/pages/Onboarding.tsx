@@ -14,7 +14,7 @@ export default function Onboarding() {
   
   const handleComplete = () => {
     console.log("Onboarding completed!");
-    // Navigate to dashboard
+    window.location.href = "/dashboard";
   };
   
   return (

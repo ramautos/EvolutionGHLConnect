@@ -22,6 +22,7 @@ export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) 
   const createInstanceMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/instances", {
+        userId: user?.id,
         instanceName: `wa-${Date.now()}`,
         subaccountId: null,
         status: "created",

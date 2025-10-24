@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Sparkles, Play } from "lucide-react";
 import heroImage from '@assets/generated_images/AI_WhatsApp_dashboard_hero_5c133378.png';
+import { useLocation } from "wouter";
 
 export default function Hero() {
+  const [, setLocation] = useLocation();
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -33,6 +36,7 @@ export default function Hero() {
                 size="lg" 
                 className="text-base px-8"
                 data-testid="button-get-started"
+                onClick={() => setLocation("/onboarding")}
               >
                 Comenzar Ahora
               </Button>

@@ -5,8 +5,11 @@ import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Landing() {
+  const [, setLocation] = useLocation();
+
   return (
     <div className="min-h-screen">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -34,10 +37,10 @@ export default function Landing() {
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" data-testid="button-nav-login">
+              <Button variant="ghost" size="sm" data-testid="button-nav-login" onClick={() => setLocation("/dashboard")}>
                 Iniciar Sesión
               </Button>
-              <Button size="sm" data-testid="button-nav-signup">
+              <Button size="sm" data-testid="button-nav-signup" onClick={() => setLocation("/onboarding")}>
                 Comenzar Gratis
               </Button>
             </div>
@@ -65,7 +68,7 @@ export default function Landing() {
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Únete a más de 2,000 empresas que ya están usando nuestra plataforma
             </p>
-            <Button size="lg" className="px-8" data-testid="button-final-cta">
+            <Button size="lg" className="px-8" data-testid="button-final-cta" onClick={() => setLocation("/onboarding")}>
               Comenzar Ahora - Es Gratis
             </Button>
           </div>

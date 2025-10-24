@@ -11,6 +11,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 import { io, Socket } from "socket.io-client";
 
 interface QRModalProps {
@@ -20,6 +21,7 @@ interface QRModalProps {
 }
 
 export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
+  const { user } = useUser();
   const { toast } = useToast();
   const [qrCode, setQrCode] = useState<string>("");
   const [isScanning, setIsScanning] = useState(false);
@@ -61,7 +63,7 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
       if (data.instanceId === instanceId) {
         setPhoneDetected(data.phoneNumber);
         setIsScanning(false);
-        queryClient.invalidateQueries({ queryKey: ["/api/instances/user"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
         toast({
           title: "¡Conectado!",
           description: `WhatsApp conectado con el número ${data.phoneNumber}`,

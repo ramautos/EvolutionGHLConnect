@@ -21,6 +21,7 @@ export const subaccounts = pgTable("subaccounts", {
 
 export const whatsappInstances = pgTable("whatsapp_instances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
   subaccountId: varchar("subaccount_id").references(() => subaccounts.id),
   instanceName: text("instance_name").notNull(),
   phoneNumber: text("phone_number"),

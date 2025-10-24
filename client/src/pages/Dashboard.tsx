@@ -21,6 +21,30 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
+  const createInstanceMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/instances", {
+        userId: user?.id,
+        instanceName: `wa-${Date.now()}`,
+        subaccountId: null,
+        status: "created",
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+      setSelectedInstance(data.id);
+      setQrModalOpen(true);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo crear la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateInstanceMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<WhatsappInstance> }) => {
       const res = await apiRequest("PATCH", `/api/instances/${id}`, updates);
@@ -61,6 +85,10 @@ export default function Dashboard() {
       });
     },
   });
+
+  const handleCreateNewInstance = () => {
+    createInstanceMutation.mutate();
+  };
 
   const handleGenerateQR = (id: string) => {
     setSelectedInstance(id);
@@ -141,7 +169,12 @@ export default function Dashboard() {
                 Gestiona tus instancias de WhatsApp
               </p>
             </div>
-            <Button className="gap-2" data-testid="button-add-instance">
+            <Button 
+              className="gap-2" 
+              data-testid="button-add-instance"
+              onClick={handleCreateNewInstance}
+              disabled={createInstanceMutation.isPending}
+            >
               <Plus className="w-5 h-5" />
               Nueva Instancia
             </Button>
@@ -157,7 +190,12 @@ export default function Dashboard() {
               <p className="text-muted-foreground mb-4">
                 No tienes instancias de WhatsApp configuradas
               </p>
-              <Button className="gap-2">
+              <Button 
+                className="gap-2"
+                onClick={handleCreateNewInstance}
+                disabled={createInstanceMutation.isPending}
+                data-testid="button-create-first-instance"
+              >
                 <Plus className="w-5 h-5" />
                 Crear Primera Instancia
               </Button>

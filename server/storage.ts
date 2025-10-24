@@ -66,15 +66,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllUserInstances(userId: string): Promise<WhatsappInstance[]> {
-    const userSubaccounts = await this.getSubaccounts(userId);
-    const subaccountIds = userSubaccounts.map(sub => sub.id);
-    
-    if (subaccountIds.length === 0) {
-      return [];
-    }
-    
-    const instances = await db.select().from(whatsappInstances);
-    return instances.filter(inst => inst.subaccountId && subaccountIds.includes(inst.subaccountId));
+    const instances = await db.select().from(whatsappInstances).where(eq(whatsappInstances.userId, userId));
+    return instances;
   }
 
   async getAllInstances(): Promise<WhatsappInstance[]> {
