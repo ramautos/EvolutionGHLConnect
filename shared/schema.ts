@@ -47,9 +47,18 @@ export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances
   connectedAt: true,
 });
 
+export const updateWhatsappInstanceSchema = z.object({
+  phoneNumber: z.string().optional(),
+  status: z.enum(["created", "qr_generated", "connected", "disconnected", "error"]).optional(),
+  qrCode: z.string().optional(),
+  webhookUrl: z.string().url().optional(),
+  connectedAt: z.date().optional(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
 export type Subaccount = typeof subaccounts.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
 export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
+export type UpdateWhatsappInstance = z.infer<typeof updateWhatsappInstanceSchema>;

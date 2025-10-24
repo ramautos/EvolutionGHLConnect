@@ -1,5 +1,6 @@
-import { type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { users, subaccounts, whatsappInstances, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -14,82 +15,57 @@ export interface IStorage {
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private subaccounts: Map<string, Subaccount>;
-  private whatsappInstances: Map<string, WhatsappInstance>;
-
-  constructor() {
-    this.users = new Map();
-    this.subaccounts = new Map();
-    this.whatsappInstances = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id, createdAt: new Date() };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async getSubaccounts(userId: string): Promise<Subaccount[]> {
-    return Array.from(this.subaccounts.values()).filter(
-      (sub) => sub.userId === userId,
-    );
+    return await db.select().from(subaccounts).where(eq(subaccounts.userId, userId));
   }
 
   async createSubaccount(insertSubaccount: InsertSubaccount): Promise<Subaccount> {
-    const id = randomUUID();
-    const subaccount: Subaccount = { 
-      ...insertSubaccount, 
-      id, 
-      createdAt: new Date(),
-      selected: insertSubaccount.selected ?? false 
-    };
-    this.subaccounts.set(id, subaccount);
+    const [subaccount] = await db
+      .insert(subaccounts)
+      .values(insertSubaccount)
+      .returning();
     return subaccount;
   }
 
   async getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]> {
-    return Array.from(this.whatsappInstances.values()).filter(
-      (instance) => instance.subaccountId === subaccountId,
-    );
+    return await db.select().from(whatsappInstances).where(eq(whatsappInstances.subaccountId, subaccountId));
   }
 
   async createWhatsappInstance(insertInstance: InsertWhatsappInstance): Promise<WhatsappInstance> {
-    const id = randomUUID();
-    const instance: WhatsappInstance = { 
-      ...insertInstance, 
-      id, 
-      createdAt: new Date(),
-      connectedAt: null,
-      status: insertInstance.status ?? "created",
-      phoneNumber: insertInstance.phoneNumber ?? null,
-      qrCode: insertInstance.qrCode ?? null,
-      webhookUrl: insertInstance.webhookUrl ?? null
-    };
-    this.whatsappInstances.set(id, instance);
+    const [instance] = await db
+      .insert(whatsappInstances)
+      .values(insertInstance)
+      .returning();
     return instance;
   }
 
   async updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined> {
-    const instance = this.whatsappInstances.get(id);
-    if (!instance) return undefined;
-    
-    const updated = { ...instance, ...updates };
-    this.whatsappInstances.set(id, updated);
-    return updated;
+    const [updated] = await db
+      .update(whatsappInstances)
+      .set(updates)
+      .where(eq(whatsappInstances.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
