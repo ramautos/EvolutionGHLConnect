@@ -62,6 +62,10 @@ export default function LocationsDashboard() {
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<GhlLocation[]>({
     queryKey: ["/api/ghl/locations", companyId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/ghl/locations/${companyId}`);
+      return await res.json();
+    },
     enabled: !!companyId,
   });
 
@@ -88,12 +92,14 @@ export default function LocationsDashboard() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
-      setSelectedInstance(data.id);
-      setQrModalOpen(true);
-      toast({
-        title: "Instancia creada",
-        description: "Escanea el código QR para conectar WhatsApp",
-      });
+      if (data?.id) {
+        setSelectedInstance(data.id);
+        setQrModalOpen(true);
+        toast({
+          title: "Instancia creada",
+          description: "Escanea el código QR para conectar WhatsApp",
+        });
+      }
     },
     onError: () => {
       toast({
@@ -110,10 +116,10 @@ export default function LocationsDashboard() {
 
   const handleActivateWhatsApp = (locationId: string) => {
     const instance = getInstanceForLocation(locationId);
-    if (instance) {
+    if (instance && instance.id) {
       setSelectedInstance(instance.id);
       setQrModalOpen(true);
-    } else {
+    } else if (!createInstanceMutation.isPending) {
       createInstanceMutation.mutate(locationId);
     }
   };

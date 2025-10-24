@@ -7,6 +7,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import Landing from "@/pages/Landing";
 import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
+import LocationsDashboard from "@/pages/LocationsDashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/dashboard" component={DashboardGHL} />
+      <Route path="/locations" component={LocationsDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
