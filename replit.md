@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - React Context (`UserContext`) for global user authentication state
 - Local component state with useState for UI interactions
 
-**Routing**: Wouter for client-side routing with three main routes: Landing (`/`), Onboarding (`/onboarding`), and Dashboard (`/dashboard`)
+**Routing**: Wouter for client-side routing with four main routes: Landing (`/`), Onboarding (`/onboarding`), Dashboard (`/dashboard`), and Locations Dashboard (`/locations`)
 
 **Real-time Updates**: Socket.io client for WebSocket connections to receive live WhatsApp instance status updates
 
@@ -81,6 +81,20 @@ ghl_clientes (id, locationid, companyid, accesstoken, refreshtoken, expiresat, i
 5. **Per-Location Setup**: User clicks "Activate WhatsApp" on any location → Creates instance with `location_id` as identifier
 6. Generates WhatsApp QR code → User scans → Evolution API detects phone number
 7. Webhook fires with `location_id` embedded in instance name → Updates instance status to "connected"
+
+**Locations Dashboard Flow** (Primary User Interface):
+1. Master user accesses `/locations` page
+2. System retrieves `companyId` from localStorage (set during OAuth callback)
+3. Dashboard fetches all subcuentas via `/api/ghl/locations/:companyId` (from external PostgreSQL)
+4. Each subcuenta card displays:
+   - Name, city, state, contact info
+   - WhatsApp connection status (connected ✅ / pending ⏳ / not connected ❌)
+   - Phone number if connected
+   - "Conectar WhatsApp" or "Ver QR" button
+5. User clicks button → Creates WhatsApp instance with `wa-${locationId}` as Evolution API identifier
+6. QR Modal opens → User scans with WhatsApp → Socket.io broadcasts connection event
+7. Dashboard updates in real-time showing phone number and "Conectado" badge
+8. n8n backend can route messages by matching `locationId` from Evolution API instance name
 
 **Instance Management**:
 - Create instance → Evolution API generates QR → Socket emits QR to frontend
