@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProvider } from "@/contexts/UserContext";
 import Landing from "@/pages/Landing";
 import Onboarding from "@/pages/Onboarding";
-import Dashboard from "@/pages/Dashboard";
+import DashboardGHL from "@/pages/DashboardGHL";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,7 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/onboarding" component={Onboarding} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard" component={DashboardGHL} />
       <Route component={NotFound} />
     </Switch>
   );

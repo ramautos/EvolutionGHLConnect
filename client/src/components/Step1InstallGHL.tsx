@@ -3,6 +3,47 @@ import { Button } from "@/components/ui/button";
 import { Download, ExternalLink, CheckCircle2 } from "lucide-react";
 
 export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
+  const handleInstallClick = () => {
+    // Construir la URL de OAuth de GoHighLevel
+    const baseUrl = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
+    const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
+    const currentUrl = window.location.origin;
+    const redirectUri = `${currentUrl}/api/auth/ghl/callback`;
+    
+    const scopes = [
+      "contacts.readonly",
+      "contacts.write",
+      "conversations.readonly",
+      "conversations.write",
+      "conversations/message.readonly",
+      "conversations/message.write",
+      "locations.readonly",
+      "locations/customValues.readonly",
+      "locations/customValues.write",
+      "locations/customFields.readonly",
+      "locations/customFields.write",
+      "locations/tags.write",
+      "socialplanner/tag.readonly",
+      "locations/tasks.readonly",
+      "locations/tags.readonly",
+      "users.readonly",
+      "companies.readonly",
+      "locations/templates.readonly"
+    ].join(" ");
+
+    const params = new URLSearchParams({
+      response_type: "code",
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      scope: scopes,
+    });
+
+    const authUrl = `${baseUrl}?${params.toString()}`;
+    
+    // Redirigir a GoHighLevel OAuth
+    window.location.href = authUrl;
+  };
+
   return (
     <div className="max-w-2xl mx-auto" data-testid="step-1-install-ghl">
       <Card className="p-8 border-card-border">
@@ -47,7 +88,7 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
           <Button 
             size="lg" 
             className="w-full gap-2" 
-            onClick={onNext}
+            onClick={handleInstallClick}
             data-testid="button-install-ghl-app"
           >
             <ExternalLink className="w-5 h-5" />
