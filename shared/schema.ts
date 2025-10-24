@@ -24,6 +24,7 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
   userId: varchar("user_id").notNull().references(() => users.id),
   subaccountId: varchar("subaccount_id").references(() => subaccounts.id),
   instanceName: text("instance_name").notNull(),
+  evolutionInstanceName: text("evolution_instance_name").notNull(),
   phoneNumber: text("phone_number"),
   status: text("status").notNull().default("created"),
   qrCode: text("qr_code"),

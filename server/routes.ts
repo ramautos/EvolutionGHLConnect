@@ -163,12 +163,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        await evolutionAPI.createInstance(whatsappInstance.instanceName);
+        await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
       } catch (error) {
         console.log("Instance may already exist, continuing...");
       }
 
-      const qrData = await evolutionAPI.getQRCode(whatsappInstance.instanceName);
+      const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
       await storage.updateWhatsappInstance(req.params.id, {
         status: "qr_generated",
@@ -194,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
-        const stateData = await evolutionAPI.getInstanceState(whatsappInstance.instanceName);
+        const stateData = await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
         
         if (stateData.instance.state === "open") {
           await storage.updateWhatsappInstance(req.params.id, {
@@ -313,16 +313,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const instance of allInstances) {
         if (instance.status === "qr_generated" || instance.status === "connected") {
           try {
-            const stateData = await evolutionAPI.getInstanceState(instance.instanceName);
+            const stateData = await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
             
             if (stateData.instance.state === "open" && instance.status !== "connected") {
               let phoneNumber = instance.phoneNumber;
               
               try {
-                const instanceInfo = await evolutionAPI.getInstanceInfo(instance.instanceName);
+                const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
                 phoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
               } catch (infoError) {
-                console.error(`Could not fetch instance info for ${instance.instanceName}:`, infoError);
+                console.error(`Could not fetch instance info for ${instance.evolutionInstanceName}:`, infoError);
               }
               
               await storage.updateWhatsappInstance(instance.id, {
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           } catch (error) {
-            console.error(`Error checking instance ${instance.instanceName}:`, error);
+            console.error(`Error checking instance ${instance.evolutionInstanceName}:`, error);
           }
         }
       }

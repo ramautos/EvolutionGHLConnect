@@ -57,7 +57,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWhatsappInstanceByName(instanceName: string): Promise<WhatsappInstance | undefined> {
-    const [instance] = await db.select().from(whatsappInstances).where(eq(whatsappInstances.instanceName, instanceName));
+    const [instance] = await db.select().from(whatsappInstances).where(eq(whatsappInstances.evolutionInstanceName, instanceName));
     return instance || undefined;
   }
 
