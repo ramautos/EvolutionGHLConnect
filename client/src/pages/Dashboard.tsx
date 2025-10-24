@@ -106,6 +106,13 @@ export default function Dashboard() {
     await deleteInstanceMutation.mutateAsync(id);
   };
 
+  const handleUpdateName = async (id: string, newName: string) => {
+    await updateInstanceMutation.mutateAsync({
+      id,
+      updates: { instanceName: newName },
+    });
+  };
+
   if (userLoading || instancesLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -211,6 +218,7 @@ export default function Dashboard() {
                   onGenerateQR={() => handleGenerateQR(instance.id)}
                   onDisconnect={() => handleDisconnect(instance.id)}
                   onDelete={() => handleDelete(instance.id)}
+                  onUpdateName={(newName) => handleUpdateName(instance.id, newName)}
                 />
               ))}
             </div>

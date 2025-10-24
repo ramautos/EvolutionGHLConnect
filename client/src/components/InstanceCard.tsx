@@ -1,7 +1,18 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Smartphone, QrCode, Power, Trash2 } from "lucide-react";
+import { Smartphone, QrCode, Power, Trash2, Edit2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface InstanceCardProps {
   instanceName: string;
@@ -10,6 +21,7 @@ interface InstanceCardProps {
   onGenerateQR: () => void;
   onDisconnect: () => void;
   onDelete: () => void;
+  onUpdateName: (newName: string) => void;
 }
 
 const statusConfig = {
@@ -26,10 +38,21 @@ export default function InstanceCard({
   onGenerateQR,
   onDisconnect,
   onDelete,
+  onUpdateName,
 }: InstanceCardProps) {
   const statusStyle = statusConfig[status];
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [newName, setNewName] = useState(instanceName);
+
+  const handleSaveName = () => {
+    if (newName.trim()) {
+      onUpdateName(newName.trim());
+      setIsEditDialogOpen(false);
+    }
+  };
   
   return (
+    <>
     <Card className="p-6 border-card-border hover-elevate" data-testid="instance-card">
       <div className="space-y-4">
         <div className="flex items-start justify-between">
@@ -37,8 +60,19 @@ export default function InstanceCard({
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Smartphone className="w-6 h-6 text-primary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-lg" data-testid="instance-name">{instanceName}</h3>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg" data-testid="instance-name">{instanceName}</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-7 h-7"
+                  onClick={() => setIsEditDialogOpen(true)}
+                  data-testid="button-edit-name"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
               {phoneNumber ? (
                 <div className="text-sm text-muted-foreground" data-testid="instance-phone">
                   {phoneNumber}
@@ -100,5 +134,50 @@ export default function InstanceCard({
         </div>
       </div>
     </Card>
+
+    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <DialogContent data-testid="edit-name-dialog">
+        <DialogHeader>
+          <DialogTitle>Editar nombre de instancia</DialogTitle>
+          <DialogDescription>
+            Personaliza el nombre de tu instancia de WhatsApp
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="instance-name">Nombre de la instancia</Label>
+            <Input
+              id="instance-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Ej: WhatsApp Ventas"
+              data-testid="input-instance-name"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSaveName();
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setIsEditDialogOpen(false)}
+            data-testid="button-cancel-edit"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveName}
+            disabled={!newName.trim()}
+            data-testid="button-save-name"
+          >
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
