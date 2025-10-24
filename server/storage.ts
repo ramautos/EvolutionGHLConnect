@@ -11,8 +11,10 @@ export interface IStorage {
   createSubaccount(subaccount: InsertSubaccount): Promise<Subaccount>;
   
   getWhatsappInstance(id: string): Promise<WhatsappInstance | undefined>;
+  getWhatsappInstanceByName(instanceName: string): Promise<WhatsappInstance | undefined>;
   getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]>;
   getAllUserInstances(userId: string): Promise<WhatsappInstance[]>;
+  getAllInstances(): Promise<WhatsappInstance[]>;
   createWhatsappInstance(instance: InsertWhatsappInstance): Promise<WhatsappInstance>;
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
   deleteWhatsappInstance(id: string): Promise<boolean>;
@@ -54,15 +56,16 @@ export class DatabaseStorage implements IStorage {
     return instance || undefined;
   }
 
+  async getWhatsappInstanceByName(instanceName: string): Promise<WhatsappInstance | undefined> {
+    const [instance] = await db.select().from(whatsappInstances).where(eq(whatsappInstances.instanceName, instanceName));
+    return instance || undefined;
+  }
+
   async getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]> {
     return await db.select().from(whatsappInstances).where(eq(whatsappInstances.subaccountId, subaccountId));
   }
 
   async getAllUserInstances(userId: string): Promise<WhatsappInstance[]> {
-    if (userId === "all") {
-      return await db.select().from(whatsappInstances);
-    }
-    
     const userSubaccounts = await this.getSubaccounts(userId);
     const subaccountIds = userSubaccounts.map(sub => sub.id);
     
@@ -72,6 +75,10 @@ export class DatabaseStorage implements IStorage {
     
     const instances = await db.select().from(whatsappInstances);
     return instances.filter(inst => inst.subaccountId && subaccountIds.includes(inst.subaccountId));
+  }
+
+  async getAllInstances(): Promise<WhatsappInstance[]> {
+    return await db.select().from(whatsappInstances);
   }
 
   async createWhatsappInstance(insertInstance: InsertWhatsappInstance): Promise<WhatsappInstance> {

@@ -7,6 +7,27 @@ import { insertUserSchema, insertSubaccountSchema, insertWhatsappInstanceSchema,
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
+
+  io.on("connection", (socket: any) => {
+    console.log("Client connected:", socket.id);
+
+    socket.on("subscribe-instance", (instanceId: string) => {
+      socket.join(`instance-${instanceId}`);
+      console.log(`Client subscribed to instance ${instanceId}`);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
+    });
+  });
+
   app.post("/api/users", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
@@ -201,15 +222,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhooks/evolution", async (req, res) => {
     try {
       const event = req.body;
+      console.log("Evolution API webhook received:", JSON.stringify(event, null, 2));
+      
+      if (!event || typeof event.event !== "string" || typeof event.instance !== "string") {
+        console.error("Invalid webhook payload: missing required fields");
+        res.status(400).json({ error: "Invalid payload" });
+        return;
+      }
       
       if (event.event === "connection.update") {
         const instanceName = event.instance;
         const state = event.data?.state;
 
-        const allInstances = await storage.getAllUserInstances("all");
-        const instance = allInstances.find(i => i.instanceName === instanceName);
+        if (!state || typeof state !== "string") {
+          console.error(`Invalid state in webhook for instance ${instanceName}`);
+          res.status(400).json({ error: "Invalid state data" });
+          return;
+        }
+
+        const instance = await storage.getWhatsappInstanceByName(instanceName);
 
         if (instance) {
+          console.log(`Processing connection update for instance ${instance.id} (${instanceName}): state=${state}`);
+          
           if (state === "open") {
             const phoneNumber = event.data?.phoneNumber || null;
             
@@ -219,9 +254,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               connectedAt: new Date(),
             });
 
+            console.log(`Instance ${instance.id} connected with phone ${phoneNumber}`);
+
+            io.to(`instance-${instance.id}`).emit("instance-connected", {
+              instanceId: instance.id,
+              phoneNumber,
+            });
+
             if (instance.webhookUrl) {
+              console.log(`Sending connection data to webhook: ${instance.webhookUrl}`);
               try {
-                await fetch(instance.webhookUrl, {
+                const webhookResponse = await fetch(instance.webhookUrl, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -232,15 +275,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     connectedAt: new Date(),
                   }),
                 });
+                
+                if (!webhookResponse.ok) {
+                  const errorText = await webhookResponse.text();
+                  console.error(`Webhook delivery failed for instance ${instance.id}: ${webhookResponse.status} ${webhookResponse.statusText} - ${errorText}`);
+                } else {
+                  console.log(`Webhook delivered successfully for instance ${instance.id}: ${webhookResponse.status} ${webhookResponse.statusText}`);
+                }
               } catch (error) {
-                console.error("Error calling webhook:", error);
+                console.error(`Error calling webhook for instance ${instance.id}:`, error);
               }
             }
           } else if (state === "close") {
             await storage.updateWhatsappInstance(instance.id, {
               status: "disconnected",
             });
+            console.log(`Instance ${instance.id} disconnected`);
           }
+        } else {
+          console.error(`Instance not found for name: ${instanceName}`);
+          res.status(404).json({ error: "Instance not found" });
+          return;
         }
       }
 
@@ -251,30 +306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  const io = new SocketIOServer(httpServer, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-    },
-  });
-
-  io.on("connection", (socket: any) => {
-    console.log("Client connected:", socket.id);
-
-    socket.on("subscribe-instance", (instanceId: string) => {
-      socket.join(`instance-${instanceId}`);
-      console.log(`Client subscribed to instance ${instanceId}`);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
-    });
-  });
-
   setInterval(async () => {
     try {
-      const allInstances = await storage.getAllUserInstances("all");
+      const allInstances = await storage.getAllInstances();
       
       for (const instance of allInstances) {
         if (instance.status === "qr_generated" || instance.status === "connected") {
