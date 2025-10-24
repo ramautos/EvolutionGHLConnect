@@ -39,15 +39,22 @@ Preferred communication style: Simple, everyday language.
 - WhatsApp instance lifecycle (`/api/instances/*`)
 
 **Database Layer**: 
-- PostgreSQL as primary database (via Neon serverless)
+- **Dual Database Architecture**:
+  - **Replit PostgreSQL** (via Neon): User accounts, WhatsApp instances (`DATABASE_URL`)
+  - **External GHL PostgreSQL** (147.93.180.187:5432): OAuth tokens and company data (`GHL_DB_*` secrets)
 - Drizzle ORM for type-safe database queries and migrations
-- Three core tables: `users`, `subaccounts`, `whatsappInstances`
+- **Replit DB Tables**: `users`, `subaccounts`, `whatsappInstances`
+- **External GHL DB Tables**: `ghl_clientes` (OAuth tokens, refresh tokens, expiry timestamps)
 
 **Schema Design**:
 ```
+# Replit Database
 users (id, email, name, createdAt)
 subaccounts (id, userId, ghlId, name, selected, createdAt)
-whatsappInstances (id, userId [NOT NULL], subaccountId, instanceName, phoneNumber, status, qrCode, webhookUrl, createdAt, connectedAt)
+whatsappInstances (id, userId [NOT NULL], subaccountId, locationId, instanceName, evolutionInstanceName, phoneNumber, status, qrCode, webhookUrl, createdAt, connectedAt)
+
+# External GHL Database  
+ghl_clientes (id, locationid, companyid, accesstoken, refreshtoken, expiresat, installedat)
 ```
 
 **Critical Bug Fixes** (October 2025):
@@ -68,10 +75,12 @@ whatsappInstances (id, userId [NOT NULL], subaccountId, instanceName, phoneNumbe
 
 **Onboarding Flow**:
 1. User creates account or uses existing demo account
-2. Connects GoHighLevel OAuth (simulated in current implementation)
-3. Selects subaccounts to manage
-4. Generates WhatsApp QR code → Scans → Auto-detects phone number
-5. Webhook fires to send connection data to configured endpoint
+2. **Clicks "Install GoHighLevel App"** → Redirected to GHL OAuth consent screen
+3. **OAuth Callback** → Receives authorization code → Exchanges for access/refresh tokens → Stores in external GHL database
+4. User redirected to dashboard showing all GHL locations
+5. **Per-Location Setup**: User clicks "Activate WhatsApp" on any location → Creates instance with `location_id` as identifier
+6. Generates WhatsApp QR code → User scans → Evolution API detects phone number
+7. Webhook fires with `location_id` embedded in instance name → Updates instance status to "connected"
 
 **Instance Management**:
 - Create instance → Evolution API generates QR → Socket emits QR to frontend
@@ -85,7 +94,9 @@ whatsappInstances (id, userId [NOT NULL], subaccountId, instanceName, phoneNumbe
 
 **Current Implementation**: Demo mode with localStorage-based user identification. System creates or retrieves demo user (`demo@whatsappai.com`) on first visit.
 
-**Intended Architecture** (based on attached docs): JWT-based authentication with Google OAuth 2.0 for GoHighLevel integration, role-based access control (Super Admin, Agency, User, Reseller), and impersonation capabilities.
+**GoHighLevel OAuth Integration**: Fully implemented OAuth 2.0 flow with external PostgreSQL database for token persistence. Users authenticate via GoHighLevel OAuth consent screen, tokens are stored server-side only (never exposed to client), automatic refresh before expiry ensures uninterrupted access.
+
+**Future Enhancement Roadmap**: JWT-based authentication for platform users, role-based access control (Super Admin, Agency, User, Reseller), impersonation capabilities for agency management.
 
 ### Design System Decisions
 
@@ -116,7 +127,14 @@ whatsappInstances (id, userId [NOT NULL], subaccountId, instanceName, phoneNumbe
 - Fetch instance state
 - Logout/disconnect instance
 
-**GoHighLevel (Planned)**: CRM integration for OAuth authentication and subaccount management. Current implementation uses simulated data structures.
+**GoHighLevel**: **Fully Integrated** CRM platform with OAuth 2.0 authentication flow. Key capabilities:
+- OAuth 2.0 authorization code flow with PKCE
+- Automatic token refresh (30-day expiry cycle)
+- Fetch all locations/subaccounts per company
+- Location-based instance management (one WhatsApp instance per GHL location)
+- Configured via `GHL_CLIENT_ID`, `GHL_CLIENT_SECRET` (OAuth credentials)
+- External database connection for token persistence: `GHL_DB_HOST`, `GHL_DB_NAME`, `GHL_DB_USER`, `GHL_DB_PASSWORD`, `GHL_DB_PORT`
+- **Security**: Access tokens NEVER exposed to frontend, all OAuth operations server-side only
 
 ### Database Services
 
@@ -154,16 +172,23 @@ whatsappInstances (id, userId [NOT NULL], subaccountId, instanceName, phoneNumbe
 
 ### Environment Configuration
 
-Required variables:
-- `DATABASE_URL`: Neon PostgreSQL connection string
+**Required Variables**:
+- `DATABASE_URL`: Neon PostgreSQL connection string (Replit user data)
 - `EVOLUTION_API_URL`: Evolution API base URL
 - `EVOLUTION_API_KEY`: Evolution API authentication key
+- `GHL_CLIENT_ID`: GoHighLevel OAuth client ID
+- `GHL_CLIENT_SECRET`: GoHighLevel OAuth client secret
+- `GHL_DB_HOST`: External PostgreSQL host for GHL tokens (147.93.180.187)
+- `GHL_DB_PORT`: External PostgreSQL port (5432)
+- `GHL_DB_NAME`: External database name
+- `GHL_DB_USER`: External database username
+- `GHL_DB_PASSWORD`: External database password
 - `NODE_ENV`: Development/production mode switch
 
-Optional/Future:
-- GoHighLevel OAuth credentials
+**Optional/Future**:
 - Webhook configuration URLs
-- JWT secrets for authentication
+- JWT secrets for platform authentication
+- `SESSION_SECRET`: Express session encryption key
 
 ## Production Readiness
 
@@ -173,29 +198,35 @@ The application is fully functional and production-ready once Evolution API cred
 
 **Completed Features**:
 - ✅ Full user authentication flow (demo mode)
-- ✅ Complete onboarding wizard (3 steps)
-- ✅ WhatsApp instance management (create, connect, disconnect, delete)
+- ✅ **GoHighLevel OAuth 2.0 integration** with real API connection
+- ✅ **Dual database architecture** (Replit DB + External GHL DB)
+- ✅ **Location-based WhatsApp instance management** (one instance per GHL location)
+- ✅ Complete onboarding wizard with OAuth flow
+- ✅ **Dashboard showing all GHL locations** with per-location QR generation
 - ✅ Real-time QR code generation and status updates via WebSocket
-- ✅ Evolution API integration with graceful error handling
-- ✅ Webhook system for connection events
+- ✅ Evolution API integration with `location_id` as instance identifier
+- ✅ Webhook system for connection events (includes `location_id` in instance name)
+- ✅ **Automatic token refresh** for GHL OAuth tokens
 - ✅ PostgreSQL persistence with proper foreign key relationships
 - ✅ React Query cache management with proper invalidation
 - ✅ Responsive design with light/dark mode support
-- ✅ End-to-end tested flows
+- ✅ **Server-side only OAuth token handling** (security best practice)
 
 **Production Deployment Steps**:
-1. Set `EVOLUTION_API_URL` environment variable to your Evolution API server
-2. Set `EVOLUTION_API_KEY` environment variable to your API key
-3. Configure Evolution API server to send webhooks to `/api/webhooks/evolution` endpoint
-4. Update webhook URLs in Evolution API instances as needed
-5. (Optional) Implement proper JWT authentication to replace demo mode
-6. (Optional) Connect real GoHighLevel OAuth flow
+1. Configure **GoHighLevel OAuth App** in GHL marketplace/developer portal
+2. Set all **GHL environment variables** (`GHL_CLIENT_ID`, `GHL_CLIENT_SECRET`, `GHL_DB_*`)
+3. Set `EVOLUTION_API_URL` and `EVOLUTION_API_KEY` for WhatsApp API
+4. Configure Evolution API to send webhooks to `/api/webhooks/evolution`
+5. Verify external PostgreSQL database connection (GHL tokens database)
+6. Test OAuth flow end-to-end (install → callback → location fetch)
+7. (Optional) Implement proper JWT authentication for platform users
 
-**Known Limitations**:
-- Currently using demo user mode (auto-creates `demo@whatsappai.com`)
-- GoHighLevel integration is simulated (uses mock subaccounts)
-- Instance names are auto-generated as `wa-${timestamp}` (can be customized post-creation)
-- WebSocket fallback polling every 5 seconds (can be adjusted)
+**Current Architecture**:
+- Demo user mode for platform login (`demo@whatsappai.com`)
+- **Production GoHighLevel OAuth** with real credentials and external token storage
+- Instance names: `wa-${locationId}` for Evolution API tracking
+- Location-based setup: Each GHL location can have ONE WhatsApp instance
+- WebSocket for real-time updates, fallback polling every 5 seconds
 
 **System Behavior Without Evolution API Credentials**:
 - Landing page and navigation work normally
