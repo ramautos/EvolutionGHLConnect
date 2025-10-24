@@ -121,8 +121,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cuentaPrincipal: installerDetails.company.name || null,
       });
 
-      // Redirigir al dashboard con éxito
-      res.redirect(`/dashboard?ghl_installed=true&location_id=${tokenResponse.locationId || ''}`);
+      // Redirigir al dashboard con éxito, incluyendo companyId
+      const companyId = tokenResponse.companyId || installerDetails.company.id;
+      res.redirect(`/dashboard?ghl_installed=true&company_id=${companyId}`);
     } catch (error) {
       console.error("Error in GHL OAuth callback:", error);
       res.status(500).json({ error: "OAuth callback failed" });

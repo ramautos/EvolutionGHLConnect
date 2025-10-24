@@ -37,20 +37,29 @@ export default function DashboardGHL() {
   // Detectar si viene del OAuth callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
     if (params.get('ghl_installed') === 'true') {
+      const companyIdFromCallback = params.get('company_id');
+      
+      if (companyIdFromCallback) {
+        // Guardar companyId del OAuth en localStorage
+        localStorage.setItem('ghl_company_id', companyIdFromCallback);
+        setCompanyId(companyIdFromCallback);
+      }
+      
       toast({
         title: "¡Conexión exitosa!",
         description: "Tu cuenta de GoHighLevel está conectada.",
       });
+      
       // Limpiar URL
       window.history.replaceState({}, '', '/dashboard');
+    } else {
+      // Cargar companyId guardado de localStorage
+      const savedCompanyId = localStorage.getItem('ghl_company_id');
+      setCompanyId(savedCompanyId);
     }
-    
-    // Por ahora, usar un companyId hardcoded o del localStorage
-    // En producción, esto debería venir del token de autenticación
-    const savedCompanyId = localStorage.getItem('ghl_company_id') || 'wW07eetYJ3JmgceImT5i';
-    setCompanyId(savedCompanyId);
-  }, []);
+  }, [toast]);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<GhlLocation[]>({
     queryKey: ["/api/ghl/locations", companyId],
