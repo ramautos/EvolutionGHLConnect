@@ -70,6 +70,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check server configuration
+  app.get("/api/debug/server-info", (req, res) => {
+    res.json({
+      protocol: req.protocol,
+      host: req.get('host'),
+      forwardedProto: req.get('x-forwarded-proto'),
+      forwardedHost: req.get('x-forwarded-host'),
+      expectedRedirectUri: `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}/api/auth/oauth/callback`,
+      env: {
+        hasClientId: !!process.env.GHL_CLIENT_ID,
+        hasClientSecret: !!process.env.GHL_CLIENT_SECRET,
+        clientIdPreview: process.env.GHL_CLIENT_ID ? `${process.env.GHL_CLIENT_ID.substring(0, 15)}...` : 'missing'
+      }
+    });
+  });
+
   // GoHighLevel OAuth Callback (renamed to avoid GHL detection in URL)
   app.get("/api/auth/oauth/callback", async (req, res) => {
     try {
@@ -89,14 +105,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Intercambiar código por token
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/oauth/callback`;
-      console.log("🔵 Attempting token exchange with redirect_uri:", redirectUri);
+      // IMPORTANTE: En producción, siempre usar HTTPS
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      const redirectUri = `${protocol}://${host}/api/auth/oauth/callback`;
+      
+      console.log("🔵 Attempting token exchange:", {
+        protocol,
+        host,
+        redirectUri,
+        headers: {
+          'x-forwarded-proto': req.get('x-forwarded-proto'),
+          'x-forwarded-host': req.get('x-forwarded-host')
+        }
+      });
       
       const tokenResponse = await ghlApi.exchangeCodeForToken(code, redirectUri);
 
       if (!tokenResponse) {
         console.error("❌ Failed to exchange code for token");
-        res.status(500).json({ error: "Failed to exchange code for token" });
+        res.status(500).json({ 
+          error: "Failed to exchange code for token",
+          debug: {
+            redirectUri,
+            protocol,
+            host
+          }
+        });
         return;
       }
 
