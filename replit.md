@@ -204,11 +204,14 @@ ghl_clientes (id, locationid, companyid, accesstoken, refreshtoken, expiresat, i
 - JWT secrets for platform authentication
 - `SESSION_SECRET`: Express session encryption key
 
-## Production Readiness
+## Production Deployment
 
-### Status: Ready for Production
+### Status: ✅ DEPLOYED IN PRODUCTION
 
-The application is fully functional and production-ready once Evolution API credentials are configured:
+**Production URL:** `https://whatsapp.cloude.es`
+**OAuth Callback URL:** `https://whatsapp.cloude.es/api/auth/oauth/callback`
+
+The application is fully deployed and operational:
 
 **Completed Features**:
 - ✅ Full user authentication flow (demo mode)
@@ -226,14 +229,14 @@ The application is fully functional and production-ready once Evolution API cred
 - ✅ Responsive design with light/dark mode support
 - ✅ **Server-side only OAuth token handling** (security best practice)
 
-**Production Deployment Steps**:
-1. Configure **GoHighLevel OAuth App** in GHL marketplace/developer portal
-2. Set all **GHL environment variables** (`GHL_CLIENT_ID`, `GHL_CLIENT_SECRET`, `GHL_DB_*`)
-3. Set `EVOLUTION_API_URL` and `EVOLUTION_API_KEY` for WhatsApp API
-4. Configure Evolution API to send webhooks to `/api/webhooks/evolution`
-5. Verify external PostgreSQL database connection (GHL tokens database)
-6. Test OAuth flow end-to-end (install → callback → location fetch)
-7. (Optional) Implement proper JWT authentication for platform users
+**Deployment Configuration**:
+1. ✅ **Domain:** `whatsapp.cloude.es` configured via Cloudflare DNS
+2. ✅ **OAuth Endpoint:** `/api/auth/oauth/callback` (renamed from `/api/auth/ghl/callback` to avoid GoHighLevel URL restrictions)
+3. ✅ **All secrets configured** in Replit deployment (DATABASE_URL, GHL_CLIENT_ID, GHL_CLIENT_SECRET, GHL_DB_*, EVOLUTION_API_*)
+4. ✅ **Autoscale deployment** with single port configuration (5000 → 80)
+5. ✅ **NODE_ENV=production** set for deployment environment
+6. ✅ **External PostgreSQL connection** verified for GHL token storage
+7. ✅ **Build process** optimized (Vite + esbuild)
 
 **Current Architecture**:
 - Demo user mode for platform login (`demo@whatsappai.com`)
