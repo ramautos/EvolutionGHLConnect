@@ -84,11 +84,17 @@ export class GhlApiService {
       });
 
       if (!response.ok) {
-        const error = await response.text();
+        const errorText = await response.text();
+        let errorJson;
+        try {
+          errorJson = JSON.parse(errorText);
+        } catch {
+          errorJson = errorText;
+        }
         console.error("❌ GHL API Error:", {
           status: response.status,
           statusText: response.statusText,
-          error
+          error: errorJson
         });
         return null;
       }

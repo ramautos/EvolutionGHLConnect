@@ -124,14 +124,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tokenResponse) {
         console.error("❌ Failed to exchange code for token");
-        res.status(500).json({ 
-          error: "Failed to exchange code for token",
-          debug: {
-            redirectUri,
-            protocol,
-            host
-          }
-        });
+        // Mostrar el error real en la respuesta para debugging
+        res.status(500).send(`
+          <html>
+            <head><title>OAuth Error</title></head>
+            <body style="font-family: monospace; padding: 20px;">
+              <h2>❌ Error en OAuth de GoHighLevel</h2>
+              <p><strong>Mensaje:</strong> No se pudo intercambiar el código por el token</p>
+              <h3>Información de Debug:</h3>
+              <pre>redirect_uri usado: ${redirectUri}
+protocol: ${protocol}
+host: ${host}
+              
+Client ID configurado: ${process.env.GHL_CLIENT_ID ? process.env.GHL_CLIENT_ID.substring(0, 20) + '...' : 'NO CONFIGURADO'}
+Client Secret configurado: ${process.env.GHL_CLIENT_SECRET ? 'SÍ' : 'NO'}
+              
+Revisa los logs del servidor para ver el error exacto de la API de GoHighLevel.
+              </pre>
+              <p><a href="/">← Volver al inicio</a></p>
+            </body>
+          </html>
+        `);
         return;
       }
 
