@@ -70,8 +70,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GoHighLevel OAuth Callback
-  app.get("/api/auth/ghl/callback", async (req, res) => {
+  // GoHighLevel OAuth Callback (renamed to avoid GHL detection in URL)
+  app.get("/api/auth/oauth/callback", async (req, res) => {
     try {
       const { code } = req.query;
 
@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Intercambiar código por token
-      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/ghl/callback`;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/oauth/callback`;
       const tokenResponse = await ghlApi.exchangeCodeForToken(code, redirectUri);
 
       if (!tokenResponse) {

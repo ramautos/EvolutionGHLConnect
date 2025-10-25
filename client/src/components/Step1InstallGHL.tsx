@@ -8,7 +8,7 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
     const baseUrl = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
     const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
     const currentUrl = window.location.origin;
-    const redirectUri = `${currentUrl}/api/auth/ghl/callback`;
+    const redirectUri = `${currentUrl}/api/auth/oauth/callback`;
     
     const scopes = [
       "contacts.readonly",
