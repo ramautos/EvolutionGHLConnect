@@ -124,6 +124,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!tokenResponse) {
         console.error("❌ Failed to exchange code for token");
+        
+        // Intentar hacer la llamada manualmente para capturar el error exacto
+        let ghlErrorDetails = "No se pudo obtener detalles del error";
+        try {
+          const debugResponse = await fetch(`https://services.leadconnectorhq.com/oauth/token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              grant_type: "authorization_code",
+              client_id: process.env.GHL_CLIENT_ID,
+              client_secret: process.env.GHL_CLIENT_SECRET,
+              code,
+              redirect_uri: redirectUri,
+            }),
+          });
+          const errorText = await debugResponse.text();
+          ghlErrorDetails = `Status: ${debugResponse.status}\n${errorText}`;
+        } catch (e: any) {
+          ghlErrorDetails = e.message;
+        }
+        
         // Mostrar el error real en la respuesta para debugging
         res.status(500).send(`
           <html>
@@ -138,8 +159,9 @@ host: ${host}
               
 Client ID configurado: ${process.env.GHL_CLIENT_ID ? process.env.GHL_CLIENT_ID.substring(0, 20) + '...' : 'NO CONFIGURADO'}
 Client Secret configurado: ${process.env.GHL_CLIENT_SECRET ? 'SÍ' : 'NO'}
-              
-Revisa los logs del servidor para ver el error exacto de la API de GoHighLevel.
+
+<strong>Error de GoHighLevel API:</strong>
+${ghlErrorDetails}
               </pre>
               <p><a href="/">← Volver al inicio</a></p>
             </body>
