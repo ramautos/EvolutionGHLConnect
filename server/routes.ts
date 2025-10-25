@@ -75,19 +75,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { code } = req.query;
 
+      console.log("🔵 OAuth Callback received:", {
+        code: code ? `${String(code).substring(0, 10)}...` : "missing",
+        protocol: req.protocol,
+        host: req.get('host'),
+        fullUrl: `${req.protocol}://${req.get('host')}${req.path}`
+      });
+
       if (!code || typeof code !== "string") {
+        console.error("❌ Missing authorization code");
         res.status(400).json({ error: "Missing authorization code" });
         return;
       }
 
       // Intercambiar código por token
       const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/oauth/callback`;
+      console.log("🔵 Attempting token exchange with redirect_uri:", redirectUri);
+      
       const tokenResponse = await ghlApi.exchangeCodeForToken(code, redirectUri);
 
       if (!tokenResponse) {
+        console.error("❌ Failed to exchange code for token");
         res.status(500).json({ error: "Failed to exchange code for token" });
         return;
       }
+
+      console.log("✅ Token exchange successful");
 
       // Obtener detalles del instalador
       const installerDetails = await ghlApi.getInstallerDetails(tokenResponse.access_token);

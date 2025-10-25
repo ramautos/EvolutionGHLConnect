@@ -61,6 +61,14 @@ export class GhlApiService {
 
   async exchangeCodeForToken(code: string, redirectUri: string): Promise<GhlOAuthTokenResponse | null> {
     try {
+      console.log("🔵 GHL API - Exchange Code for Token:", {
+        url: `${GHL_BASE_URL}/oauth/token`,
+        client_id: this.clientId ? `${this.clientId.substring(0, 10)}...` : "missing",
+        client_secret: this.clientSecret ? "configured" : "missing",
+        redirect_uri: redirectUri,
+        code: code ? `${code.substring(0, 10)}...` : "missing"
+      });
+
       const response = await fetch(`${GHL_BASE_URL}/oauth/token`, {
         method: "POST",
         headers: {
@@ -77,13 +85,26 @@ export class GhlApiService {
 
       if (!response.ok) {
         const error = await response.text();
-        console.error("Error exchanging code for token:", error);
+        console.error("❌ GHL API Error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error
+        });
         return null;
       }
 
-      return await response.json();
+      const tokenData = await response.json();
+      console.log("✅ GHL API - Token received:", {
+        hasAccessToken: !!tokenData.access_token,
+        hasRefreshToken: !!tokenData.refresh_token,
+        expiresIn: tokenData.expires_in,
+        companyId: tokenData.companyId,
+        locationId: tokenData.locationId
+      });
+
+      return tokenData;
     } catch (error) {
-      console.error("Error in exchangeCodeForToken:", error);
+      console.error("❌ Error in exchangeCodeForToken:", error);
       return null;
     }
   }
