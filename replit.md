@@ -211,6 +211,10 @@ ghl_clientes (id, locationid, companyid, accesstoken, refreshtoken, expiresat, i
 **Production URL:** `https://whatsapp.cloude.es`
 **OAuth Callback URL:** `https://whatsapp.cloude.es/api/auth/oauth/callback`
 
+**GoHighLevel App Credentials:**
+- Client ID: `68a94abebdd32d0a7010600e-mgpykfcm`
+- Client Secret: `5ea04303-187e-4dea-a390-6ed7ce165993`
+
 The application is fully deployed and operational:
 
 **Completed Features**:
