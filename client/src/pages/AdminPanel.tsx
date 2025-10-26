@@ -348,9 +348,6 @@ export default function AdminPanel() {
                   <div><span className="font-medium">Estado:</span> {getStatusBadge(selectedInstance.instance.status)}</div>
                   <p><span className="font-medium">Creado:</span> {new Date(selectedInstance.instance.createdAt).toLocaleString("es-ES")}</p>
                   <p><span className="font-medium">Actualizado:</span> {new Date(selectedInstance.instance.updatedAt).toLocaleString("es-ES")}</p>
-                  {selectedInstance.instance.connectedAt && (
-                    <p><span className="font-medium">Conectado:</span> {new Date(selectedInstance.instance.connectedAt).toLocaleString("es-ES")}</p>
-                  )}
                 </div>
               </div>
             </div>
