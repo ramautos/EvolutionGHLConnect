@@ -557,16 +557,22 @@ ${ghlErrorDetails}
         return;
       }
 
+      // Obtener access token del company desde GHL database
+      const clientes = await ghlStorage.getClientesByCompanyId(companyId);
+      if (!clientes || clientes.length === 0 || !clientes[0].accesstoken) {
+        res.status(404).json({ error: "No access token found for this company" });
+        return;
+      }
+
       // Obtener información de la location desde GHL
-      const locations = await ghlApi.getLocations(companyId);
-      const location = locations.find((l: any) => l.id === locationId);
+      const location = await ghlApi.getLocation(locationId, clientes[0].accesstoken);
 
       if (!location) {
         res.status(404).json({ error: "Location not found in GoHighLevel" });
         return;
       }
 
-      // Crear subcuenta
+      // Crear subcuenta (solo con campos que existen en el schema)
       const subaccount = await storage.createSubaccount({
         userId,
         locationId: location.id,
@@ -576,10 +582,7 @@ ${ghlErrorDetails}
         phone: location.phone,
         city: location.city,
         state: location.state,
-        country: location.country,
         address: location.address,
-        website: location.website,
-        timezone: location.timezone,
       });
 
       res.json(subaccount);
