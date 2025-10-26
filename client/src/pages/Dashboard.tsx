@@ -1,234 +1,263 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/contexts/UserContext";
-import InstanceCard from "@/components/InstanceCard";
-import QRModal from "@/components/QRModal";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AddSubaccountModal from "@/components/AddSubaccountModal";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles, Settings } from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { WhatsappInstance } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
+import type { Subaccount, WhatsappInstance } from "@shared/schema";
 
 export default function Dashboard() {
-  const { user, isLoading: userLoading } = useUser();
-  const { toast } = useToast();
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [selectedInstance, setSelectedInstance] = useState<string>("");
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
+  );
+}
 
-  const { data: instances = [], isLoading: instancesLoading, error } = useQuery<WhatsappInstance[]>({
+function DashboardContent() {
+  const { user, logout } = useUser();
+  const { toast } = useToast();
+  const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
+
+  // Obtener subcuentas del usuario
+  const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
+    queryKey: ["/api/subaccounts/user", user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Obtener todas las instancias del usuario
+  const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/instances/user", user?.id],
     enabled: !!user?.id,
   });
 
-  const createInstanceMutation = useMutation({
-    mutationFn: async () => {
-      const evolutionName = `wa-${Date.now()}`;
-      const res = await apiRequest("POST", "/api/instances", {
-        userId: user?.id,
-        instanceName: evolutionName,
-        evolutionInstanceName: evolutionName,
-        subaccountId: null,
-        status: "created",
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
       });
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
-      setSelectedInstance(data.id);
-      setQrModalOpen(true);
-    },
-    onError: () => {
+    } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo crear la instancia",
+        description: "Hubo un error al cerrar sesión",
         variant: "destructive",
       });
-    },
-  });
-
-  const updateInstanceMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<WhatsappInstance> }) => {
-      const res = await apiRequest("PATCH", `/api/instances/${id}`, updates);
-      return await res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
-      toast({
-        title: "Instancia actualizada",
-        description: "Los cambios se han guardado correctamente",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la instancia",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteInstanceMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/instances/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
-      toast({
-        title: "Instancia eliminada",
-        description: "La instancia se ha eliminado correctamente",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la instancia",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreateNewInstance = () => {
-    createInstanceMutation.mutate();
+    }
   };
 
-  const handleGenerateQR = (id: string) => {
-    setSelectedInstance(id);
-    setQrModalOpen(true);
+  const handleAddSubaccount = () => {
+    setAddSubaccountOpen(true);
   };
 
-  const handleDisconnect = async (id: string) => {
-    await updateInstanceMutation.mutateAsync({
-      id,
-      updates: { status: "disconnected", phoneNumber: null },
-    });
+  const handleSubaccountSuccess = () => {
+    // Recargar subcuentas
+    queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
   };
 
-  const handleDelete = async (id: string) => {
-    await deleteInstanceMutation.mutateAsync(id);
+  const getInstancesForSubaccount = (subaccountId: string) => {
+    return instances.filter(inst => inst.subaccountId === subaccountId);
   };
 
-  const handleUpdateName = async (id: string, newName: string) => {
-    await updateInstanceMutation.mutateAsync({
-      id,
-      updates: { instanceName: newName },
-    });
+  const getConnectionStatus = (subaccountId: string) => {
+    const subaccountInstances = getInstancesForSubaccount(subaccountId);
+    if (subaccountInstances.length === 0) return { label: "Sin WhatsApp", variant: "secondary" as const };
+    
+    const connectedCount = subaccountInstances.filter(inst => inst.status === "connected").length;
+    if (connectedCount === 0) return { label: "Desconectado", variant: "destructive" as const };
+    if (connectedCount === subaccountInstances.length) return { label: `${connectedCount} conectado${connectedCount > 1 ? 's' : ''}`, variant: "default" as const };
+    return { label: `${connectedCount}/${subaccountInstances.length} conectados`, variant: "secondary" as const };
   };
-
-  if (userLoading || instancesLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-destructive mb-4">Error al cargar las instancias</p>
-          <Button onClick={() => window.location.reload()}>
-            Reintentar
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card/30 backdrop-blur-lg">
-        <div className="container mx-auto px-6 lg:px-12">
-          <div className="h-20 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-chart-2 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold" style={{ fontFamily: 'var(--font-accent)' }}>
-                WhatsApp AI
-              </span>
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
+              <MessageSquare className="w-5 h-5 text-primary-foreground" />
             </div>
-
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" data-testid="button-settings">
-                <Settings className="w-5 h-5" />
-              </Button>
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-semibold text-primary">
-                  {user?.name?.[0].toUpperCase() || "U"}
-                </span>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold">WhatsApp AI Platform</h1>
+              <p className="text-xs text-muted-foreground">Dashboard</p>
             </div>
           </div>
-        </div>
-      </nav>
 
-      <div className="container mx-auto px-6 lg:px-12 py-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-accent)' }}>
-                Dashboard
-              </h1>
-              <p className="text-muted-foreground">
-                Gestiona tus instancias de WhatsApp
-              </p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <User className="w-4 h-4" />
+              <span className="font-medium">{user?.name}</span>
             </div>
-            <Button 
-              className="gap-2" 
-              data-testid="button-add-instance"
-              onClick={handleCreateNewInstance}
-              disabled={createInstanceMutation.isPending}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              data-testid="button-logout"
             >
-              <Plus className="w-5 h-5" />
-              Nueva Instancia
+              <LogOut className="w-4 h-4 mr-2" />
+              Cerrar Sesión
             </Button>
           </div>
         </div>
+      </header>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Instancias de WhatsApp</h2>
-          {instances.length === 0 ? (
-            <div className="text-center py-12" data-testid="empty-state">
-              <p className="text-muted-foreground mb-4">
-                No tienes instancias de WhatsApp configuradas
+      {/* Main Content */}
+      <main className="container py-8">
+        <div className="space-y-8">
+          {/* Page Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Mis Subcuentas</h2>
+              <p className="text-muted-foreground">
+                Gestiona tus ubicaciones de GoHighLevel y sus conexiones de WhatsApp
               </p>
-              <Button 
-                className="gap-2"
-                onClick={handleCreateNewInstance}
-                disabled={createInstanceMutation.isPending}
-                data-testid="button-create-first-instance"
-              >
-                <Plus className="w-5 h-5" />
-                Crear Primera Instancia
-              </Button>
             </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {instances.map((instance) => (
-                <InstanceCard
-                  key={instance.id}
-                  instanceName={instance.instanceName}
-                  phoneNumber={instance.phoneNumber || undefined}
-                  status={instance.status as "created" | "qr_generated" | "connected" | "disconnected" | "error"}
-                  onGenerateQR={() => handleGenerateQR(instance.id)}
-                  onDisconnect={() => handleDisconnect(instance.id)}
-                  onDelete={() => handleDelete(instance.id)}
-                  onUpdateName={(newName) => handleUpdateName(instance.id, newName)}
-                />
+            <Button
+              onClick={handleAddSubaccount}
+              data-testid="button-add-subaccount"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Subcuenta
+            </Button>
+          </div>
+
+          {/* Loading State */}
+          {(subaccountsLoading || instancesLoading) && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader>
+                    <div className="h-6 bg-muted rounded w-2/3" />
+                    <div className="h-4 bg-muted rounded w-1/2 mt-2" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-4 bg-muted rounded w-full" />
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
-        </div>
-      </div>
 
-      <QRModal
-        isOpen={qrModalOpen}
-        onClose={() => setQrModalOpen(false)}
-        instanceId={selectedInstance}
+          {/* Empty State */}
+          {!subaccountsLoading && !instancesLoading && subaccounts.length === 0 && (
+            <Card className="text-center py-12">
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <Building2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </div>
+                <CardTitle>No tienes subcuentas</CardTitle>
+                <CardDescription className="max-w-md mx-auto">
+                  Comienza agregando tu primera ubicación de GoHighLevel para conectar WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardFooter className="justify-center">
+                <Button onClick={handleAddSubaccount} data-testid="button-add-first-subaccount">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Primera Subcuenta
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {/* Subaccounts Grid */}
+          {!subaccountsLoading && !instancesLoading && subaccounts.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {subaccounts.map((subaccount) => {
+                const status = getConnectionStatus(subaccount.id);
+                const subaccountInstances = getInstancesForSubaccount(subaccount.id);
+
+                return (
+                  <Card key={subaccount.id} data-testid={`card-subaccount-${subaccount.id}`} className="hover-elevate">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-5 h-5 text-muted-foreground" />
+                          <CardTitle className="text-lg">{subaccount.name}</CardTitle>
+                        </div>
+                        <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                      <CardDescription className="line-clamp-2">
+                        Location ID: {subaccount.locationId}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3">
+                      {subaccount.city && subaccount.state && (
+                        <div className="text-sm text-muted-foreground">
+                          📍 {subaccount.city}, {subaccount.state}
+                        </div>
+                      )}
+
+                      {subaccountInstances.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Instancias WhatsApp:</p>
+                          <div className="space-y-1">
+                            {subaccountInstances.map((instance) => (
+                              <div
+                                key={instance.id}
+                                className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/50"
+                                data-testid={`instance-${instance.id}`}
+                              >
+                                <span className="font-medium truncate">
+                                  {instance.customName || instance.evolutionInstanceName}
+                                </span>
+                                <Badge
+                                  variant={instance.status === "connected" ? "default" : "secondary"}
+                                  className="ml-2"
+                                >
+                                  {instance.status === "connected" ? "●" : "○"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+
+                    <CardFooter className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        data-testid={`button-manage-${subaccount.id}`}
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Gestionar
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1"
+                        data-testid={`button-whatsapp-${subaccount.id}`}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        WhatsApp
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Add Subaccount Modal */}
+      <AddSubaccountModal
+        open={addSubaccountOpen}
+        onClose={() => setAddSubaccountOpen(false)}
+        onSuccess={handleSubaccountSuccess}
       />
     </div>
   );

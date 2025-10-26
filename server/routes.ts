@@ -494,6 +494,57 @@ ${ghlErrorDetails}
     }
   });
 
+  // Crear subcuenta desde GoHighLevel OAuth
+  app.post("/api/subaccounts/from-ghl", isAuthenticated, async (req, res) => {
+    try {
+      const { userId, companyId, locationId } = req.body;
+
+      if (!userId || !companyId || !locationId) {
+        res.status(400).json({ error: "Missing required fields: userId, companyId, locationId" });
+        return;
+      }
+
+      // Verificar si la subcuenta ya existe
+      const existingSubaccounts = await storage.getSubaccounts(userId);
+      const existing = existingSubaccounts.find(s => s.locationId === locationId);
+      
+      if (existing) {
+        res.json(existing);
+        return;
+      }
+
+      // Obtener información de la location desde GHL
+      const locations = await ghlApi.getLocations(companyId);
+      const location = locations.find((l: any) => l.id === locationId);
+
+      if (!location) {
+        res.status(404).json({ error: "Location not found in GoHighLevel" });
+        return;
+      }
+
+      // Crear subcuenta
+      const subaccount = await storage.createSubaccount({
+        userId,
+        locationId: location.id,
+        companyId,
+        name: location.name,
+        email: location.email,
+        phone: location.phone,
+        city: location.city,
+        state: location.state,
+        country: location.country,
+        address: location.address,
+        website: location.website,
+        timezone: location.timezone,
+      });
+
+      res.json(subaccount);
+    } catch (error: any) {
+      console.error("Error creating subaccount from GHL:", error);
+      res.status(500).json({ error: error.message || "Failed to create subaccount from GHL" });
+    }
+  });
+
   // ============================================
   // RUTAS DE INSTANCIAS WHATSAPP (Protegidas)
   // ============================================
