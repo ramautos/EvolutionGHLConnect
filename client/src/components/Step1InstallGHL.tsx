@@ -5,10 +5,12 @@ import { Download, ExternalLink, CheckCircle2 } from "lucide-react";
 export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
   const handleInstallClick = () => {
     // Construir la URL de OAuth de GoHighLevel
+    // PLAN B: Usar n8n como intermediario OAuth
     const baseUrl = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
     const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
-    const currentUrl = window.location.origin;
-    const redirectUri = `${currentUrl}/api/auth/oauth/callback`;
+    
+    // n8n webhook que manejará el OAuth y redirigirá de vuelta a nuestra app
+    const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
     
     const scopes = [
       "contacts.readonly",
@@ -40,7 +42,7 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
 
     const authUrl = `${baseUrl}?${params.toString()}`;
     
-    // Redirigir a GoHighLevel OAuth
+    // Redirigir a GoHighLevel OAuth (que luego redirigirá a n8n)
     window.location.href = authUrl;
   };
 

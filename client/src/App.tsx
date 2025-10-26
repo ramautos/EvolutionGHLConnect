@@ -8,6 +8,7 @@ import Landing from "@/pages/Landing";
 import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
 import LocationsDashboard from "@/pages/LocationsDashboard";
+import AuthSuccess from "@/pages/AuthSuccess";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/dashboard" component={DashboardGHL} />
       <Route path="/locations" component={LocationsDashboard} />
+      <Route path="/auth/success" component={AuthSuccess} />
       <Route component={NotFound} />
     </Switch>
   );
