@@ -43,7 +43,7 @@ export default function Features() {
             Características Potentes
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Todo lo que necesitas para automatizar WhatsApp con GoHighLevel de manera profesional
+            Todo lo que necesitas para tener multiples WhatsApp con GoHighLevel de manera profesional
           </p>
         </div>
         
