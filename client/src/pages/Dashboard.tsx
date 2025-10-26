@@ -21,7 +21,7 @@ export default function Dashboard() {
 }
 
 function DashboardContent() {
-  const { user, logout } = useUser();
+  const { user } = useUser();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
@@ -40,11 +40,21 @@ function DashboardContent() {
 
   const handleLogout = async () => {
     try {
-      await logout();
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión exitosamente",
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
       });
+
+      if (response.ok) {
+        toast({
+          title: "Sesión cerrada",
+          description: "Has cerrado sesión exitosamente",
+        });
+        // Redirect a login
+        window.location.href = "/login";
+      } else {
+        throw new Error("Error al cerrar sesión");
+      }
     } catch (error) {
       toast({
         title: "Error",
