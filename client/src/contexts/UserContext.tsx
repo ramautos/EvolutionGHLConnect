@@ -1,59 +1,75 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { createContext, useContext, ReactNode } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
 interface UserContextType {
   user: User | null;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [userId, setUserId] = useState<string | null>(() => 
-    localStorage.getItem("userId")
-  );
-
+export function UserProvider({ children }: { children: ReactNode }) {
+  // Obtener usuario actual desde sesión
   const { data: user, isLoading } = useQuery<User>({
-    queryKey: ["/api/users", userId],
-    enabled: !!userId,
+    queryKey: ["/api/auth/me"],
+    retry: false,
+    staleTime: Infinity,
   });
 
-  useEffect(() => {
-    async function initUser() {
-      if (!userId) {
-        const demoEmail = "demo@whatsappai.com";
-        
-        try {
-          const res = await fetch(`/api/users/email/${demoEmail}`);
-          if (res.ok) {
-            const existingUser = await res.json() as User;
-            localStorage.setItem("userId", existingUser.id);
-            setUserId(existingUser.id);
-          } else {
-            throw new Error("User not found");
-          }
-        } catch {
-          const res = await fetch("/api/users", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: demoEmail,
-              name: "Demo User",
-            }),
-          });
-          const newUser = await res.json() as User;
-          localStorage.setItem("userId", newUser.id);
-          setUserId(newUser.id);
-        }
-      }
-    }
-    
-    initUser();
-  }, [userId]);
+  // Mutation para login
+  const loginMutation = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const response = await apiRequest("POST", "/api/auth/login", { email, password });
+      const data = await response.json();
+      return data.user as User;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+
+  // Mutation para registro
+  const registerMutation = useMutation({
+    mutationFn: async ({ email, password, name }: { email: string; password: string; name: string }) => {
+      const response = await apiRequest("POST", "/api/auth/register", { email, password, name });
+      const data = await response.json();
+      return data.user as User;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
+
+  // Mutation para logout
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/auth/logout");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.clear();
+    },
+  });
+
+  const login = async (email: string, password: string) => {
+    await loginMutation.mutateAsync({ email, password });
+  };
+
+  const register = async (email: string, password: string, name: string) => {
+    await registerMutation.mutateAsync({ email, password, name });
+  };
+
+  const logout = async () => {
+    await logoutMutation.mutateAsync();
+  };
 
   return (
-    <UserContext.Provider value={{ user: user || null, isLoading }}>
+    <UserContext.Provider value={{ user: user || null, isLoading, login, register, logout }}>
       {children}
     </UserContext.Provider>
   );
