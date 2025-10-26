@@ -9,7 +9,7 @@ const features = [
   },
   {
     icon: Webhook,
-    title: "Webhooks Personalizados",
+    title: "webhook ultra seguro",
     description: "Envía automáticamente los datos de conexión a tu endpoint personalizado para procesamiento instantáneo.",
   },
   {
