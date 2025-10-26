@@ -51,14 +51,13 @@ export default function Login() {
         title: "¡Bienvenido!",
         description: "Has iniciado sesión exitosamente",
       });
-      setLocation("/dashboard");
+      // No hacer redirect manual - el useEffect lo hará cuando user esté disponible
     } catch (error: any) {
       toast({
         title: "Error de autenticación",
         description: error.message || "Email o contraseña incorrectos",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
