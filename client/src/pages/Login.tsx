@@ -40,7 +40,8 @@ export default function Login() {
         throw new Error(data.message || data.error || "Error al iniciar sesión");
       }
 
-      // Login exitoso - redirect inmediato
+      // Login exitoso - redirect inmediato a dashboard (v2.0)
+      console.log("Login exitoso, redirigiendo...");
       window.location.href = "/dashboard";
       
     } catch (error: any) {
