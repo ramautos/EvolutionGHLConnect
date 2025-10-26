@@ -477,6 +477,40 @@ ${ghlErrorDetails}
     }
   });
 
+  // Eliminar instancia de WhatsApp (solo admin)
+  app.delete("/api/admin/instances/:id", isAdmin, async (req, res) => {
+    try {
+      const instanceId = req.params.id;
+      
+      // Obtener la instancia
+      const instance = await storage.getWhatsappInstance(instanceId);
+      if (!instance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+
+      // Intentar eliminar de Evolution API (si existe)
+      try {
+        await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+      } catch (error) {
+        console.error(`Error deleting instance from Evolution API:`, error);
+        // Continuar aunque falle la eliminación de Evolution API
+      }
+
+      // Eliminar de la base de datos
+      const deleted = await storage.deleteWhatsappInstance(instanceId);
+      
+      if (deleted) {
+        res.json({ success: true, message: "Instance deleted successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to delete instance from database" });
+      }
+    } catch (error) {
+      console.error("Error deleting instance:", error);
+      res.status(500).json({ error: "Failed to delete instance" });
+    }
+  });
+
   // ============================================
   // RUTAS DE SUBCUENTAS (Protegidas)
   // ============================================

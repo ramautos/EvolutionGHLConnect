@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Phone, User, Building2, Activity } from "lucide-react";
+import { Loader2, Phone, User, Building2, Activity, Trash2, Eye } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,6 +14,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface InstanceWithDetails {
   instance: {
@@ -46,11 +66,56 @@ interface InstanceWithDetails {
 export default function AdminPanel() {
   const { user } = useUser();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [selectedInstance, setSelectedInstance] = useState<InstanceWithDetails | null>(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [instanceToDelete, setInstanceToDelete] = useState<InstanceWithDetails | null>(null);
 
   const { data: instances, isLoading } = useQuery<InstanceWithDetails[]>({
     queryKey: ["/api/admin/instances"],
     enabled: user?.role === "admin",
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (instanceId: string) => {
+      return await apiRequest(`/api/admin/instances/${instanceId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/instances"] });
+      toast({
+        title: "Instancia eliminada",
+        description: "La instancia de WhatsApp se eliminó correctamente",
+      });
+      setShowDeleteDialog(false);
+      setInstanceToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al eliminar",
+        description: error.message || "No se pudo eliminar la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleViewDetails = (instance: InstanceWithDetails) => {
+    setSelectedInstance(instance);
+    setShowDetailsDialog(true);
+  };
+
+  const handleDeleteClick = (instance: InstanceWithDetails) => {
+    setInstanceToDelete(instance);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (instanceToDelete) {
+      deleteMutation.mutate(instanceToDelete.instance.id);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -219,9 +284,20 @@ export default function AdminPanel() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleViewDetails(item)}
                               data-testid={`button-view-${item.instance.id}`}
                             >
+                              <Eye className="h-4 w-4 mr-2" />
                               Ver Detalles
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteClick(item)}
+                              data-testid={`button-delete-${item.instance.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
                             </Button>
                           </div>
                         </TableCell>
@@ -234,6 +310,88 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Detalles de la Instancia</DialogTitle>
+            <DialogDescription>
+              Información completa de la instancia de WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInstance && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Información de Usuario</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Nombre:</span> {selectedInstance.user?.name || "N/A"}</p>
+                    <p><span className="font-medium">Email:</span> {selectedInstance.user?.email || "N/A"}</p>
+                    <p><span className="font-medium">Rol:</span> {selectedInstance.user?.role || "N/A"}</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Información de Subcuenta</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Nombre:</span> {selectedInstance.subaccount?.name || "N/A"}</p>
+                    <p><span className="font-medium">Location ID:</span> {selectedInstance.subaccount?.locationId || "N/A"}</p>
+                    <p><span className="font-medium">Company ID:</span> {selectedInstance.subaccount?.companyId || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Información de Instancia</h3>
+                <div className="space-y-1 text-sm">
+                  <p><span className="font-medium">ID:</span> {selectedInstance.instance.id}</p>
+                  <p><span className="font-medium">Nombre Evolution:</span> {selectedInstance.instance.evolutionInstanceName}</p>
+                  <p><span className="font-medium">Nombre Personalizado:</span> {selectedInstance.instance.customName || "N/A"}</p>
+                  <p><span className="font-medium">Número:</span> {selectedInstance.instance.phoneNumber || "No conectado"}</p>
+                  <p><span className="font-medium">Estado:</span> {getStatusBadge(selectedInstance.instance.status)}</p>
+                  <p><span className="font-medium">Creado:</span> {new Date(selectedInstance.instance.createdAt).toLocaleString("es-ES")}</p>
+                  <p><span className="font-medium">Actualizado:</span> {new Date(selectedInstance.instance.updatedAt).toLocaleString("es-ES")}</p>
+                  {selectedInstance.instance.connectedAt && (
+                    <p><span className="font-medium">Conectado:</span> {new Date(selectedInstance.instance.connectedAt).toLocaleString("es-ES")}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la instancia{" "}
+              <span className="font-semibold">
+                {instanceToDelete?.instance.customName || instanceToDelete?.instance.evolutionInstanceName}
+              </span>{" "}
+              y todos sus datos asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
