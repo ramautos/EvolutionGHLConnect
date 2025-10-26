@@ -51,7 +51,8 @@ export default function Login() {
         title: "¡Bienvenido!",
         description: "Has iniciado sesión exitosamente",
       });
-      // No hacer redirect manual - el useEffect lo hará cuando user esté disponible
+      // Redirect inmediato - login ya actualizó el usuario
+      window.location.href = "/dashboard";
     } catch (error: any) {
       toast({
         title: "Error de autenticación",
