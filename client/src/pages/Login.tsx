@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useUser } from "@/contexts/UserContext";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,28 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageSquare, Chrome } from "lucide-react";
 
 export default function Login() {
-  const [, setLocation] = useLocation();
-  const { login, user, isLoading: isCheckingAuth } = useUser();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // Redirigir si ya está autenticado (post-render)
-  useEffect(() => {
-    if (user) {
-      setLocation("/dashboard");
-    }
-  }, [user, setLocation]);
-
-  // Mostrar loading mientras verifica autenticación
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,15 +25,34 @@ export default function Login() {
     }
 
     setIsLoading(true);
+    
     try {
-      await login(email, password);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al iniciar sesión");
+      }
+
+      // Login exitoso
       toast({
         title: "¡Bienvenido!",
-        description: "Has iniciado sesión exitosamente",
+        description: "Redirigiendo al dashboard...",
       });
-      // Redirect inmediato - login ya actualizó el usuario
-      window.location.href = "/dashboard";
+
+      // Redirect inmediato con reload completo
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 500);
+      
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Error de autenticación",
         description: error.message || "Email o contraseña incorrectos",

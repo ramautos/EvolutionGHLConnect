@@ -1,6 +1,4 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useUser } from "@/contexts/UserContext";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,35 +7,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, MessageSquare, Chrome } from "lucide-react";
 
 export default function Register() {
-  const [, setLocation] = useLocation();
-  const { register, user, isLoading: isCheckingAuth } = useUser();
   const { toast } = useToast();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // Redirigir si ya está autenticado (post-render)
-  useEffect(() => {
-    if (user) {
-      setLocation("/dashboard");
-    }
-  }, [user, setLocation]);
-
-  // Mostrar loading mientras verifica autenticación
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password || !confirmPassword) {
+    if (!email || !password || !name) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos",
@@ -46,44 +25,54 @@ export default function Register() {
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (password.length < 8) {
       toast({
-        title: "Contraseñas no coinciden",
-        description: "Por favor verifica que las contraseñas sean iguales",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Contraseña muy corta",
-        description: "La contraseña debe tener al menos 6 caracteres",
+        title: "Contraseña débil",
+        description: "La contraseña debe tener al menos 8 caracteres",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
+    
     try {
-      await register(email, password, name);
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al registrar usuario");
+      }
+
+      // Registro exitoso
       toast({
         title: "¡Cuenta creada!",
-        description: "Tu cuenta ha sido creada exitosamente",
+        description: "Redirigiendo al dashboard...",
       });
-      setLocation("/dashboard");
+
+      // Redirect inmediato con reload completo
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 500);
+      
     } catch (error: any) {
+      console.error("Register error:", error);
       toast({
-        title: "Error al registrar",
-        description: error.message || "Hubo un error al crear tu cuenta",
+        title: "Error en el registro",
+        description: error.message || "No se pudo crear la cuenta",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleRegister = () => {
+  const handleGoogleLogin = () => {
     window.location.href = "/api/auth/google";
   };
 
@@ -99,7 +88,7 @@ export default function Register() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Crear Cuenta</h1>
           <p className="mt-2 text-muted-foreground">
-            Únete a WhatsApp AI Platform en minutos
+            Regístrate en WhatsApp AI Platform
           </p>
         </div>
 
@@ -108,7 +97,7 @@ export default function Register() {
           <CardHeader>
             <CardTitle>Completa tus datos</CardTitle>
             <CardDescription>
-              Crea tu cuenta para empezar a automatizar WhatsApp
+              Crea tu cuenta para empezar
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -148,30 +137,12 @@ export default function Register() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Mínimo 8 caracteres"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
                   data-testid="input-password"
-                  className="h-12"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Mínimo 6 caracteres
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  data-testid="input-confirm-password"
                   className="h-12"
                 />
               </div>
@@ -207,7 +178,7 @@ export default function Register() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={handleGoogleRegister}
+                onClick={handleGoogleLogin}
                 disabled={isLoading}
                 data-testid="button-google-register"
               >
@@ -222,7 +193,7 @@ export default function Register() {
                   className="font-medium text-primary hover:underline"
                   data-testid="link-login"
                 >
-                  Inicia sesión
+                  Inicia sesión aquí
                 </a>
               </p>
             </CardFooter>
@@ -231,7 +202,7 @@ export default function Register() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground">
-          Al registrarte, aceptas nuestros{" "}
+          Al continuar, aceptas nuestros{" "}
           <a href="#" className="underline hover:text-foreground">
             Términos de Servicio
           </a>{" "}
