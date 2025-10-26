@@ -79,9 +79,7 @@ export default function AdminPanel() {
 
   const deleteMutation = useMutation({
     mutationFn: async (instanceId: string) => {
-      return await apiRequest(`/api/admin/instances/${instanceId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/admin/instances/${instanceId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/instances"] });
