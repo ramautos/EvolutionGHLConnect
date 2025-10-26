@@ -64,7 +64,7 @@ export default function AddSubaccountModal({ open, onClose, onSuccess }: AddSuba
     // URL del OAuth de GoHighLevel
     // Esta URL apunta al instalador de la app de GHL que redirige a n8n
     const ghlInstallerUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://ray.cloude.es/webhook/registrocuenta&client_id=${
-      import.meta.env.VITE_GHL_CLIENT_ID || process.env.GHL_CLIENT_ID
+      import.meta.env.VITE_GHL_CLIENT_ID || ""
     }&scope=locations.readonly contacts.readonly`;
 
     // Abrir popup centrado
