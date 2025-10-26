@@ -28,7 +28,7 @@ export default function Hero() {
             
             <p className="text-xl text-muted-foreground max-w-2xl">
               Conecta y automatiza WhatsApp con tu CRM GoHighLevel en 3 simples pasos. 
-              Genera códigos QR, gestiona múltiples instancias y envía todo a tu webhook personalizado.
+              Genera códigos QR, gestiona múltiples instancias de manera autonoma y facil.
             </p>
             
             <div className="flex flex-wrap gap-4">
