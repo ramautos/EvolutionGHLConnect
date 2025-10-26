@@ -1,0 +1,121 @@
+[
+  {
+    "location": {
+      "id": "jtEqGdhkoR6iePmZaCmd",
+      "companyId": "wW07eetYJ3JmgceImT5i",
+      "name": "Ram Mega Autos",
+      "address": "Frente a la plaza de la salud, Avenida José Ortega y Gasset 27 Esq",
+      "city": "Santo Domingo",
+      "state": "Distrito Nacional",
+      "country": "DO",
+      "locale": "es_DO",
+      "postalCode": "10514",
+      "website": "http://www.ramautos.do/",
+      "timezone": "America/Santo_Domingo",
+      "firstName": "Ray ",
+      "lastName": "Alvarado",
+      "email": "RAY@RAMAUTOS.DO",
+      "phone": "+18092878059",
+      "logoUrl": "https://msgsndr-private.storage.googleapis.com/locationPhotos/e5cb5a35-bc47-487b-bac8-ec4074fd6ea1.png",
+      "automaticMobileAppInvite": false,
+      "business": {
+        "name": "Ram Mega Autos",
+        "address": "Frente a la plaza de la salud, Avenida José Ortega y Gasset 27 Esq",
+        "city": "Santo Domingo",
+        "state": "Distrito Nacional",
+        "country": "DO",
+        "postalCode": "10514",
+        "website": "http://www.ramautos.do/",
+        "timezone": "America/Santo_Domingo",
+        "logoUrl": "https://msgsndr-private.storage.googleapis.com/locationPhotos/e5cb5a35-bc47-487b-bac8-ec4074fd6ea1.png",
+        "email": "RAY@RAMAUTOS.DO"
+      },
+      "social": {
+        "facebookUrl": "",
+        "googlePlus": "",
+        "linkedIn": "",
+        "foursquare": "",
+        "twitter": "",
+        "yelp": "",
+        "instagram": "",
+        "youtube": "",
+        "pinterest": "",
+        "blogRss": "",
+        "googlePlacesId": "ChIJcRVas7mJr44RCQ352C_Dlvo"
+      },
+      "settings": {
+        "allowDuplicateContact": false,
+        "allowDuplicateOpportunity": true,
+        "allowFacebookNameMerge": false,
+        "disableContactTimezone": false,
+        "contactUniqueIdentifiers": [
+          "email",
+          "phone"
+        ],
+        "crmSettings": {
+          "deSyncOwners": true,
+          "syncFollowers": {
+            "contact": true,
+            "opportunity": true
+          }
+        },
+        "saasSettings": {
+          "saasMode": "activated",
+          "customerId": "cus_SXJuIqrbHTVRHC",
+          "twilioRebilling": {
+            "markup": 10,
+            "enabled": false
+          }
+        }
+      },
+      "dateAdded": "2025-06-14T17:40:49.995Z",
+      "domain": "crm.ramautos.do",
+      "currency": "",
+      "isAgencySubAccount": {},
+      "defaultEmailService": "Qvz6p96jTsYb3MRAZoME",
+      "permissions": {
+        "dashboardStatsEnabled": true,
+        "funnelsEnabled": true,
+        "phoneCallEnabled": true,
+        "formsEnabled": true,
+        "quizzesEnabled": true,
+        "textToPayEnabled": true,
+        "gmbMessagingEnabled": true,
+        "htmlBuilderEnabled": true,
+        "contactsEnabled": true,
+        "tagsEnabled": true,
+        "botServiceEnabled": true,
+        "websitesEnabled": true,
+        "appointmentsEnabled": true,
+        "proposalsEnabled": true,
+        "qrCodesEnabled": true,
+        "webChatEnabled": true,
+        "facebookMessengerEnabled": true,
+        "affiliateManagerEnabled": true,
+        "gmbCallTrackingEnabled": true,
+        "marketingEnabled": true,
+        "emailBuilderEnabled": true,
+        "attributionsReportingEnabled": true,
+        "triggerLinksEnabled": true,
+        "membershipEnabled": true,
+        "settingsEnabled": true,
+        "surveysEnabled": true,
+        "opportunitiesEnabled": true,
+        "reviewsEnabled": true,
+        "smsEmailTemplatesEnabled": true,
+        "facebookAdsReportingEnabled": true,
+        "adManagerEnabled": true,
+        "bloggingEnabled": true,
+        "workflowsEnabled": true,
+        "campaignsEnabled": true,
+        "conversationsEnabled": true,
+        "adwordsReportingEnabled": true,
+        "bulkRequestsEnabled": true,
+        "agentReportingEnabled": true,
+        "triggersEnabled": true
+      },
+      "snapshotId": ""
+    },
+    "traceId": "ac3bbdbe-bbb9-4802-94a2-67155438eeda"
+  }
+]

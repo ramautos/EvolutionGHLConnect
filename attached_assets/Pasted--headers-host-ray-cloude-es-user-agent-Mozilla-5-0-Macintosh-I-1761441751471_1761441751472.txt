@@ -1,0 +1,40 @@
+[
+  {
+    "headers": {
+      "host": "ray.cloude.es",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+      "accept-encoding": "gzip, br",
+      "accept-language": "es-419,es;q=0.9",
+      "cdn-loop": "cloudflare; loops=1",
+      "cf-connecting-ip": "2001:1308:272c:7d00:dc41:d813:cd8d:7aa",
+      "cf-ipcountry": "DO",
+      "cf-ray": "994623963c817b91-ATL",
+      "cf-visitor": "{\"scheme\":\"https\"}",
+      "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX19N0TL0lx4%2BJGYZ1%2Ft5qsTrrs1cahuLLDc%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2BvRvBIyc8djDtyP8nf6%2FFDjzPo%2Byc2N34%3D; pscd=join.activepieces.com; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2ByydL0o3%2FvRshCLTAT7fjPUhsuHvEdas0W1nZYo1wEdDqAfRveHIHJ%2BKh1XUmnKxip357Q%2BKSUzw%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX19KUD4BwngZryQCd7GsVP%2FFzewAKFWkC%2Fqr9icA4OAshJfbXGuLUIfY%2FS8Ne37I8ZlfQFm%2FG%2BhsbungYTmybS4hvTnVCadH8Tny7HAyXXmnMIFOLclYWhO1Q2JWvsRRvRNfD0lHwfUbz21MEej5az3ab%2B90%2F7SQXJ0%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX19BlzwZ1M1qbAPvjFYylSJL8WpCiMdp0lAOhoZ7Dx%2FNCFZKd1dyoNf9Wf1KOT%2BwZk60%2FxGhBHBb%2FgPW5%2BUL0E0xkOAF2KiqiA9yMcE%2FKLCVsHNPCJy1V9T2SjPaLKv4VK%2F8zOofe4KZ2TpFLR3ySmwZBiSa9dejUFE%3D; rl_session=RudderEncrypt%3AU2FsdGVkX19P%2FLmJZN5rLMYY7ka8hkjie646BeoT7xG9saQI1FtxxfhBZIXgP5cWKbRMEuerJnSelB1yTvbnYssVXZMhtYm4I%2BD4Nmp2yKANPQmLMH73QY5UVU7525ern5oKDDdnlqTZKKb7pbnMjg%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%226cad1cd3438d6d116f720f2b9e429a8c2d0fb16bd4b07a49b16a9ed13766b367%234cf1a44b-cdeb-4382-acd7-453d0aa27689%22%2C%22%24sesid%22%3A%5B1761441542810%2C%22019a1e18-7457-7e5d-8bfc-bfa8527fb4a0%22%2C1761441510485%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fray.cloude.es%2Fsignin%22%7D%7D",
+      "priority": "u=0, i",
+      "referer": "https://marketplace.gohighlevel.com/",
+      "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "cross-site",
+      "sec-fetch-user": "?1",
+      "upgrade-insecure-requests": "1",
+      "x-forwarded-for": "172.71.30.216",
+      "x-forwarded-host": "ray.cloude.es",
+      "x-forwarded-port": "443",
+      "x-forwarded-proto": "https",
+      "x-forwarded-server": "097d3cf8e1b1",
+      "x-real-ip": "172.71.30.216"
+    },
+    "params": {},
+    "query": {
+      "code": "fdc68c62d3f11986b59e8c66ce74f14fd7989b70"
+    },
+    "body": {},
+    "webhookUrl": "https://ray.cloude.es/webhook/registrocuenta",
+    "executionMode": "production"
+  }
+]
