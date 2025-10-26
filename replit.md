@@ -264,10 +264,10 @@ GoHighLevel blocks redirect URIs containing "ghl", "highlevel", or "gohighlevel"
 
 1. **Complete Authentication System**:
    - Passport.js with Local + Google OAuth strategies
-   - PostgreSQL session store
+   - PostgreSQL session store with sameSite: "lax" for production
    - Protected routes with middleware
    - Login/Register pages with validation
-   - UserContext for global auth state
+   - UserContext for global auth state with robust 401 handling
 
 2. **New Database Schema**:
    - Redesigned users table with auth fields
@@ -282,12 +282,27 @@ GoHighLevel blocks redirect URIs containing "ghl", "highlevel", or "gohighlevel"
    - Confetti celebration on success
    - localStorage-based success detection
 
-4. **Security Hardening**:
+4. **Admin Panel** (October 26, 2025):
+   - Complete admin dashboard at `/admin`
+   - View all WhatsApp instances with user/subaccount details
+   - Management actions: View details, Delete instances
+   - Protected route requiring role="admin"
+   - SPA navigation with wouter (no hard redirects)
+
+5. **Security Hardening**:
    - Removed privilege escalation vector
    - Mandatory SESSION_SECRET
    - All routes authenticated
    - Admin-only endpoints
    - Bcrypt password hashing
+   - Secure cookies in production (HTTPS)
+
+6. **Production Fixes** (October 26, 2025):
+   - Fixed DOM nesting error in AdminPanel (Badge in <div> not <p>)
+   - Added sameSite: "lax" to session cookies for cross-origin compatibility
+   - Resolved race condition: login/register await refetchQueries before redirect
+   - UserContext queryFn handles 401 gracefully (returns null instead of throwing)
+   - No more blank dashboards or "Invalid hook call" errors
 
 ## Architecture Decisions
 

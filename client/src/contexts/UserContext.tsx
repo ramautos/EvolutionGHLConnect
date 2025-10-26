@@ -15,10 +15,29 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   // Obtener usuario actual desde sesión
-  const { data: user, isLoading } = useQuery<User>({
+  const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: Infinity,
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+        });
+        
+        if (res.status === 401) {
+          return null;
+        }
+        
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        
+        return await res.json();
+      } catch (error) {
+        return null;
+      }
+    },
   });
 
   // Mutation para login
@@ -58,10 +77,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     await loginMutation.mutateAsync({ email, password });
+    // Esperar a que el usuario se cargue desde la sesión
+    await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
   const register = async (email: string, password: string, name: string) => {
     await registerMutation.mutateAsync({ email, password, name });
+    // Esperar a que el usuario se cargue desde la sesión
+    await queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
   };
 
   const logout = async () => {

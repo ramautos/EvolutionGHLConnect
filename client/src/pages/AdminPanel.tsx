@@ -347,7 +347,7 @@ export default function AdminPanel() {
                   <p><span className="font-medium">Nombre Evolution:</span> {selectedInstance.instance.evolutionInstanceName}</p>
                   <p><span className="font-medium">Nombre Personalizado:</span> {selectedInstance.instance.customName || "N/A"}</p>
                   <p><span className="font-medium">Número:</span> {selectedInstance.instance.phoneNumber || "No conectado"}</p>
-                  <p><span className="font-medium">Estado:</span> {getStatusBadge(selectedInstance.instance.status)}</p>
+                  <div><span className="font-medium">Estado:</span> {getStatusBadge(selectedInstance.instance.status)}</div>
                   <p><span className="font-medium">Creado:</span> {new Date(selectedInstance.instance.createdAt).toLocaleString("es-ES")}</p>
                   <p><span className="font-medium">Actualizado:</span> {new Date(selectedInstance.instance.updatedAt).toLocaleString("es-ES")}</p>
                   {selectedInstance.instance.connectedAt && (
