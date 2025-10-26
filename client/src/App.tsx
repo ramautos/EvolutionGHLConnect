@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
+import AdminPanel from "@/pages/AdminPanel";
 import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
 import LocationsDashboard from "@/pages/LocationsDashboard";
@@ -25,6 +26,11 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute requireAdmin={true}>
+          <AdminPanel />
         </ProtectedRoute>
       </Route>
       <Route path="/locations">

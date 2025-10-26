@@ -34,6 +34,7 @@ export interface IStorage {
   getWhatsappInstancesByLocationId(locationId: string): Promise<WhatsappInstance[]>;
   getAllUserInstances(userId: string): Promise<WhatsappInstance[]>;
   getAllInstances(): Promise<WhatsappInstance[]>;
+  getAllWhatsappInstancesWithDetails(): Promise<any[]>; // Para admin panel con JOIN
   createWhatsappInstance(instance: CreateWhatsappInstance): Promise<WhatsappInstance>;
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
   deleteWhatsappInstance(id: string): Promise<boolean>;
@@ -176,6 +177,25 @@ export class DatabaseStorage implements IStorage {
 
   async getAllInstances(): Promise<WhatsappInstance[]> {
     return await db.select().from(whatsappInstances);
+  }
+
+  async getAllWhatsappInstancesWithDetails(): Promise<any[]> {
+    const results = await db
+      .select({
+        instance: whatsappInstances,
+        subaccount: subaccounts,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+        }
+      })
+      .from(whatsappInstances)
+      .leftJoin(subaccounts, eq(whatsappInstances.subaccountId, subaccounts.id))
+      .leftJoin(users, eq(subaccounts.userId, users.id));
+    
+    return results;
   }
 
   async createWhatsappInstance(insertInstance: CreateWhatsappInstance): Promise<WhatsappInstance> {

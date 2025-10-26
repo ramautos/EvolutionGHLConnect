@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AddSubaccountModal from "@/components/AddSubaccountModal";
@@ -22,6 +23,7 @@ export default function Dashboard() {
 function DashboardContent() {
   const { user, logout } = useUser();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
 
   // Obtener subcuentas del usuario
@@ -95,6 +97,17 @@ function DashboardContent() {
               <User className="w-4 h-4" />
               <span className="font-medium">{user?.name}</span>
             </div>
+            {user?.role === "admin" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/admin")}
+                data-testid="button-admin-panel"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Panel de Admin
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

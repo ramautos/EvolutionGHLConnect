@@ -467,6 +467,16 @@ ${ghlErrorDetails}
     }
   });
 
+  // Listar todas las instancias de WhatsApp con información completa (solo admin)
+  app.get("/api/admin/instances", isAdmin, async (req, res) => {
+    try {
+      const instances = await storage.getAllWhatsappInstancesWithDetails();
+      res.json(instances);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get all instances" });
+    }
+  });
+
   // ============================================
   // RUTAS DE SUBCUENTAS (Protegidas)
   // ============================================
