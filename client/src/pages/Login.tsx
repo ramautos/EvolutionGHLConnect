@@ -37,19 +37,11 @@ export default function Login() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Error al iniciar sesión");
+        throw new Error(data.message || data.error || "Error al iniciar sesión");
       }
 
-      // Login exitoso
-      toast({
-        title: "¡Bienvenido!",
-        description: "Redirigiendo al dashboard...",
-      });
-
-      // Redirect inmediato con reload completo
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 500);
+      // Login exitoso - redirect inmediato
+      window.location.href = "/dashboard";
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -103,7 +95,7 @@ export default function Login() {
                   required
                   disabled={isLoading}
                   data-testid="input-email"
-                  className="h-12"
+                  autoComplete="email"
                 />
               </div>
 
@@ -118,7 +110,7 @@ export default function Login() {
                   required
                   disabled={isLoading}
                   data-testid="input-password"
-                  className="h-12"
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>

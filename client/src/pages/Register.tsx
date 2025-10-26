@@ -47,19 +47,11 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Error al registrar usuario");
+        throw new Error(data.message || data.error || "Error al registrar usuario");
       }
 
-      // Registro exitoso
-      toast({
-        title: "¡Cuenta creada!",
-        description: "Redirigiendo al dashboard...",
-      });
-
-      // Redirect inmediato con reload completo
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 500);
+      // Registro exitoso - redirect inmediato
+      window.location.href = "/dashboard";
       
     } catch (error: any) {
       console.error("Register error:", error);
@@ -113,7 +105,7 @@ export default function Register() {
                   required
                   disabled={isLoading}
                   data-testid="input-name"
-                  className="h-12"
+                  autoComplete="name"
                 />
               </div>
 
@@ -128,7 +120,7 @@ export default function Register() {
                   required
                   disabled={isLoading}
                   data-testid="input-email"
-                  className="h-12"
+                  autoComplete="email"
                 />
               </div>
 
@@ -143,7 +135,7 @@ export default function Register() {
                   required
                   disabled={isLoading}
                   data-testid="input-password"
-                  className="h-12"
+                  autoComplete="new-password"
                 />
               </div>
             </CardContent>
