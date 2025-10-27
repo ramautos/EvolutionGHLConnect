@@ -1,0 +1,204 @@
+Agregar tres nuevas secciones a la página de subcuenta que se muestra en el screenshot adjunto:
+
+══════════════════════════════════════════════════════════
+
+SECCIÓN 1: BANNER DE TRIAL
+Ubicación: Parte superior de la página, antes de "Información de la Subcuenta"
+
+Funcionalidad:
+- Mostrar un banner con countdown de días restantes del periodo de prueba
+- El trial dura 15 días desde la creación del location_id
+- Leer la fecha de expiración desde la base de datos (campo trial_ends_at)
+- Calcular dinámicamente los días restantes
+
+Estados visuales del banner:
+
+Estado A - Días 1 a 12:
+- Color: Gradiente azul/morado (alegre)
+- Mensaje: Indicar días restantes de forma positiva
+- Texto: Mencionar que puede crear instancias ilimitadas durante el trial
+- Botón: "Agregar Método de Pago"
+
+Estado B - Días 13 a 15:
+- Color: Gradiente amarillo/naranja (advertencia)
+- Mensaje: Advertencia de que el trial está por expirar
+- Agregar animación de atención
+- Texto: Urgencia de agregar pago
+- Botón: "Agregar Pago Ahora"
+
+Estado C - Trial expirado:
+- Color: Gradiente gris/rojo (bloqueado)
+- Mensaje: Indicar que el trial finalizó
+- Texto: Mencionar que las instancias están pausadas
+- Botón: "Activar Cuenta Ahora"
+- Efecto adicional: Deshabilitar el botón "Nueva Instancia" que ya existe
+
+Comportamiento:
+- Actualizar el contador automáticamente sin recargar página
+- El botón debe redirigir al proceso de pago
+- El banner debe adaptarse responsivamente en móvil
+
+══════════════════════════════════════════════════════════
+
+SECCIÓN 2: PLANES Y FACTURACIÓN
+Ubicación: Entre las secciones "Ajustes del CRM" e "Instancias de WhatsApp"
+
+Layout en dos columnas:
+
+COLUMNA IZQUIERDA - Estado actual del plan:
+
+Mostrar información diferente según el estado:
+
+Si está en Trial:
+- Título del plan: "Plan Trial"
+- Información: Instancias ilimitadas durante trial
+- Días restantes del trial
+- Sin información de facturación
+
+Si tiene plan activo:
+- Nombre del plan actual (Starter/Básico/Pro)
+- Precio mensual y cantidad de WhatsApps incluidos
+- Barra de progreso visual mostrando: instancias activas / límite del plan
+- Fecha del próximo cobro
+- Botones: "Cambiar Plan" y opción de cancelar
+
+COLUMNA DERECHA - Selector de planes disponibles:
+
+Mostrar 3 planes en tarjetas lado a lado:
+
+Plan Starter:
+- Precio: $10/mes
+- Incluye: 1 cuenta de WhatsApp
+- Características principales
+- Botón de selección
+
+Plan Básico:
+- Precio: $19/mes
+- Incluye: 3 cuentas de WhatsApp
+- Mostrar el ahorro: "Ahorras $11" (vs comprar 3 individuales a $10)
+- Características principales
+- Botón de selección
+
+Plan Pro:
+- Precio: $29/mes
+- Incluye: 5 cuentas de WhatsApp
+- Mostrar el ahorro: "Ahorras $21"
+- Badge destacado: "RECOMENDADO"
+- Borde especial para destacarlo
+- Características principales
+- Botón de selección
+
+Información adicional:
+- Alert box indicando: "¿Necesitas más de 5 cuentas? Cada WhatsApp adicional cuesta $5/mes"
+
+══════════════════════════════════════════════════════════
+
+SECCIÓN 3: CALCULADORA DE CUENTAS ADICIONALES
+Ubicación: Debajo de los planes
+Condición: Solo mostrar si el usuario tiene Plan Pro Y tiene más de 5 instancias activas
+
+Elementos:
+- Resumen de facturación desglosado:
+  * Plan Pro base (5 incluidas): $29
+  * Número de cuentas adicionales × $5
+  * Total mensual calculado
+  
+- Simulador interactivo:
+  * Input numérico para simular cantidad de instancias
+  * Cálculo en tiempo real del precio según cantidad
+  * Mostrar precio estimado
+
+══════════════════════════════════════════════════════════
+
+REGLAS DE NEGOCIO DEL MODELO DE PRECIOS:
+
+Estructura de precios por location_id (NO por WhatsApp individual):
+
+1 instancia de WhatsApp = $10/mes (Plan Starter)
+2-3 instancias = $19/mes (Plan Básico)
+4-5 instancias = $29/mes (Plan Pro)
+6+ instancias = $29 + ($5 × instancias adicionales)
+
+Ejemplo de cálculo:
+- 1 WhatsApp: $10
+- 3 WhatsApps: $19
+- 5 WhatsApps: $29
+- 7 WhatsApps: $29 + (2 × $5) = $39
+- 10 WhatsApps: $29 + (5 × $5) = $54
+
+El trial de 15 días es por location_id completo, no por instancia individual.
+Después del trial, DEBE agregar método de pago obligatoriamente para continuar.
+
+══════════════════════════════════════════════════════════
+
+COMPORTAMIENTOS INTERACTIVOS:
+
+Botón "Nueva Instancia" existente debe validar:
+- Si trial expiró: Bloquear y mostrar mensaje de agregar pago
+- Si plan activo y alcanzó límite: Mostrar modal sugiriendo upgrade
+- Si plan activo con espacio: Permitir crear
+- Si en trial: Permitir crear sin límite
+
+Modal de upgrade debe calcular y mostrar:
+- Nueva cantidad de instancias necesarias
+- Costo adicional mensual
+- Nuevo total mensual
+- Opciones: Confirmar o Cancelar
+
+══════════════════════════════════════════════════════════
+
+DISEÑO VISUAL:
+
+Mantener consistencia con el diseño actual:
+- Usar el mismo color morado del botón "Nueva Instancia" existente
+- Mantener estilo de las cards actuales
+- Adaptar tipografía y espaciados del diseño actual
+
+Estados de color:
+- Trial activo: Tonos azul/morado
+- Advertencia: Tonos naranja/amarillo
+- Error/Expirado: Tonos gris/rojo
+- Éxito/Activo: Tonos verde
+
+Elementos destacados:
+- Badge "RECOMENDADO" en Plan Pro
+- Badge "ACTUAL" en el plan que tiene activo
+- Progress bar para mostrar uso de instancias
+- Animación sutil en advertencias
+
+Responsive:
+- En móvil: Columnas apiladas verticalmente
+- En móvil: Planes en carrusel deslizable
+- En desktop: Layout de 2 columnas como se describe
+
+══════════════════════════════════════════════════════════
+
+DATOS NECESARIOS DE LA BASE DE DATOS:
+
+Para esta página necesitas obtener:
+- Fecha de expiración del trial (trial_ends_at)
+- Tipo de plan actual (plan_type: 'starter' | 'basic' | 'pro' | 'trial')
+- Estado de la suscripción (status: 'trial' | 'active' | 'expired')
+- Fecha del próximo cobro (next_billing_date)
+- Cantidad de instancias de WhatsApp activas para este location_id
+- Historial de pagos (opcional para futuro)
+
+══════════════════════════════════════════════════════════
+
+ORDEN DE IMPLEMENTACIÓN SUGERIDO:
+
+1. Primero el banner de trial (elemento más visible y urgente)
+2. Luego la sección de planes (funcionalidad principal)
+3. Finalmente la calculadora de adicionales (opcional/avanzada)
+4. Integrar validaciones con botón "Nueva Instancia"
+
+══════════════════════════════════════════════════════════
+
+CONSIDERACIONES IMPORTANTES:
+
+- El trial es por location_id completo (la subcuenta), no por WhatsApp individual
+- Durante el trial puede crear instancias ilimitadas sin cargo
+- Después del trial DEBE tener un plan de pago activo para continuar
+- Los precios mostrados son mensuales
+- Cada location_id maneja su propia suscripción independiente
+- Mantener la UI/UX consistente con el diseño actual mostrado en el screenshot
