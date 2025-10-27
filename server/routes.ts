@@ -1051,6 +1051,15 @@ ${ghlErrorDetails}
         return;
       }
 
+      // VALIDACIÓN 1: Verificar que la subcuenta esté manualmente activada
+      if (!subaccount.manuallyActivated) {
+        res.status(403).json({ 
+          error: "Subcuenta desactivada", 
+          message: "Esta subcuenta ha sido desactivada por el administrador. Contacte con soporte." 
+        });
+        return;
+      }
+
       // Obtener o crear subscription
       let subscription = await storage.getSubscription(validatedData.subaccountId);
       if (!subscription) {
@@ -1080,6 +1089,15 @@ ${ghlErrorDetails}
         subscription = await storage.updateSubscription(validatedData.subaccountId, {
           inTrial: false,
         }) || subscription;
+      }
+
+      // VALIDACIÓN 2: Verificar billing habilitado (solo después del período de prueba)
+      if (!subaccount.billingEnabled) {
+        res.status(403).json({ 
+          error: "Billing deshabilitado", 
+          message: "El billing ha sido deshabilitado para esta subcuenta. Contacte con soporte para más información." 
+        });
+        return;
       }
 
       // Contar instancias actuales
