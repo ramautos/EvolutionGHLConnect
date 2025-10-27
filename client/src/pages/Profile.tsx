@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocation, Link } from "wouter";
-import { ArrowLeft, User, Phone, Lock, MessageSquare } from "lucide-react";
+import { ArrowLeft, User, Phone, Lock, MessageSquare, Key, Eye, EyeOff } from "lucide-react";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
+import type { Subaccount } from "@shared/schema";
 
 export default function Profile() {
   return (
@@ -33,6 +34,27 @@ function ProfileContent() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [openaiKeys, setOpenaiKeys] = useState<Record<string, string>>({});
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+
+  // Obtener subcuentas del usuario
+  const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
+    queryKey: ["/api/subaccounts/user", user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Inicializar los API keys cuando se cargan las subcuentas
+  useEffect(() => {
+    if (subaccounts && subaccounts.length > 0) {
+      const keys: Record<string, string> = {};
+      subaccounts.forEach((sub: Subaccount) => {
+        if (sub.openaiApiKey) {
+          keys[sub.locationId] = sub.openaiApiKey;
+        }
+      });
+      setOpenaiKeys(keys);
+    }
+  }, [subaccounts]);
 
   // Mutación para actualizar perfil
   const updateProfileMutation = useMutation({
@@ -156,6 +178,54 @@ function ProfileContent() {
     updatePasswordMutation.mutate({ currentPassword, newPassword });
   };
 
+  // Mutación para actualizar OpenAI API key
+  const updateOpenAIKeyMutation = useMutation({
+    mutationFn: async ({ locationId, apiKey }: { locationId: string; apiKey: string }) => {
+      return await apiRequest(`/api/subaccounts/${locationId}/openai-key`, "PATCH", {
+        openaiApiKey: apiKey,
+      });
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      toast({
+        title: "API Key actualizada",
+        description: "La API Key de OpenAI se ha guardado exitosamente.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo actualizar la API Key",
+      });
+    },
+  });
+
+  const handleUpdateOpenAIKey = (locationId: string) => {
+    const apiKey = openaiKeys[locationId];
+    if (!apiKey || apiKey.trim() === "") {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Por favor ingresa una API Key válida",
+      });
+      return;
+    }
+    updateOpenAIKeyMutation.mutate({ locationId, apiKey });
+  };
+
+  const toggleShowApiKey = (locationId: string) => {
+    setShowApiKeys(prev => ({
+      ...prev,
+      [locationId]: !prev[locationId],
+    }));
+  };
+
+  const maskApiKey = (apiKey: string) => {
+    if (!apiKey || apiKey.length < 8) return apiKey;
+    return `${apiKey.substring(0, 7)}${"•".repeat(20)}${apiKey.substring(apiKey.length - 4)}`;
+  };
+
   // Verificar si el usuario tiene contraseña (no es usuario de Google)
   const hasPassword = (user as any)?.hasPassword ?? false;
   const isGoogleUser = !hasPassword;
@@ -265,6 +335,119 @@ function ProfileContent() {
                   {updateProfileMutation.isPending ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          {/* Configuración de OpenAI API Keys */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5" />
+                Configuración de OpenAI
+              </CardTitle>
+              <CardDescription>
+                Configura tu API Key de OpenAI para cada subcuenta. Esta clave se usa para transcripción de voz en WhatsApp.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {subaccountsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-4 bg-muted rounded w-1/4 mb-2" />
+                      <div className="h-10 bg-muted rounded w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : !subaccounts || subaccounts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tienes subcuentas. Agrega una subcuenta desde el Dashboard para configurar OpenAI.
+                </p>
+              ) : (
+                <div className="space-y-6">
+                  {subaccounts.map((subaccount: Subaccount) => (
+                    <div key={subaccount.id} className="space-y-3 p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold">{subaccount.name}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Location ID: {subaccount.locationId}
+                          </p>
+                        </div>
+                        {subaccount.openaiApiKey && (
+                          <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded">
+                            Configurado
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor={`openai-key-${subaccount.locationId}`}>
+                          API Key de OpenAI
+                        </Label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Input
+                              id={`openai-key-${subaccount.locationId}`}
+                              type={showApiKeys[subaccount.locationId] ? "text" : "password"}
+                              value={
+                                showApiKeys[subaccount.locationId]
+                                  ? openaiKeys[subaccount.locationId] || ""
+                                  : openaiKeys[subaccount.locationId]
+                                  ? maskApiKey(openaiKeys[subaccount.locationId])
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                setOpenaiKeys(prev => ({
+                                  ...prev,
+                                  [subaccount.locationId]: e.target.value,
+                                }));
+                              }}
+                              placeholder="sk-proj-..."
+                              data-testid={`input-openai-key-${subaccount.locationId}`}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3"
+                              onClick={() => toggleShowApiKey(subaccount.locationId)}
+                              data-testid={`button-toggle-visibility-${subaccount.locationId}`}
+                            >
+                              {showApiKeys[subaccount.locationId] ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={() => handleUpdateOpenAIKey(subaccount.locationId)}
+                            disabled={updateOpenAIKeyMutation.isPending}
+                            data-testid={`button-save-openai-key-${subaccount.locationId}`}
+                          >
+                            {updateOpenAIKeyMutation.isPending ? "Guardando..." : "Guardar"}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Obtén tu API Key en{" "}
+                          <a
+                            href="https://platform.openai.com/api-keys"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            platform.openai.com/api-keys
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
