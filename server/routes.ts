@@ -564,13 +564,29 @@ ${ghlErrorDetails}
         return;
       }
 
-      // Obtener información de la location desde GHL
-      const location = await ghlApi.getLocation(locationId, clientes[0].accesstoken);
+      const companyAccessToken = clientes[0].accesstoken;
 
-      if (!location) {
-        res.status(404).json({ error: "Location not found in GoHighLevel" });
+      // Obtener todas las locations instaladas para este company
+      console.log("🔍 Getting installed locations for company:", companyId);
+      const installedLocations = await ghlApi.getInstalledLocations(companyAccessToken);
+
+      if (!installedLocations || installedLocations.length === 0) {
+        console.error("❌ No installed locations found for company:", companyId);
+        res.status(404).json({ error: "No installed locations found for this company" });
         return;
       }
+
+      // Buscar la location específica
+      const location = installedLocations.find(loc => loc.id === locationId);
+
+      if (!location) {
+        console.error("❌ Location not found in installed locations:", locationId);
+        console.log("Available locations:", installedLocations.map(l => ({ id: l.id, name: l.name })));
+        res.status(404).json({ error: `Location ${locationId} not found in GoHighLevel installed locations` });
+        return;
+      }
+
+      console.log("✅ Location found:", { id: location.id, name: location.name });
 
       // Crear subcuenta (solo con campos que existen en el schema)
       const subaccount = await storage.createSubaccount({
@@ -585,9 +601,10 @@ ${ghlErrorDetails}
         address: location.address,
       });
 
+      console.log("✅ Subaccount created:", subaccount.id);
       res.json(subaccount);
     } catch (error: any) {
-      console.error("Error creating subaccount from GHL:", error);
+      console.error("❌ Error creating subaccount from GHL:", error);
       res.status(500).json({ error: error.message || "Failed to create subaccount from GHL" });
     }
   });
