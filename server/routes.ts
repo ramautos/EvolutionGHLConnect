@@ -1063,7 +1063,7 @@ ${ghlErrorDetails}
       // Obtener o crear subscription
       let subscription = await storage.getSubscription(validatedData.subaccountId);
       if (!subscription) {
-        subscription = await storage.createSubscription(validatedData.subaccountId, 14); // 14 días de prueba
+        subscription = await storage.createSubscription(validatedData.subaccountId, 15); // 15 días de prueba
       }
 
       // Verificar si está en período de prueba
@@ -1104,63 +1104,83 @@ ${ghlErrorDetails}
       const currentInstances = await storage.countWhatsappInstances(validatedData.subaccountId);
       
       // LÓGICA AUTOMÁTICA DE BILLING (después del período de prueba)
+      // NUEVO MODELO: 1 inst=$10, 2-3=$19, 4-5=$29, 6+=$29+$5/extra
       let needsPlanChange = false;
       let newPlan = subscription.plan;
       let newExtraSlots = parseInt(subscription.extraSlots);
       let invoiceGenerated = false;
       let invoiceId: string | undefined;
 
-      // Primera instancia: asignar plan básico automáticamente
+      // Determinar plan necesario según cantidad de instancias (contando la nueva)
+      const totalInstances = currentInstances + 1;
+      
       if (currentInstances === 0 && subscription.plan === "none") {
+        // Primera instancia: Plan Starter ($10/mes)
         needsPlanChange = true;
-        newPlan = "basic_1_instance";
+        newPlan = "starter";
         newExtraSlots = 0;
         
-        // Generar factura para plan básico
         const invoice = await storage.createInvoice({
           subaccountId: validatedData.subaccountId,
-          amount: "8.00",
-          plan: "basic_1_instance",
-          baseAmount: "8.00",
+          amount: "10.00",
+          plan: "starter",
+          baseAmount: "10.00",
           extraAmount: "0.00",
           extraSlots: "0",
-          description: "Plan Básico - 1 instancia de WhatsApp",
+          description: "Plan Starter - 1 instancia de WhatsApp",
           status: "pending",
         });
         invoiceGenerated = true;
         invoiceId = invoice.id;
       }
-      // Segunda instancia: upgrade automático a plan pro
-      else if (currentInstances === 1 && subscription.plan === "basic_1_instance") {
+      else if (totalInstances >= 2 && totalInstances <= 3 && subscription.plan === "starter") {
+        // 2-3 instancias: Upgrade a Plan Básico ($19/mes)
         needsPlanChange = true;
-        newPlan = "pro_5_instances";
+        newPlan = "basic";
         newExtraSlots = 0;
         
-        // Generar factura para upgrade a plan pro
         const invoice = await storage.createInvoice({
           subaccountId: validatedData.subaccountId,
-          amount: "25.00",
-          plan: "pro_5_instances",
-          baseAmount: "25.00",
+          amount: "19.00",
+          plan: "basic",
+          baseAmount: "19.00",
           extraAmount: "0.00",
           extraSlots: "0",
-          description: "Plan Pro - 5 instancias de WhatsApp (Upgrade automático)",
+          description: "Plan Básico - Hasta 3 instancias de WhatsApp (Upgrade automático)",
           status: "pending",
         });
         invoiceGenerated = true;
         invoiceId = invoice.id;
       }
-      // Más de 5 instancias: agregar slot extra ($5 cada uno)
-      else if (currentInstances >= 5 && subscription.plan === "pro_5_instances") {
+      else if (totalInstances >= 4 && totalInstances <= 5 && (subscription.plan === "starter" || subscription.plan === "basic")) {
+        // 4-5 instancias: Upgrade a Plan Pro ($29/mes)
         needsPlanChange = true;
-        newPlan = subscription.plan; // Mantener plan pro
-        newExtraSlots = currentInstances - 4; // Número de slots extra necesarios
+        newPlan = "pro";
+        newExtraSlots = 0;
         
-        // Generar factura por el slot adicional
+        const invoice = await storage.createInvoice({
+          subaccountId: validatedData.subaccountId,
+          amount: "29.00",
+          plan: "pro",
+          baseAmount: "29.00",
+          extraAmount: "0.00",
+          extraSlots: "0",
+          description: "Plan Pro - Hasta 5 instancias de WhatsApp (Upgrade automático)",
+          status: "pending",
+        });
+        invoiceGenerated = true;
+        invoiceId = invoice.id;
+      }
+      else if (totalInstances > 5 && subscription.plan === "pro") {
+        // Más de 5 instancias: Agregar slot extra ($5 cada uno)
+        needsPlanChange = true;
+        newPlan = "pro";
+        newExtraSlots = totalInstances - 5; // Slots adicionales sobre el plan Pro base
+        
         const invoice = await storage.createInvoice({
           subaccountId: validatedData.subaccountId,
           amount: "5.00",
-          plan: "pro_5_instances",
+          plan: "pro",
           baseAmount: "0.00",
           extraAmount: "5.00",
           extraSlots: "1",
@@ -1173,11 +1193,25 @@ ${ghlErrorDetails}
 
       // Aplicar cambios al plan si es necesario
       if (needsPlanChange) {
+        let includedInstances = "0";
+        let basePrice = "0.00";
+        
+        if (newPlan === "starter") {
+          includedInstances = "1";
+          basePrice = "10.00";
+        } else if (newPlan === "basic") {
+          includedInstances = "3";
+          basePrice = "19.00";
+        } else if (newPlan === "pro") {
+          includedInstances = "5";
+          basePrice = "29.00";
+        }
+        
         subscription = await storage.updateSubscription(validatedData.subaccountId, {
           plan: newPlan,
           extraSlots: newExtraSlots.toString(),
-          includedInstances: newPlan === "basic_1_instance" ? "1" : "5",
-          basePrice: newPlan === "basic_1_instance" ? "8.00" : "25.00",
+          includedInstances,
+          basePrice,
           extraPrice: newExtraSlots > 0 ? (newExtraSlots * 5).toFixed(2) : "0.00",
         }) || subscription;
       }

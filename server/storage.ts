@@ -319,8 +319,8 @@ export class DatabaseStorage implements IStorage {
     return subscription;
   }
 
-  async createSubscription(subaccountId: string, trialDays: number = 14): Promise<Subscription> {
-    // Calcular fecha de fin de prueba (14 días por defecto)
+  async createSubscription(subaccountId: string, trialDays: number = 15): Promise<Subscription> {
+    // Calcular fecha de fin de prueba (15 días por defecto)
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
     

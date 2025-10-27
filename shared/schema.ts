@@ -89,14 +89,14 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }).unique(),
-  plan: text("plan").notNull().default("none"), // none, basic_1_instance, pro_5_instances
+  plan: text("plan").notNull().default("none"), // none, starter, basic, pro
   includedInstances: text("included_instances").notNull().default("0"), // Instancias incluidas en el plan base
   extraSlots: text("extra_slots").notNull().default("0"), // Instancias adicionales compradas ($5 c/u)
-  basePrice: text("base_price").notNull().default("0.00"), // Precio base del plan ($8 o $25)
+  basePrice: text("base_price").notNull().default("0.00"), // Precio base del plan ($10, $19 o $29)
   extraPrice: text("extra_price").notNull().default("0.00"), // Precio total de slots extra
   status: text("status").notNull().default("active"), // active, expired, cancelled
   
-  // Período de prueba gratuito
+  // Período de prueba gratuito (15 días)
   trialEndsAt: timestamp("trial_ends_at"), // Fecha cuando termina el período de prueba (null = sin prueba)
   inTrial: boolean("in_trial").notNull().default(true), // Indicador si está actualmente en prueba
   
@@ -114,7 +114,7 @@ export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
   amount: text("amount").notNull(), // Monto total en dólares
-  plan: text("plan").notNull(), // basic_1_instance, pro_5_instances, extra_slot
+  plan: text("plan").notNull(), // starter, basic, pro, extra_slot
   baseAmount: text("base_amount").notNull().default("0.00"), // Monto del plan base
   extraAmount: text("extra_amount").notNull().default("0.00"), // Monto de slots extra
   extraSlots: text("extra_slots").notNull().default("0"), // Cantidad de slots extra en esta factura
