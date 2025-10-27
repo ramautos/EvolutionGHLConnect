@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema } from "@shared/schema";
+import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -1476,6 +1476,62 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error syncing instance:", error);
       res.status(500).json({ error: "Failed to sync instance" });
+    }
+  });
+
+  // Endpoint para enviar mensajes de WhatsApp
+  app.post("/api/instances/:id/send-message", isAuthenticated, async (req, res) => {
+    try {
+      const instance = await storage.getWhatsappInstance(req.params.id);
+      if (!instance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+
+      // Validar que el usuario tenga acceso a esta instancia
+      if (instance.userId !== req.user!.id) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+
+      // Validar que la instancia esté conectada
+      if (instance.status !== "connected") {
+        res.status(400).json({ 
+          error: "Instance not connected",
+          message: "La instancia debe estar conectada para enviar mensajes" 
+        });
+        return;
+      }
+
+      // Validar datos del mensaje
+      const validatedData = sendWhatsappMessageSchema.parse(req.body);
+
+      console.log(`📤 Sending message from instance ${instance.evolutionInstanceName} to ${validatedData.number}`);
+
+      // Enviar mensaje a través de Evolution API
+      const response = await evolutionAPI.sendTextMessage(
+        instance.evolutionInstanceName,
+        validatedData.number,
+        validatedData.text
+      );
+
+      console.log(`✅ Message sent successfully:`, response);
+
+      res.json({
+        success: true,
+        message: "Mensaje enviado correctamente",
+        data: response
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        console.error("Error sending message:", error);
+        res.status(500).json({ 
+          error: "Failed to send message",
+          message: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
     }
   });
 

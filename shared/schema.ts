@@ -294,3 +294,10 @@ export const updateWebhookConfigSchema = z.object({
 export type WebhookConfig = typeof webhookConfig.$inferSelect;
 export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
 export type UpdateWebhookConfig = z.infer<typeof updateWebhookConfigSchema>;
+
+// Schema para enviar mensajes de WhatsApp
+export const sendWhatsappMessageSchema = z.object({
+  number: z.string().min(10, "El número debe tener al menos 10 dígitos"),
+  text: z.string().min(1, "El mensaje no puede estar vacío"),
+});
+export type SendWhatsappMessage = z.infer<typeof sendWhatsappMessageSchema>;
