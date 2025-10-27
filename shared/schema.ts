@@ -1,7 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// ============================================
+// SESSIONS TABLE - Sesiones de Passport.js (connect-pg-simple)
+// ============================================
+export const sessions = pgTable("sessions", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
 
 // ============================================
 // USERS TABLE - Usuarios con autenticación
