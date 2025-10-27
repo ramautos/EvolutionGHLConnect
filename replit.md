@@ -305,6 +305,13 @@ Popups have communication issues in Replit's iframe environment due to cross-ori
    - UserContext queryFn handles 401 gracefully (returns null instead of throwing)
    - No more blank dashboards or "Invalid hook call" errors
 
+7. **GHL API Integration Fix** (October 27, 2025):
+   - Fixed `/api/subaccounts/from-ghl` endpoint to use `getInstalledLocations()` instead of direct `getLocation()` call
+   - Company-level tokens can't access individual locations directly - must use installedLocations endpoint
+   - Added detailed logging for debugging OAuth flow
+   - Compiled new production build (index-hv_2C1mv.js)
+   - Added trust proxy configuration for Cloudflare compatibility
+
 ## Architecture Decisions
 
 - **Why Passport.js?** Industry-standard, supports multiple strategies, session management
