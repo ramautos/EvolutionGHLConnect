@@ -548,45 +548,41 @@ ${ghlErrorDetails}
         return;
       }
 
+      console.log("📥 Creating subaccount from GHL OAuth:", { userId, companyId, locationId });
+
       // Verificar si la subcuenta ya existe
       const existingSubaccounts = await storage.getSubaccounts(userId);
       const existing = existingSubaccounts.find(s => s.locationId === locationId);
       
       if (existing) {
+        console.log("✅ Subaccount already exists:", existing.id);
         res.json(existing);
         return;
       }
 
-      // Obtener access token del company desde GHL database
-      const clientes = await ghlStorage.getClientesByCompanyId(companyId);
-      if (!clientes || clientes.length === 0 || !clientes[0].accesstoken) {
-        res.status(404).json({ error: "No access token found for this company" });
+      // Obtener access token de la location desde GHL database (n8n guarda tokens de location-level)
+      console.log("🔍 Looking for location token in GHL database:", locationId);
+      const cliente = await ghlStorage.getClienteByLocationId(locationId);
+      
+      if (!cliente || !cliente.accesstoken) {
+        console.error("❌ No access token found for location:", locationId);
+        res.status(404).json({ error: `No access token found for location ${locationId}. The OAuth flow may not have completed correctly.` });
         return;
       }
 
-      const companyAccessToken = clientes[0].accesstoken;
+      console.log("✅ Location token found in database");
 
-      // Obtener todas las locations instaladas para este company
-      console.log("🔍 Getting installed locations for company:", companyId);
-      const installedLocations = await ghlApi.getInstalledLocations(companyAccessToken);
-
-      if (!installedLocations || installedLocations.length === 0) {
-        console.error("❌ No installed locations found for company:", companyId);
-        res.status(404).json({ error: "No installed locations found for this company" });
-        return;
-      }
-
-      // Buscar la location específica
-      const location = installedLocations.find(loc => loc.id === locationId);
+      // Obtener información de la location desde GHL usando el token de location
+      console.log("🔍 Fetching location details from GHL API");
+      const location = await ghlApi.getLocation(locationId, cliente.accesstoken);
 
       if (!location) {
-        console.error("❌ Location not found in installed locations:", locationId);
-        console.log("Available locations:", installedLocations.map(l => ({ id: l.id, name: l.name })));
-        res.status(404).json({ error: `Location ${locationId} not found in GoHighLevel installed locations` });
+        console.error("❌ Could not fetch location details from GHL API");
+        res.status(404).json({ error: "Could not fetch location details from GoHighLevel API" });
         return;
       }
 
-      console.log("✅ Location found:", { id: location.id, name: location.name });
+      console.log("✅ Location details fetched:", { id: location.id, name: location.name });
 
       // Crear subcuenta (solo con campos que existen en el schema)
       const subaccount = await storage.createSubaccount({
@@ -601,7 +597,7 @@ ${ghlErrorDetails}
         address: location.address,
       });
 
-      console.log("✅ Subaccount created:", subaccount.id);
+      console.log("✅ Subaccount created successfully:", subaccount.id);
       res.json(subaccount);
     } catch (error: any) {
       console.error("❌ Error creating subaccount from GHL:", error);

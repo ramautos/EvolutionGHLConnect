@@ -306,11 +306,18 @@ Popups have communication issues in Replit's iframe environment due to cross-ori
    - No more blank dashboards or "Invalid hook call" errors
 
 7. **GHL API Integration Fix** (October 27, 2025):
-   - Fixed `/api/subaccounts/from-ghl` endpoint to use `getInstalledLocations()` instead of direct `getLocation()` call
-   - Company-level tokens can't access individual locations directly - must use installedLocations endpoint
-   - Added detailed logging for debugging OAuth flow
+   - **Critical Discovery**: n8n webhook stores **location-level tokens**, not company-level tokens
+   - Fixed `/api/subaccounts/from-ghl` to use `getClienteByLocationId()` instead of `getClientesByCompanyId()`
+   - Now correctly uses location token with `getLocation()` API endpoint
+   - Added comprehensive logging for OAuth flow debugging (📥 🔍 ✅ ❌ emojis)
    - Compiled new production build (index-hv_2C1mv.js)
    - Added trust proxy configuration for Cloudflare compatibility
+   
+   **Token Architecture**:
+   - n8n webhook receives OAuth callback from GHL
+   - Stores location-level access_token in ghl_clientes table (keyed by locationid)
+   - Our app retrieves token by locationId (not companyId)
+   - Uses location token to fetch location details from GHL API
 
 ## Architecture Decisions
 
