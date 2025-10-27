@@ -1129,10 +1129,12 @@ ${ghlErrorDetails}
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation error creating instance:", error.errors);
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
         console.error("Error creating instance:", error);
-        res.status(500).json({ error: "Failed to create instance" });
+        const errorMessage = error instanceof Error ? error.message : "Failed to create instance";
+        res.status(500).json({ error: errorMessage });
       }
     }
   });

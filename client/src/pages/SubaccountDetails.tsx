@@ -74,9 +74,22 @@ export default function SubaccountDetails() {
   // Mutation para crear instancia
   const createInstanceMutation = useMutation({
     mutationFn: async (name: string) => {
-      if (!user?.id || !subaccountId || !subaccount?.locationId) {
-        throw new Error("Missing required data");
+      if (!user?.id) {
+        throw new Error("Usuario no encontrado");
       }
+      if (!subaccountId) {
+        throw new Error("Subaccount ID no encontrado");
+      }
+      if (!subaccount?.locationId) {
+        throw new Error("Location ID no encontrado");
+      }
+
+      console.log("Creating instance with data:", {
+        userId: user.id,
+        subaccountId,
+        locationId: subaccount.locationId,
+        customName: name,
+      });
 
       const res = await apiRequest("POST", "/api/instances", {
         userId: user.id,
@@ -85,6 +98,12 @@ export default function SubaccountDetails() {
         customName: name,
         evolutionInstanceName: `wa-${subaccount.locationId}`,
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to create instance");
+      }
+      
       return await res.json();
     },
     onSuccess: () => {
@@ -345,7 +364,7 @@ export default function SubaccountDetails() {
 
       {/* Main Content */}
       <main className="container py-8">
-        <div className="space-y-8 max-w-4xl">
+        <div className="space-y-8 max-w-4xl mx-auto">
           {/* Subaccount Info */}
           <Card>
             <CardHeader>
