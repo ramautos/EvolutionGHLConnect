@@ -8,7 +8,7 @@ import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +134,14 @@ function DashboardContent() {
                 <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
                   <User className="w-4 h-4 mr-2" />
                   Perfil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/billing")} data-testid="menu-billing">
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Planes
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/invoices")} data-testid="menu-invoices">
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Facturas
                 </DropdownMenuItem>
                 {user?.role === "admin" && (
                   <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">

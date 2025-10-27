@@ -78,6 +78,38 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
 });
 
 // ============================================
+// SUBSCRIPTIONS TABLE - Planes de usuario
+// ============================================
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  plan: text("plan").notNull().default("trial"), // trial, basic_1, pro_5
+  maxSubaccounts: text("max_subaccounts").notNull().default("1"), // Número máximo de subcuentas
+  status: text("status").notNull().default("active"), // active, expired, cancelled
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodStart: timestamp("current_period_start").defaultNow(),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelledAt: timestamp("cancelled_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================
+// INVOICES TABLE - Facturas de pago
+// ============================================
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  amount: text("amount").notNull(), // Monto en dólares (ej: "8.00", "25.00")
+  plan: text("plan").notNull(), // basic_1, pro_5
+  description: text("description").notNull(),
+  status: text("status").notNull().default("pending"), // pending, paid, failed
+  stripeInvoiceId: text("stripe_invoice_id"), // Para futura integración
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
 // ZOD SCHEMAS - Validación
 // ============================================
 
@@ -180,3 +212,9 @@ export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
 export type CreateWhatsappInstance = z.infer<typeof createWhatsappInstanceSchema>;
 export type UpdateWhatsappInstance = z.infer<typeof updateWhatsappInstanceSchema>;
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof subscriptions.$inferInsert;
+
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;

@@ -583,6 +583,108 @@ ${ghlErrorDetails}
   });
 
   // ============================================
+  // RUTAS DE BILLING Y SUSCRIPCIONES (Protegidas)
+  // ============================================
+
+  // Obtener suscripción actual del usuario
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      let subscription = await storage.getSubscription(user.id);
+      
+      // Si no tiene suscripción, crear una con trial de 10 días
+      if (!subscription) {
+        subscription = await storage.createSubscription(user.id);
+      }
+
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error getting subscription:", error);
+      res.status(500).json({ error: "Failed to get subscription" });
+    }
+  });
+
+  // Obtener facturas del usuario
+  app.get("/api/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const invoices = await storage.getInvoices(user.id);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error getting invoices:", error);
+      res.status(500).json({ error: "Failed to get invoices" });
+    }
+  });
+
+  // Actualizar plan de suscripción
+  app.patch("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const { plan } = req.body;
+      
+      if (!plan || !["basic_1", "pro_5"].includes(plan)) {
+        res.status(400).json({ error: "Invalid plan. Must be 'basic_1' or 'pro_5'" });
+        return;
+      }
+
+      // Obtener suscripción actual
+      let subscription = await storage.getSubscription(user.id);
+      if (!subscription) {
+        subscription = await storage.createSubscription(user.id);
+      }
+
+      // Verificar si el plan ya es el actual
+      if (subscription.plan === plan) {
+        console.log(`User ${user.id} already has plan ${plan}, skipping update`);
+        res.json(subscription);
+        return;
+      }
+
+      // Actualizar plan
+      const maxSubaccounts = plan === "basic_1" ? "1" : "5";
+      const updatedSubscription = await storage.updateSubscription(user.id, {
+        plan,
+        maxSubaccounts,
+        status: "active",
+      });
+
+      // Crear factura (por ahora con status pending, Stripe la marcará como paid)
+      const amount = plan === "basic_1" ? "8.00" : "25.00";
+      const description = plan === "basic_1" 
+        ? "Plan Básico - 1 ubicación de WhatsApp"
+        : "Plan Pro - 5 ubicaciones de WhatsApp";
+
+      await storage.createInvoice({
+        userId: user.id,
+        amount,
+        plan,
+        description,
+        status: "pending", // Se actualizará a "paid" cuando se integre Stripe
+      });
+
+      res.json(updatedSubscription);
+    } catch (error) {
+      console.error("Error updating subscription:", error);
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  });
+
+  // ============================================
   // RUTAS DE SUBCUENTAS (Protegidas)
   // ============================================
 
@@ -628,6 +730,27 @@ ${ghlErrorDetails}
       if (existing) {
         console.log("✅ Subaccount already exists:", existing.id);
         res.json(existing);
+        return;
+      }
+
+      // Verificar límite de subcuentas basado en el plan
+      let subscription = await storage.getSubscription(userId);
+      if (!subscription) {
+        // Si no tiene suscripción, crear una con trial de 10 días
+        subscription = await storage.createSubscription(userId);
+      }
+
+      const maxSubaccounts = parseInt(subscription.maxSubaccounts || "1");
+      const currentSubaccounts = existingSubaccounts.length;
+
+      if (currentSubaccounts >= maxSubaccounts) {
+        console.log(`❌ Subscription limit reached: ${currentSubaccounts}/${maxSubaccounts}`);
+        res.status(403).json({ 
+          error: "Límite de subcuentas alcanzado",
+          message: `Tu plan actual permite ${maxSubaccounts} ${maxSubaccounts === 1 ? 'subcuenta' : 'subcuentas'}. Actualiza tu plan para agregar más.`,
+          currentSubaccounts,
+          maxSubaccounts
+        });
         return;
       }
 

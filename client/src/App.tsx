@@ -12,6 +12,8 @@ import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import SubaccountDetails from "@/pages/SubaccountDetails";
 import AdminPanel from "@/pages/AdminPanel";
+import Billing from "@/pages/Billing";
+import Invoices from "@/pages/Invoices";
 import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
 import LocationsDashboard from "@/pages/LocationsDashboard";
@@ -43,6 +45,16 @@ function Router() {
       <Route path="/admin">
         <ProtectedRoute requireAdmin={true}>
           <AdminPanel />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/billing">
+        <ProtectedRoute>
+          <Billing />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/invoices">
+        <ProtectedRoute>
+          <Invoices />
         </ProtectedRoute>
       </Route>
       <Route path="/locations">

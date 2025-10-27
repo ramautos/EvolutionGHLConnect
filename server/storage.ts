@@ -1,4 +1,4 @@
-import { users, subaccounts, whatsappInstances, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance } from "@shared/schema";
+import { users, subaccounts, whatsappInstances, subscriptions, invoices, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -38,6 +38,19 @@ export interface IStorage {
   createWhatsappInstance(instance: CreateWhatsappInstance): Promise<WhatsappInstance>;
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
   deleteWhatsappInstance(id: string): Promise<boolean>;
+  
+  // ============================================
+  // SUBSCRIPTION OPERATIONS
+  // ============================================
+  getSubscription(userId: string): Promise<Subscription | undefined>;
+  createSubscription(userId: string): Promise<Subscription>;
+  updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
+  
+  // ============================================
+  // INVOICE OPERATIONS
+  // ============================================
+  getInvoices(userId: string): Promise<Invoice[]>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -232,6 +245,66 @@ export class DatabaseStorage implements IStorage {
       .where(eq(whatsappInstances.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // ============================================
+  // SUBSCRIPTION OPERATIONS
+  // ============================================
+
+  async getSubscription(userId: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId));
+    return subscription || undefined;
+  }
+
+  async createSubscription(userId: string): Promise<Subscription> {
+    // Calcular fecha de fin de prueba (10 días desde ahora)
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 10);
+
+    const [subscription] = await db
+      .insert(subscriptions)
+      .values({
+        userId,
+        plan: "trial",
+        maxSubaccounts: "1",
+        status: "active",
+        trialEndsAt,
+      })
+      .returning();
+    return subscription;
+  }
+
+  async updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+    const [updated] = await db
+      .update(subscriptions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptions.userId, userId))
+      .returning();
+    return updated || undefined;
+  }
+
+  // ============================================
+  // INVOICE OPERATIONS
+  // ============================================
+
+  async getInvoices(userId: string): Promise<Invoice[]> {
+    const results = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.userId, userId))
+      .orderBy(invoices.createdAt);
+    return results;
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [created] = await db
+      .insert(invoices)
+      .values(invoice)
+      .returning();
+    return created;
   }
 }
 
