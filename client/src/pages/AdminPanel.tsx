@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, LogOut, Webhook, Trash2 } from "lucide-react";
+import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, LogOut, Webhook, Trash2, FileText } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -298,9 +298,9 @@ export default function AdminPanel() {
               Gestiona usuarios, subcuentas e instancias del sistema
             </p>
           </div>
-          <Button variant="outline" onClick={() => setLocation("/dashboard")} data-testid="button-back-dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver al Dashboard
+          <Button variant="destructive" onClick={handleLogout} data-testid="button-logout">
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar Sesión
           </Button>
         </div>
 
@@ -376,6 +376,10 @@ export default function AdminPanel() {
             <TabsTrigger value="webhook" data-testid="tab-webhook">
               <Webhook className="w-4 h-4 mr-2" />
               Webhook
+            </TabsTrigger>
+            <TabsTrigger value="api" data-testid="tab-api">
+              <FileText className="w-4 h-4 mr-2" />
+              API
             </TabsTrigger>
           </TabsList>
 
@@ -636,6 +640,287 @@ export default function AdminPanel() {
                     </div>
                   </>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* API Documentation Tab */}
+          <TabsContent value="api">
+            <Card>
+              <CardHeader>
+                <CardTitle>Documentación de API</CardTitle>
+                <CardDescription>
+                  Endpoints disponibles para consultar información del sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Authentication Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    🔐 Autenticación
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">POST</Badge>
+                        <code className="text-sm">/api/auth/login</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Iniciar sesión con email y contraseña</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ email: string, password: string }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">POST</Badge>
+                        <code className="text-sm">/api/auth/logout</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Cerrar sesión</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/auth/me</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener información del usuario actual</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* User Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    👥 Usuarios
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/admin/users</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener todos los usuarios (solo admin)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Response: User[]
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive">DELETE</Badge>
+                        <code className="text-sm">/api/admin/users/:id</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Eliminar un usuario (solo admin)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subaccounts Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    🏢 Subcuentas
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/subaccounts/user/:userId</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener subcuentas de un usuario</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/admin/subaccounts</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener todas las subcuentas (solo admin)</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/subaccounts/:id</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener una subcuenta por ID</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">PATCH</Badge>
+                        <code className="text-sm">/api/admin/subaccounts/:id/billing</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Activar/desactivar billing de subcuenta (solo admin)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ billingEnabled: boolean }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">PATCH</Badge>
+                        <code className="text-sm">/api/admin/subaccounts/:id/activation</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Activar/desactivar subcuenta manualmente (solo admin)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ manuallyActivated: boolean }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">PATCH</Badge>
+                        <code className="text-sm">/api/subaccounts/:locationId/crm-settings</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Actualizar Calendar ID y OpenAI API Key</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ openaiApiKey?: string, calendarId?: string }"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Instances Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    💬 Instancias de WhatsApp
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/instances/user/:userId</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener todas las instancias de un usuario</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/instances/subaccount/:subaccountId</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener instancias de una subcuenta</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/admin/instances</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener todas las instancias del sistema (solo admin)</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">POST</Badge>
+                        <code className="text-sm">/api/instances</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Crear nueva instancia de WhatsApp</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ subaccountId: string, customName?: string }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive">DELETE</Badge>
+                        <code className="text-sm">/api/instances/:id</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Eliminar una instancia</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    💳 Suscripciones y Facturación
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/subaccounts/:subaccountId/subscription</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener información de suscripción y trial</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Response: {"{ plan, inTrial, trialEndsAt, basePrice, includedInstances, extraSlots }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">PATCH</Badge>
+                        <code className="text-sm">/api/subaccounts/:subaccountId/subscription</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Cambiar plan de suscripción</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ plan: 'starter' | 'basic' | 'pro' }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/subaccounts/:subaccountId/invoices</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener facturas de una subcuenta</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Webhook Endpoints */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    🔗 Webhook
+                  </h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">GET</Badge>
+                        <code className="text-sm">/api/admin/webhook-config</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Obtener configuración del webhook (solo admin)</p>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">PATCH</Badge>
+                        <code className="text-sm">/api/admin/webhook-config</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Actualizar configuración del webhook (solo admin)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ webhookUrl: string, isActive: boolean }"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">POST</Badge>
+                        <code className="text-sm">/api/webhook/message</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Recibir mensajes (endpoint público)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ locationId, message, from, instanceName, timestamp }"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Important Notes */}
+                <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950 p-4 space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    ⚠️ Notas Importantes
+                  </h4>
+                  <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-5">
+                    <li>Todos los endpoints requieren autenticación excepto los marcados como públicos</li>
+                    <li>Los endpoints marcados como "solo admin" requieren que el usuario tenga role="admin"</li>
+                    <li>Las respuestas incluyen códigos HTTP estándar (200, 400, 401, 403, 500)</li>
+                    <li>Los trial duran 15 días con instancias ilimitadas</li>
+                    <li>Planes disponibles: starter ($10), basic ($19), pro ($29) + $5 por instancia adicional</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
