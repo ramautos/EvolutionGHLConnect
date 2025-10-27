@@ -35,6 +35,12 @@ function DashboardContent() {
   const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
 
+  // Si el usuario es admin, redirigir al panel de admin
+  if (user?.role === "admin") {
+    setLocation("/admin");
+    return null;
+  }
+
   // Obtener subcuentas del usuario
   const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/subaccounts/user", user?.id],
