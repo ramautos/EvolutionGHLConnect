@@ -34,6 +34,23 @@ interface InstanceInfoResponse {
   number?: string | null;
 }
 
+interface WebhookConfig {
+  url: string;
+  enabled: boolean;
+  events: string[];
+}
+
+interface SendMessageResponse {
+  key: {
+    remoteJid: string;
+    fromMe: boolean;
+    id: string;
+  };
+  message: any;
+  messageTimestamp: string;
+  status: string;
+}
+
 export class EvolutionAPIService {
   private config: EvolutionAPIConfig | null = null;
 
@@ -112,6 +129,36 @@ export class EvolutionAPIService {
 
   async logout(instanceName: string): Promise<void> {
     await this.request('DELETE', `/instance/logout/${instanceName}`);
+  }
+
+  async setWebhook(instanceName: string, webhookUrl: string): Promise<void> {
+    const webhookConfig: WebhookConfig = {
+      url: webhookUrl,
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'CONNECTION_UPDATE'
+      ]
+    };
+
+    await this.request('POST', `/webhook/set/${instanceName}`, {
+      webhook: webhookConfig
+    });
+  }
+
+  async sendTextMessage(
+    instanceName: string,
+    number: string,
+    text: string
+  ): Promise<SendMessageResponse> {
+    // Formatear número para Evolution API (agregar @s.whatsapp.net si no lo tiene)
+    const formattedNumber = number.includes('@') ? number : `${number}@s.whatsapp.net`;
+    
+    return this.request<SendMessageResponse>('POST', `/message/sendText/${instanceName}`, {
+      number: formattedNumber,
+      text: text
+    });
   }
 }
 
