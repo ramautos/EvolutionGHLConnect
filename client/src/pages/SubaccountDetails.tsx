@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Phone
+  Phone,
+  RefreshCw
 } from "lucide-react";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
@@ -133,6 +134,33 @@ export default function SubaccountDetails() {
     },
   });
 
+  // Mutation para sincronizar instancia
+  const syncInstanceMutation = useMutation({
+    mutationFn: async (instanceId: string) => {
+      const res = await apiRequest("POST", `/api/instances/${instanceId}/sync`, {});
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      const message = data.phoneNumber 
+        ? `Sincronizada. Número: ${data.phoneNumber}`
+        : data.message || "Instancia sincronizada";
+      
+      toast({
+        title: "Sincronización completada",
+        description: message,
+        variant: data.status === "not_found_in_evolution" ? "destructive" : "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error de sincronización",
+        description: error.message || "No se pudo sincronizar la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateInstance = () => {
     if (!instanceName.trim()) {
       toast({
@@ -153,6 +181,10 @@ export default function SubaccountDetails() {
     if (confirm("¿Estás seguro de que quieres eliminar esta instancia?")) {
       deleteInstanceMutation.mutate(instanceId);
     }
+  };
+
+  const handleSyncInstance = (instanceId: string) => {
+    syncInstanceMutation.mutate(instanceId);
   };
 
   const getStatusColor = (status: string) => {
@@ -358,6 +390,16 @@ export default function SubaccountDetails() {
                             Generar QR
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSyncInstance(instance.id)}
+                          disabled={syncInstanceMutation.isPending}
+                          data-testid={`button-sync-${instance.id}`}
+                          title="Sincronizar con Evolution API"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${syncInstanceMutation.isPending ? 'animate-spin' : ''}`} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="destructive"

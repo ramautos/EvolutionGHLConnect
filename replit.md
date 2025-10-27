@@ -99,4 +99,65 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 - Frontend: Uses `formatDistanceToNow` from date-fns with Spanish locale
 - Real-time: Socket.io emits `instance-disconnected` event with timestamp
 
+### Bidirectional Synchronization System (October 27, 2025)
+**Feature**: Complete bidirectional sync between WhatsApp App ↔ Evolution API ↔ Web Application
+**Problems Solved**:
+1. ❌ Deleting instance from web app didn't remove it from Evolution API (showed "connected")
+2. ❌ Phone numbers not displaying after QR scan despite being in Evolution API
+3. ❌ Evolution API creating instances with `_1`, `_2` suffixes
+4. ❌ Disconnecting/deleting from WhatsApp app didn't sync to Evolution API
+
+**Implementation**:
+1. **Enhanced DELETE endpoint** (`/api/instances/:id`)
+   - Now deletes from both Evolution API AND database
+   - Gracefully handles cases where instance already deleted from Evolution API
+   - Logs: `✅ Deleted instance from Evolution API`, `🗑️ Instance deleted from database`
+
+2. **Improved extractPhoneNumber() helper**
+   - Handles WhatsApp JID format: `phoneNumber@s.whatsapp.net`
+   - Handles plain numbers with/without `+` prefix
+   - Removes whitespace and common separators: `()-`
+   - Validates numeric format and length (10-15 digits)
+   - Comprehensive logging for debugging
+
+3. **Smart instance creation** (`/api/instances/:id/generate-qr`)
+   - Checks if instance exists in Evolution API before creating
+   - Deletes old instance first to prevent `_1`, `_2` suffixes
+   - Creates fresh instance with exact name: `wa-{locationId}`
+   - Logs: `🔍 Checking...`, `🗑️ Deleting old...`, `🆕 Creating fresh...`
+
+4. **Enhanced webhook handler** (`/api/webhooks/evolution`)
+   - Tries multiple sources for phone number:
+     - `event.data.phoneNumber`
+     - `event.data.owner`
+     - Fallback: fetch from Evolution API via `getInstanceInfo()`
+   - Uses improved `extractPhoneNumber()` for all sources
+   - Logs: `📞 Webhook didn't provide phone number, fetching from Evolution API...`
+
+5. **Intelligent polling system** (every 5s)
+   - Detects disconnections (`state === "close"`)
+   - Detects instances deleted from WhatsApp (404/not found errors)
+   - Auto-deletes orphaned instances from database
+   - Backfills missing phone numbers for connected instances
+   - Emits Socket.io events: `instance-deleted`, `instance-disconnected`, `instance-connected`
+   - Logs: `🗑️ Instance no longer exists in Evolution API - deleting from database`
+
+6. **Manual sync endpoint** (`POST /api/instances/:id/sync`)
+   - Force sync single instance with Evolution API
+   - Returns current state, phone number, and status
+   - Handles missing instances gracefully
+   - Frontend: RefreshCw button with loading spinner
+
+7. **Frontend improvements** (`SubaccountDetails.tsx`)
+   - Added sync button with RefreshCw icon (animated when loading)
+   - Toast notifications for sync results
+   - Shows phone number immediately after sync
+   - Better status indicators
+
+**Technical Details**:
+- Backend: Enhanced error detection (404 errors indicate deleted instances)
+- Logs: Emoji-prefixed for easy debugging (📱 phone, 🔄 sync, 🗑️ delete, ✅ success)
+- Real-time: Socket.io events keep frontend in sync
+- Build: `dist/index.js` (67.8kb), `index-NOm6XC9M.js` (477.66kb)
+
 **Next Step**: Publish to production at whatsapp.cloude.es

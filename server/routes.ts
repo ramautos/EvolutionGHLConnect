@@ -661,13 +661,35 @@ ${ghlErrorDetails}
 
   app.delete("/api/instances/:id", isAuthenticated, async (req, res) => {
     try {
-      const deleted = await storage.deleteWhatsappInstance(req.params.id);
+      const instanceId = req.params.id;
+      
+      // Obtener la instancia primero
+      const instance = await storage.getWhatsappInstance(instanceId);
+      if (!instance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+
+      // Intentar eliminar de Evolution API primero
+      try {
+        await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+        console.log(`✅ Deleted instance ${instance.evolutionInstanceName} from Evolution API`);
+      } catch (error) {
+        console.error(`⚠️ Error deleting instance ${instance.evolutionInstanceName} from Evolution API:`, error);
+        // Continuar aunque falle - la instancia podría ya no existir en Evolution API
+      }
+
+      // Eliminar de la base de datos
+      const deleted = await storage.deleteWhatsappInstance(instanceId);
       if (!deleted) {
         res.status(404).json({ error: "Instance not found" });
         return;
       }
+      
+      console.log(`🗑️ Instance ${instanceId} deleted from database`);
       res.json({ success: true });
     } catch (error) {
+      console.error("Error deleting instance:", error);
       res.status(500).json({ error: "Failed to delete instance" });
     }
   });
@@ -680,11 +702,22 @@ ${ghlErrorDetails}
         return;
       }
       
+      // Eliminar instancia existente en Evolution API para prevenir sufijos _1, _2, etc.
       try {
-        await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
+        console.log(`🔍 Checking if instance ${whatsappInstance.evolutionInstanceName} exists in Evolution API...`);
+        await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
+        // Si llegamos aquí, la instancia existe - eliminarla primero
+        console.log(`🗑️ Instance ${whatsappInstance.evolutionInstanceName} exists, deleting before creating new one...`);
+        await evolutionAPI.deleteInstance(whatsappInstance.evolutionInstanceName);
+        console.log(`✅ Old instance deleted successfully`);
       } catch (error) {
-        console.log("Instance may already exist, continuing...");
+        // Si falla getInstanceState, la instancia no existe - esto está bien
+        console.log(`ℹ️ Instance ${whatsappInstance.evolutionInstanceName} doesn't exist yet (this is expected)`);
       }
+
+      // Crear nueva instancia limpia
+      console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
+      await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
       const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
@@ -737,12 +770,126 @@ ${ghlErrorDetails}
     }
   });
 
-  // Helper function to extract phone number from WhatsApp JID format
+  // Endpoint para sincronización manual con Evolution API
+  app.post("/api/instances/:id/sync", isAuthenticated, async (req, res) => {
+    try {
+      const instance = await storage.getWhatsappInstance(req.params.id);
+      if (!instance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+
+      console.log(`🔄 Manual sync requested for instance ${instance.evolutionInstanceName}`);
+
+      try {
+        // Intentar obtener estado de Evolution API
+        const stateData = await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
+        const state = stateData.instance.state;
+
+        if (state === "open") {
+          // Intentar obtener información completa
+          let phoneNumber = instance.phoneNumber;
+          
+          try {
+            const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
+            const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+            phoneNumber = extractPhoneNumber(rawPhoneNumber);
+            console.log(`📞 Sync: extracted phone ${phoneNumber} from Evolution API`);
+          } catch (infoError) {
+            console.error(`Sync: could not fetch instance info:`, infoError);
+          }
+
+          await storage.updateWhatsappInstance(instance.id, {
+            status: "connected",
+            phoneNumber,
+            connectedAt: new Date(),
+          });
+
+          res.json({
+            success: true,
+            status: "connected",
+            phoneNumber,
+            message: "Instance synchronized successfully",
+          });
+        } else if (state === "close") {
+          await storage.updateWhatsappInstance(instance.id, {
+            status: "disconnected",
+            disconnectedAt: new Date(),
+          });
+
+          res.json({
+            success: true,
+            status: "disconnected",
+            message: "Instance is disconnected",
+          });
+        } else {
+          res.json({
+            success: true,
+            status: state,
+            message: `Instance state: ${state}`,
+          });
+        }
+      } catch (error) {
+        // Si falla getInstanceState, la instancia probablemente no existe en Evolution API
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+          console.log(`⚠️ Sync: Instance ${instance.evolutionInstanceName} doesn't exist in Evolution API`);
+          
+          res.json({
+            success: true,
+            status: "not_found_in_evolution",
+            message: "Instance not found in Evolution API - may have been deleted",
+            suggestion: "Delete this instance or regenerate QR code",
+          });
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing instance:", error);
+      res.status(500).json({ error: "Failed to sync instance" });
+    }
+  });
+
+  // Helper function to extract phone number from various WhatsApp formats
   const extractPhoneNumber = (value: string | null | undefined): string | null => {
-    if (!value) return null;
-    // WhatsApp JID format: "553198296801@s.whatsapp.net"
-    // Extract just the number part
-    return value.split('@')[0] || null;
+    if (!value) {
+      console.log('📱 extractPhoneNumber: received null/undefined value');
+      return null;
+    }
+    
+    console.log(`📱 extractPhoneNumber: processing "${value}"`);
+    
+    // Remove whitespace and common separators
+    let cleaned = value.trim().replace(/[\s\-\(\)]/g, '');
+    
+    // Handle WhatsApp JID format: "553198296801@s.whatsapp.net"
+    if (cleaned.includes('@')) {
+      cleaned = cleaned.split('@')[0];
+      console.log(`📱 extractPhoneNumber: extracted from JID format: "${cleaned}"`);
+    }
+    
+    // Handle "+" prefix
+    if (cleaned.startsWith('+')) {
+      cleaned = cleaned.substring(1);
+      console.log(`📱 extractPhoneNumber: removed + prefix: "${cleaned}"`);
+    }
+    
+    // Validate it's a number
+    if (!/^\d+$/.test(cleaned)) {
+      console.log(`📱 extractPhoneNumber: invalid format (non-numeric): "${cleaned}"`);
+      return null;
+    }
+    
+    // Typical phone numbers are 10-15 digits
+    if (cleaned.length < 10 || cleaned.length > 15) {
+      console.log(`📱 extractPhoneNumber: invalid length ${cleaned.length}: "${cleaned}"`);
+      return null;
+    }
+    
+    console.log(`📱 extractPhoneNumber: final cleaned number: "${cleaned}"`);
+    return cleaned;
   };
 
   app.post("/api/webhooks/evolution", async (req, res) => {
@@ -772,8 +919,22 @@ ${ghlErrorDetails}
           console.log(`Processing connection update for instance ${instance.id} (${instanceName}): state=${state}`);
           
           if (state === "open") {
-            const rawPhoneNumber = event.data?.phoneNumber || null;
-            const phoneNumber = extractPhoneNumber(rawPhoneNumber);
+            // Intentar obtener número de teléfono de múltiples fuentes
+            let rawPhoneNumber = event.data?.phoneNumber || event.data?.owner || null;
+            let phoneNumber = extractPhoneNumber(rawPhoneNumber);
+            
+            // Si no se obtuvo del webhook, intentar desde Evolution API
+            if (!phoneNumber) {
+              try {
+                console.log(`📞 Webhook didn't provide phone number, fetching from Evolution API...`);
+                const instanceInfo = await evolutionAPI.getInstanceInfo(instanceName);
+                rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                phoneNumber = extractPhoneNumber(rawPhoneNumber);
+                console.log(`📞 Fetched from Evolution API: ${phoneNumber} (raw: ${rawPhoneNumber})`);
+              } catch (infoError) {
+                console.error(`Could not fetch instance info:`, infoError);
+              }
+            }
             
             await storage.updateWhatsappInstance(instance.id, {
               status: "connected",
@@ -884,7 +1045,26 @@ ${ghlErrorDetails}
               });
             }
           } catch (error) {
-            console.error(`Error checking instance ${instance.evolutionInstanceName}:`, error);
+            // Detectar si la instancia fue eliminada desde WhatsApp
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            
+            if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+              console.log(`🗑️ Instance ${instance.evolutionInstanceName} no longer exists in Evolution API - deleting from database`);
+              
+              try {
+                await storage.deleteWhatsappInstance(instance.id);
+                console.log(`✅ Deleted orphaned instance ${instance.id} from database`);
+                
+                io.to(`instance-${instance.id}`).emit("instance-deleted", {
+                  instanceId: instance.id,
+                  reason: "deleted_from_whatsapp",
+                });
+              } catch (deleteError) {
+                console.error(`Failed to delete orphaned instance ${instance.id}:`, deleteError);
+              }
+            } else {
+              console.error(`Error checking instance ${instance.evolutionInstanceName}:`, error);
+            }
           }
         }
       }
