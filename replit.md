@@ -83,3 +83,20 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 - Dashboard buttons ("Gestionar", "WhatsApp") navigate to subaccount details
 
 **Next Step**: Publish to production for changes to take effect at whatsapp.cloude.es
+
+### Disconnection Tracking Feature
+**Feature**: Track when WhatsApp instances disconnect and display the information to users
+**Implementation**:
+- Added `disconnectedAt` timestamp field to `whatsapp_instances` table
+- Updated webhook handler to set `disconnectedAt` when Evolution API sends "close" state
+- Updated polling (every 5s) to detect disconnections and set timestamp
+- UI displays "Desconectado hace X tiempo" with human-readable relative time (using date-fns)
+- Schema validation (`updateWhatsappInstanceSchema`) permits `disconnectedAt` field
+
+**Technical Details**:
+- Database: PostgreSQL timestamp column `disconnected_at`
+- Backend: Sets timestamp when `state === "close"` in webhook or polling
+- Frontend: Uses `formatDistanceToNow` from date-fns with Spanish locale
+- Real-time: Socket.io emits `instance-disconnected` event with timestamp
+
+**Next Step**: Publish to production at whatsapp.cloude.es
