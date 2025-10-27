@@ -8,36 +8,43 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 27, 2025)
 
-### Billing & Subscription System
-1. **Subscription Plans**: Two pricing tiers implemented:
-   - **Plan Básico**: $8/month for 1 WhatsApp location
-   - **Plan Pro**: $25/month for 5 WhatsApp locations
-   - **Free Trial**: 10 days for new users
-2. **Billing Page**: Modern interface showing current plan, usage stats, trial countdown, and upgrade/downgrade options
-3. **Invoices Page**: Complete payment history with status badges, filtering, and download capabilities
-4. **Plan Enforcement**: Users cannot exceed their subscription quota when creating subaccounts
-5. **Database Schema**: New `subscriptions` and `invoices` tables with proper relational constraints
-6. **API Endpoints**:
-   - `GET /api/subscription` - Retrieve current subscription
-   - `PATCH /api/subscription` - Upgrade/downgrade plan (creates invoice only on actual change)
-   - `GET /api/invoices` - List all invoices for user
-7. **Navigation**: Added "Planes" and "Facturas" links to Dashboard dropdown menu
+### Billing Architecture Refactor - Subaccount-Level Billing ✅ BACKEND COMPLETE
+**Major Change**: Billing model migrated from user-level to subaccount-level for granular control.
 
-### UI/UX Improvements
-1. **Dashboard Header**: Replaced simple name display with professional DropdownMenu showing "Mi Cuenta" with user details (name/email) and navigation options (Perfil, Planes, Facturas, Panel de Admin, Cerrar Sesión)
-2. **OpenAI Configuration Location**: Moved from user Profile page to individual Subaccount Details page - each subcuenta now manages its own OpenAI API key
-3. **Admin Panel Enhancement**: Completely redesigned with Tabs interface showing:
-   - **Usuarios Tab**: All system users with role badges and subaccount counts
-   - **Subcuentas Tab**: All subaccounts with OpenAI configuration status
-   - **Instancias Tab**: All WhatsApp instances with connection status
-   - Statistics cards showing: Total users, subaccounts, instances, and connection rate
+1. **New Billing Model**: Per-subaccount subscriptions instead of per-user
+   - **Plan "none"**: Default (no instances allowed until plan selected)
+   - **Plan "basic_1_instance"**: $8/month (1 WhatsApp instance included)
+   - **Plan "pro_5_instances"**: $25/month (5 WhatsApp instances included)
+   - **Extra Slots**: $5/month per additional instance beyond plan limits
+   
+2. **Database Schema Updates**:
+   - `subscriptions` table: FK changed from `userId` to `subaccountId`
+   - `invoices` table: FK changed from `userId` to `subaccountId`
+   - New fields: `includedInstances`, `extraSlots`, `basePrice`, `extraPrice`
+   - Automatic subscription creation: Empty subscription (plan="none") created with each subaccount
 
-### Architecture Changes
-- **Subscription Model**: Per-user billing with slot-based limits for subaccounts
-- **Invoice Creation**: Smart invoice generation that prevents duplicates when selecting current plan
-- **OpenAI API Key**: Stored at subcuenta level (not user level), allowing independent AI configuration per GoHighLevel location
-- **Admin Access**: API endpoints `/api/admin/users`, `/api/admin/subaccounts`, `/api/admin/instances` provide complete system visibility for administrators
-- **Profile Page**: Simplified to only show personal information (name, phone, email) and password change functionality
+3. **API Endpoints (Backend Complete)**:
+   - `GET /api/subaccounts/:subaccountId/subscription` - Get subaccount's plan
+   - `PATCH /api/subaccounts/:subaccountId/subscription` - Change plan (creates invoice)
+   - `GET /api/subaccounts/:subaccountId/invoices` - Get subaccount's invoices
+   - `POST /api/instances` - Enhanced with plan verification and quota enforcement
+
+4. **Business Logic**:
+   - **Unlimited subaccounts**: Users can create unlimited subaccounts (no restrictions)
+   - **Instance quotas**: WhatsApp instance creation gated by subaccount's plan
+   - **Quota enforcement**: Cannot create instance if no plan or quota exceeded
+   - **Smart error handling**: API returns `needsPlan` or `needsUpgrade` flags for frontend
+
+5. **Frontend Integration (PENDING)**:
+   - [ ] SubaccountDetails: Move OpenAI config to Dialog, add plan section
+   - [ ] Create PlanSelector component for elegant plan selection
+   - [ ] Update Billing/Invoices pages to use new subaccount-scoped API
+
+### Previous UI/UX Improvements
+1. **Dashboard Header**: DropdownMenu with "Mi Cuenta" showing user details and navigation
+2. **OpenAI Configuration**: Stored at subaccount level for independent AI config per location
+3. **Admin Panel**: Tabs interface with Users, Subcuentas, and Instancias overview
+4. **Profile Page**: Simplified to personal info and password change only
 
 ## System Architecture
 
