@@ -273,7 +273,32 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.subaccountId, subaccountId));
-    return subscription || undefined;
+    
+    if (!subscription) {
+      return undefined;
+    }
+
+    // BACKFILL LOGIC: Si inTrial=true pero trialEndsAt=null (legacy), desactivar trial
+    if (subscription.inTrial && !subscription.trialEndsAt) {
+      const updated = await this.updateSubscription(subaccountId, {
+        inTrial: false,
+        trialEndsAt: new Date(0), // Fecha en el pasado
+      });
+      return updated || subscription;
+    }
+
+    // Si terminó el período de prueba, actualizar estado
+    if (subscription.inTrial && subscription.trialEndsAt) {
+      const now = new Date();
+      if (new Date(subscription.trialEndsAt) <= now) {
+        const updated = await this.updateSubscription(subaccountId, {
+          inTrial: false,
+        });
+        return updated || subscription;
+      }
+    }
+
+    return subscription;
   }
 
   async createSubscription(subaccountId: string, trialDays: number = 14): Promise<Subscription> {
