@@ -737,6 +737,14 @@ ${ghlErrorDetails}
     }
   });
 
+  // Helper function to extract phone number from WhatsApp JID format
+  const extractPhoneNumber = (value: string | null | undefined): string | null => {
+    if (!value) return null;
+    // WhatsApp JID format: "553198296801@s.whatsapp.net"
+    // Extract just the number part
+    return value.split('@')[0] || null;
+  };
+
   app.post("/api/webhooks/evolution", async (req, res) => {
     try {
       const event = req.body;
@@ -764,7 +772,8 @@ ${ghlErrorDetails}
           console.log(`Processing connection update for instance ${instance.id} (${instanceName}): state=${state}`);
           
           if (state === "open") {
-            const phoneNumber = event.data?.phoneNumber || null;
+            const rawPhoneNumber = event.data?.phoneNumber || null;
+            const phoneNumber = extractPhoneNumber(rawPhoneNumber);
             
             await storage.updateWhatsappInstance(instance.id, {
               status: "connected",
@@ -833,12 +842,19 @@ ${ghlErrorDetails}
           try {
             const stateData = await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
             
-            if (stateData.instance.state === "open" && instance.status !== "connected") {
+            // Update if transitioning to connected OR if already connected but missing phone number
+            const needsUpdate = 
+              (stateData.instance.state === "open" && instance.status !== "connected") ||
+              (stateData.instance.state === "open" && instance.status === "connected" && !instance.phoneNumber);
+            
+            if (needsUpdate) {
               let phoneNumber = instance.phoneNumber;
               
               try {
                 const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
-                phoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                phoneNumber = extractPhoneNumber(rawPhoneNumber);
+                console.log(`📞 Extracted phone number for ${instance.evolutionInstanceName}: ${phoneNumber} (from raw: ${rawPhoneNumber})`);
               } catch (infoError) {
                 console.error(`Could not fetch instance info for ${instance.evolutionInstanceName}:`, infoError);
               }
