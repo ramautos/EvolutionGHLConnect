@@ -422,10 +422,6 @@ export default function SubaccountDetails() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Calendar ID:</span>
-                <span className="font-mono">{subaccount.calendarId || "No configurado"}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">OpenAI API Key:</span>
                 <span className="font-mono">{subaccount.openaiApiKey ? "Configurado ✓" : "No configurado"}</span>
               </div>
