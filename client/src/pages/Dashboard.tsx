@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AddSubaccountModal from "@/components/AddSubaccountModal";
+import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,9 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Phone Registration Dialog - Obligatorio */}
+      <PhoneRegistrationDialog isOpen={!user?.phoneNumber} />
+      
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
@@ -103,10 +107,15 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <User className="w-4 h-4" />
-              <span className="font-medium">{user?.name}</span>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/profile")}
+              data-testid="button-profile"
+            >
+              <User className="w-4 h-4 mr-2" />
+              {user?.name}
+            </Button>
             {user?.role === "admin" && (
               <Button
                 variant="outline"

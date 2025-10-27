@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
+import Profile from "@/pages/Profile";
 import SubaccountDetails from "@/pages/SubaccountDetails";
 import AdminPanel from "@/pages/AdminPanel";
 import Onboarding from "@/pages/Onboarding";
@@ -27,6 +28,11 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/profile">
+        <ProtectedRoute>
+          <Profile />
         </ProtectedRoute>
       </Route>
       <Route path="/subaccount/:id">

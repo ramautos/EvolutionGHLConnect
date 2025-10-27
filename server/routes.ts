@@ -7,8 +7,9 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema } from "@shared/schema";
+import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema } from "@shared/schema";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
@@ -141,9 +142,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const user = req.user as any;
-    // No enviar datos sensibles al cliente
+    // No enviar datos sensibles al cliente, pero indicar si tiene contraseña
     const { passwordHash: _, googleId: __, ...userWithoutSensitive } = user;
-    res.json(userWithoutSensitive);
+    const userResponse = {
+      ...userWithoutSensitive,
+      hasPassword: !!user.passwordHash, // Indicar si tiene contraseña local
+    };
+    res.json(userResponse);
   });
 
   // Cerrar sesión
@@ -155,6 +160,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     });
+  });
+
+  // ============================================
+  // RUTAS DE PERFIL DE USUARIO
+  // ============================================
+
+  // Actualizar perfil (nombre, teléfono)
+  app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const validatedData = updateUserProfileSchema.parse(req.body);
+
+      const updatedUser = await storage.updateUser(user.id, validatedData);
+      
+      if (!updatedUser) {
+        res.status(404).json({ error: "Usuario no encontrado" });
+        return;
+      }
+
+      // Actualizar la sesión con los nuevos datos
+      req.user = updatedUser;
+
+      const { passwordHash: _, googleId: __, ...userWithoutSensitive } = updatedUser;
+      res.json(userWithoutSensitive);
+    } catch (error: any) {
+      console.error("Error al actualizar perfil:", error);
+      if (error.name === "ZodError") {
+        res.status(400).json({ error: error.errors[0].message });
+        return;
+      }
+      res.status(500).json({ error: "Error al actualizar el perfil" });
+    }
+  });
+
+  // Actualizar contraseña
+  app.patch("/api/user/password", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const validatedData = updateUserPasswordSchema.parse(req.body);
+
+      // Verificar que el usuario tenga contraseña (no solo Google OAuth)
+      if (!user.passwordHash) {
+        res.status(400).json({ error: "Este usuario usa autenticación de Google" });
+        return;
+      }
+
+      // Verificar contraseña actual
+      const isValidPassword = await bcrypt.compare(validatedData.currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        res.status(400).json({ error: "Contraseña actual incorrecta" });
+        return;
+      }
+
+      // Actualizar contraseña
+      const hashedPassword = await bcrypt.hash(validatedData.newPassword, 10);
+      await storage.updateUser(user.id, { passwordHash: hashedPassword });
+
+      res.json({ success: true, message: "Contraseña actualizada exitosamente" });
+    } catch (error: any) {
+      console.error("Error al actualizar contraseña:", error);
+      if (error.name === "ZodError") {
+        res.status(400).json({ error: error.errors[0].message });
+        return;
+      }
+      res.status(500).json({ error: "Error al actualizar la contraseña" });
+    }
   });
 
   // ============================================

@@ -67,6 +67,45 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 -   Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 ## Recent Updates (October 27, 2025)
 
+### Phone Number Registration & Profile Management (October 27, 2025)
+**Feature**: Mandatory phone registration on first login + user profile management page
+
+**Implementation**:
+1. **Database Schema**:
+   - Added `phoneNumber` field to `users` table (nullable text with country code)
+   - Created validation schemas: `updateUserProfileSchema`, `updateUserPasswordSchema`
+
+2. **Phone Registration Dialog**:
+   - Mandatory popup on first login using `react-phone-input-2` library
+   - Auto-detects country based on phone number format
+   - Shows country flags automatically
+   - Cannot be closed until phone number is registered
+   - Integrated in Dashboard - shows when `!user?.phoneNumber`
+
+3. **API Endpoints**:
+   - `PATCH /api/user/profile` - Update name and phone number
+   - `PATCH /api/user/password` - Change password (email/password users only)
+   - `/api/auth/me` returns `hasPassword` flag to distinguish Google vs email/password users
+
+4. **Profile Page** (`/profile`):
+   - Update personal info: name, phone number (with country flags)
+   - Change password form (only for email/password users)
+   - Email display (read-only)
+   - Accessible via user name button in Dashboard header
+
+**Technical Details**:
+- Uses `react-phone-input-2` for phone input with flags and country detection
+- Preferred countries: DO, US, MX, CO, VE
+- Phone numbers stored with `+` prefix (e.g., `+18094973030`)
+- Password changes use bcrypt for hashing
+- User context automatically refreshes after profile updates via `refetch()`
+
+**User Flow**:
+1. New user logs in → Phone registration dialog appears
+2. User enters phone number → Country flag auto-detects
+3. Submit → Dialog closes, dashboard accessible
+4. User can update profile anytime via user name button → `/profile`
+
 ### Phone Number Display Fix
 **Issue**: WhatsApp phone numbers weren't displaying after QR code scan
 **Root Cause**: Evolution API returns phone numbers in WhatsApp JID format (`phoneNumber@s.whatsapp.net`)  
