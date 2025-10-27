@@ -62,6 +62,7 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   connectedAt: timestamp("connected_at"),
+  disconnectedAt: timestamp("disconnected_at"),
   lastActivityAt: timestamp("last_activity_at"),
 });
 
