@@ -995,53 +995,75 @@ ${ghlErrorDetails}
     }
   });
 
+  // Polling automático cada 5 segundos para sincronización
   setInterval(async () => {
     try {
       const allInstances = await storage.getAllInstances();
       
       for (const instance of allInstances) {
-        if (instance.status === "qr_generated" || instance.status === "connected") {
+        // Solo verificar instancias que podrían estar activas
+        if (instance.status === "qr_generated" || instance.status === "connected" || instance.status === "disconnected") {
           try {
             const stateData = await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
             
-            // Check if disconnected
-            if (stateData.instance.state === "close" && instance.status === "connected") {
+            // Si está abierta en Evolution API
+            if (stateData.instance.state === "open") {
+              // Siempre intentar obtener número de teléfono si no lo tenemos
+              let phoneNumber = instance.phoneNumber;
+              let needsUpdate = false;
+              
+              // Cambio de estado: de desconectado/qr a conectado
+              if (instance.status !== "connected") {
+                needsUpdate = true;
+                console.log(`🔄 Instance ${instance.evolutionInstanceName} transitioning to connected`);
+              }
+              
+              // Ya está conectado pero sin número de teléfono
+              if (instance.status === "connected" && !instance.phoneNumber) {
+                needsUpdate = true;
+                console.log(`📞 Instance ${instance.evolutionInstanceName} is connected but missing phone number`);
+              }
+              
+              // Obtener número de teléfono de Evolution API
+              if (needsUpdate) {
+                try {
+                  const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
+                  const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                  const extractedPhone = extractPhoneNumber(rawPhoneNumber);
+                  
+                  if (extractedPhone) {
+                    phoneNumber = extractedPhone;
+                    console.log(`✅ Auto-sync: Got phone number ${phoneNumber} for ${instance.evolutionInstanceName}`);
+                  } else {
+                    console.log(`⚠️ Auto-sync: Could not extract phone number from "${rawPhoneNumber}" for ${instance.evolutionInstanceName}`);
+                  }
+                } catch (infoError) {
+                  console.error(`Could not fetch instance info for ${instance.evolutionInstanceName}:`, infoError);
+                }
+                
+                await storage.updateWhatsappInstance(instance.id, {
+                  status: "connected",
+                  phoneNumber,
+                  connectedAt: new Date(),
+                });
+                
+                io.to(`instance-${instance.id}`).emit("instance-connected", {
+                  instanceId: instance.id,
+                  phoneNumber,
+                });
+              }
+            }
+            // Si está cerrada en Evolution API pero marcada como conectada en nuestra BD
+            else if (stateData.instance.state === "close" && instance.status === "connected") {
               await storage.updateWhatsappInstance(instance.id, {
                 status: "disconnected",
                 disconnectedAt: new Date(),
               });
-              console.log(`📴 Instance ${instance.evolutionInstanceName} disconnected at ${new Date().toISOString()}`);
+              console.log(`📴 Auto-sync: Instance ${instance.evolutionInstanceName} disconnected at ${new Date().toISOString()}`);
               
               io.to(`instance-${instance.id}`).emit("instance-disconnected", {
                 instanceId: instance.id,
                 disconnectedAt: new Date(),
-              });
-            }
-            // Update if transitioning to connected OR if already connected but missing phone number
-            else if (
-              (stateData.instance.state === "open" && instance.status !== "connected") ||
-              (stateData.instance.state === "open" && instance.status === "connected" && !instance.phoneNumber)
-            ) {
-              let phoneNumber = instance.phoneNumber;
-              
-              try {
-                const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
-                const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
-                phoneNumber = extractPhoneNumber(rawPhoneNumber);
-                console.log(`📞 Extracted phone number for ${instance.evolutionInstanceName}: ${phoneNumber} (from raw: ${rawPhoneNumber})`);
-              } catch (infoError) {
-                console.error(`Could not fetch instance info for ${instance.evolutionInstanceName}:`, infoError);
-              }
-              
-              await storage.updateWhatsappInstance(instance.id, {
-                status: "connected",
-                phoneNumber,
-                connectedAt: new Date(),
-              });
-              
-              io.to(`instance-${instance.id}`).emit("instance-connected", {
-                instanceId: instance.id,
-                phoneNumber,
               });
             }
           } catch (error) {
@@ -1049,7 +1071,7 @@ ${ghlErrorDetails}
             const errorMessage = error instanceof Error ? error.message : String(error);
             
             if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-              console.log(`🗑️ Instance ${instance.evolutionInstanceName} no longer exists in Evolution API - deleting from database`);
+              console.log(`🗑️ Auto-sync: Instance ${instance.evolutionInstanceName} no longer exists in Evolution API - deleting from database`);
               
               try {
                 await storage.deleteWhatsappInstance(instance.id);

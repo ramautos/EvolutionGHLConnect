@@ -158,6 +158,13 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 - Backend: Enhanced error detection (404 errors indicate deleted instances)
 - Logs: Emoji-prefixed for easy debugging (📱 phone, 🔄 sync, 🗑️ delete, ✅ success)
 - Real-time: Socket.io events keep frontend in sync
-- Build: `dist/index.js` (67.8kb), `index-NOm6XC9M.js` (477.66kb)
+- Build: `dist/index.js` (68.6kb), `index-NOm6XC9M.js` (477.66kb)
+
+**Latest Update**: Enhanced auto-sync polling (October 27, 2025)
+- Polling now checks disconnected instances too (not just connected/qr)
+- Automatically detects connected instances without phone numbers
+- Auto-fetches phone numbers from Evolution API every 5 seconds
+- Improved logging with "Auto-sync:" prefix for debugging
+- No manual sync button click needed - everything is automatic
 
 **Next Step**: Publish to production at whatsapp.cloude.es
