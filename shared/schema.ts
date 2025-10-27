@@ -43,6 +43,7 @@ export const subaccounts = pgTable("subaccounts", {
   state: text("state"),
   address: text("address"),
   openaiApiKey: text("openai_api_key"), // API Key de OpenAI para transcripción
+  calendarId: text("calendar_id"), // GHL Calendar ID para integraciones
   isActive: boolean("is_active").notNull().default(true),
   installedAt: timestamp("installed_at").defaultNow(),
   uninstalledAt: timestamp("uninstalled_at"),
@@ -115,6 +116,17 @@ export const invoices = pgTable("invoices", {
 });
 
 // ============================================
+// WEBHOOK CONFIG TABLE - Configuración de webhook (admin-only)
+// ============================================
+export const webhookConfig = pgTable("webhook_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  webhookUrl: text("webhook_url").notNull(), // URL donde se reenvían los mensajes
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================
 // ZOD SCHEMAS - Validación
 // ============================================
 
@@ -169,6 +181,14 @@ export const updateSubaccountOpenAIKeySchema = z.object({
   openaiApiKey: z.string().min(1, "API Key de OpenAI es requerida"),
 });
 
+export const updateSubaccountCalendarIdSchema = z.object({
+  calendarId: z.string().min(1, "Calendar ID es requerido"),
+});
+
+export const updateSubaccountCrmSettingsSchema = z.object({
+  calendarId: z.string().optional(),
+});
+
 // WhatsApp Instances
 export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances).omit({
   id: true,
@@ -212,6 +232,8 @@ export type Subaccount = typeof subaccounts.$inferSelect;
 export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
 export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
 export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
+export type UpdateSubaccountCalendarId = z.infer<typeof updateSubaccountCalendarIdSchema>;
+export type UpdateSubaccountCrmSettings = z.infer<typeof updateSubaccountCrmSettingsSchema>;
 
 export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
@@ -246,3 +268,19 @@ export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
 
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+// Webhook Config
+export const insertWebhookConfigSchema = createInsertSchema(webhookConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateWebhookConfigSchema = z.object({
+  webhookUrl: z.string().url("URL de webhook inválida").optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type WebhookConfig = typeof webhookConfig.$inferSelect;
+export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
+export type UpdateWebhookConfig = z.infer<typeof updateWebhookConfigSchema>;
