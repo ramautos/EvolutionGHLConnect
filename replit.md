@@ -35,36 +35,46 @@ Preferred communication style: Simple, everyday language.
    - Messages include locationId for proper n8n routing
    - Automatic webhook creation on first admin access
 
-### Billing Architecture Refactor - Subaccount-Level Billing ✅ BACKEND COMPLETE
-**Major Change**: Billing model migrated from user-level to subaccount-level for granular control.
+### FREE TRIAL & Automatic Billing System ✅ COMPLETE
+**Major Features**: 14-day free trial + automatic plan assignment + subaccount-level billing.
 
-1. **New Billing Model**: Per-subaccount subscriptions instead of per-user
-   - **Plan "none"**: Default (no instances allowed until plan selected)
-   - **Plan "basic_1_instance"**: $8/month (1 WhatsApp instance included)
-   - **Plan "pro_5_instances"**: $25/month (5 WhatsApp instances included)
-   - **Extra Slots**: $5/month per additional instance beyond plan limits
+1. **FREE TRIAL Period**:
+   - **14-day trial**: Every new subaccount automatically gets a 14-day free trial
+   - **Unlimited instances during trial**: Create unlimited WhatsApp instances without billing
+   - **Automatic activation**: Trial starts immediately upon subaccount creation
+   - **Auto-expiration**: When trial expires, automatic billing kicks in
+   - **Legacy protection**: Automatic backfill for existing subscriptions without trial data
+
+2. **Automatic Billing (Post-Trial)**:
+   - **1st instance**: Auto-assign "basic_1_instance" plan ($8/month) + generate invoice
+   - **2nd instance**: Auto-upgrade to "pro_5_instances" plan ($25/month) + invoice
+   - **6+ instances**: Add extra slots ($5 each) + invoice per additional instance
+   - **Smart detection**: System calculates needed plan based on instance count
    
-2. **Database Schema Updates**:
-   - `subscriptions` table: FK changed from `userId` to `subaccountId`
-   - `invoices` table: FK changed from `userId` to `subaccountId`
-   - New fields: `includedInstances`, `extraSlots`, `basePrice`, `extraPrice`
-   - Automatic subscription creation: Empty subscription (plan="none") created with each subaccount
+3. **Database Schema**:
+   - `subscriptions.trialEndsAt`: Timestamp when trial expires (14 days from creation)
+   - `subscriptions.inTrial`: Boolean flag for active trial status
+   - Automatic backfill: Legacy subscriptions (inTrial=true, trialEndsAt=null) auto-disabled on first access
+   - Auto-update: When trial expires, `inTrial` automatically set to `false`
 
-3. **API Endpoints (Backend Complete)**:
-   - `GET /api/subaccounts/:subaccountId/subscription` - Get subaccount's plan
-   - `PATCH /api/subaccounts/:subaccountId/subscription` - Change plan (creates invoice)
-   - `GET /api/subaccounts/:subaccountId/invoices` - Get subaccount's invoices
-   - `POST /api/instances` - Enhanced with plan verification and quota enforcement
-
-4. **Business Logic**:
+4. **Business Logic Flow**:
+   - New subaccount → subscription created with trialEndsAt = now + 14 days
+   - During trial → unlimited instance creation, no billing logic
+   - Trial expires → `inTrial` set to false, billing logic activates
+   - Instance creation post-trial → automatic plan assignment + invoice generation
    - **Unlimited subaccounts**: Users can create unlimited subaccounts (no restrictions)
-   - **Instance quotas**: WhatsApp instance creation gated by subaccount's plan
-   - **Quota enforcement**: Cannot create instance if no plan or quota exceeded
-   - **Smart error handling**: API returns `needsPlan` or `needsUpgrade` flags for frontend
 
-5. **Frontend Integration (PENDING)**:
-   - [ ] Create PlanSelector component for elegant plan selection
+5. **API Endpoints**:
+   - `GET /api/subaccounts/:subaccountId/subscription` - Get plan + trial status
+   - `PATCH /api/subaccounts/:subaccountId/subscription` - Change plan (creates invoice)
+   - `GET /api/subaccounts/:subaccountId/invoices` - Get invoices
+   - `POST /api/instances` - Creates instance with trial check + automatic billing
+
+6. **Frontend Integration (PENDING)**:
+   - [ ] Display trial countdown/status in UI
+   - [ ] Show "Trial Active" badge on subaccounts
    - [ ] Update Billing/Invoices pages to use new subaccount-scoped API
+   - [ ] Create PlanSelector component for manual plan changes
 
 ### Previous UI/UX Improvements
 1. **Dashboard Header**: DropdownMenu with "Mi Cuenta" showing user details and navigation
