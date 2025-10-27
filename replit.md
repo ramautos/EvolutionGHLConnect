@@ -65,3 +65,21 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 -   `GHL_DB_HOST`, `GHL_DB_PORT`, `GHL_DB_NAME`, `GHL_DB_USER`, `GHL_DB_PASSWORD`
 -   `NODE_ENV` (development | production)
 -   Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+## Recent Updates (October 27, 2025)
+
+### Phone Number Display Fix
+**Issue**: WhatsApp phone numbers weren't displaying after QR code scan
+**Root Cause**: Evolution API returns phone numbers in WhatsApp JID format (`phoneNumber@s.whatsapp.net`)  
+**Solution**: 
+- Created `extractPhoneNumber()` helper function to parse JID format
+- Updated webhook handler and polling mechanism to extract clean phone numbers
+- Polling now detects connected instances without phone numbers and updates them
+- Production build ready: `dist/index.js` (60.3kb)
+
+### Subaccount Management Page
+- Complete `/subaccount/:id` page for managing WhatsApp instances
+- Features: create instances, generate QR codes, delete instances, view phone numbers
+- Real-time status badges (connected, disconnected, qr_generated)
+- Dashboard buttons ("Gestionar", "WhatsApp") navigate to subaccount details
+
+**Next Step**: Publish to production for changes to take effect at whatsapp.cloude.es
