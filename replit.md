@@ -6,6 +6,22 @@ A production-ready multi-tenant SaaS platform integrating WhatsApp Business with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 27, 2025)
+
+### UI/UX Improvements
+1. **Dashboard Header**: Replaced simple name display with professional DropdownMenu showing "Mi Cuenta" with user details (name/email) and navigation options (Perfil, Panel de Admin, Cerrar Sesión)
+2. **OpenAI Configuration Location**: Moved from user Profile page to individual Subaccount Details page - each subcuenta now manages its own OpenAI API key
+3. **Admin Panel Enhancement**: Completely redesigned with Tabs interface showing:
+   - **Usuarios Tab**: All system users with role badges and subaccount counts
+   - **Subcuentas Tab**: All subaccounts with OpenAI configuration status
+   - **Instancias Tab**: All WhatsApp instances with connection status
+   - Statistics cards showing: Total users, subaccounts, instances, and connection rate
+
+### Architecture Changes
+- **OpenAI API Key**: Stored at subcuenta level (not user level), allowing independent AI configuration per GoHighLevel location
+- **Admin Access**: API endpoints `/api/admin/users`, `/api/admin/subaccounts`, `/api/admin/instances` provide complete system visibility for administrators
+- **Profile Page**: Simplified to only show personal information (name, phone, email) and password change functionality
+
 ## System Architecture
 
 ### Frontend

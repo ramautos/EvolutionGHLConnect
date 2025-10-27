@@ -1,11 +1,11 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useState } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Phone, User, Building2, Activity, Trash2, Eye } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, ArrowLeft } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,106 +14,50 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
 
-interface InstanceWithDetails {
-  instance: {
-    id: string;
-    subaccountId: string;
-    evolutionInstanceName: string;
-    customName: string | null;
-    phoneNumber: string | null;
-    status: string;
-    qrCode: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
-  subaccount: {
-    id: string;
-    userId: string;
-    locationId: string;
-    companyId: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-  } | null;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  } | null;
+interface Subaccount {
+  id: string;
+  userId: string;
+  locationId: string;
+  companyId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  state: string | null;
+  openaiApiKey: string | null;
+}
+
+interface WhatsappInstance {
+  id: string;
+  userId: string;
+  subaccountId: string;
+  locationId: string;
+  evolutionInstanceName: string;
+  customName: string | null;
+  phoneNumber: string | null;
+  status: string;
 }
 
 export default function AdminPanel() {
   const { user } = useUser();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [selectedInstance, setSelectedInstance] = useState<InstanceWithDetails | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [instanceToDelete, setInstanceToDelete] = useState<InstanceWithDetails | null>(null);
 
-  const { data: instances, isLoading } = useQuery<InstanceWithDetails[]>({
-    queryKey: ["/api/admin/instances"],
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
     enabled: user?.role === "admin",
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (instanceId: string) => {
-      return await apiRequest("DELETE", `/api/admin/instances/${instanceId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/instances"] });
-      toast({
-        title: "Instancia eliminada",
-        description: "La instancia de WhatsApp se eliminó correctamente",
-      });
-      setShowDeleteDialog(false);
-      setInstanceToDelete(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error al eliminar",
-        description: error.message || "No se pudo eliminar la instancia",
-        variant: "destructive",
-      });
-    },
+  const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
+    queryKey: ["/api/admin/subaccounts"],
+    enabled: user?.role === "admin",
   });
 
-  const handleViewDetails = (instance: InstanceWithDetails) => {
-    setSelectedInstance(instance);
-    setShowDetailsDialog(true);
-  };
-
-  const handleDeleteClick = (instance: InstanceWithDetails) => {
-    setInstanceToDelete(instance);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = () => {
-    if (instanceToDelete) {
-      deleteMutation.mutate(instanceToDelete.instance.id);
-    }
-  };
+  const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
+    queryKey: ["/api/admin/instances"],
+    enabled: user?.role === "admin",
+  });
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -139,7 +83,29 @@ export default function AdminPanel() {
     );
   };
 
-  if (isLoading) {
+  const connectedInstances = instances.filter(i => i.status === "connected").length;
+
+  if (user?.role !== "admin") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Acceso Denegado</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              No tienes permisos para acceder al panel de administrador.
+            </p>
+            <Button onClick={() => setLocation("/dashboard")}>
+              Volver al Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (usersLoading || subaccountsLoading || instancesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -155,10 +121,11 @@ export default function AdminPanel() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
             <p className="text-muted-foreground mt-1">
-              Gestiona todas las instancias de WhatsApp del sistema
+              Gestiona usuarios, subcuentas e instancias del sistema
             </p>
           </div>
-          <Button variant="outline" onClick={() => setLocation("/dashboard")}>
+          <Button variant="outline" onClick={() => setLocation("/dashboard")} data-testid="button-back-dashboard">
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Volver al Dashboard
           </Button>
         </div>
@@ -167,226 +134,207 @@ export default function AdminPanel() {
         <div className="grid gap-4 md:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Instancias</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{instances?.length || 0}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conectadas</CardTitle>
-              <Phone className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {instances?.filter(i => i.instance.status === "connected").length || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Usuarios</CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {new Set(instances?.map(i => i.user?.id).filter(Boolean)).size || 0}
-              </div>
+              <div className="text-2xl font-bold">{users.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {users.filter(u => u.role === "admin").length} administradores
+              </p>
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Subcuentas</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
+              <div className="text-2xl font-bold">{subaccounts.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {subaccounts.filter(s => s.openaiApiKey).length} con OpenAI configurado
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Instancias</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{instances.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {connectedInstances} conectadas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Tasa de Conexión</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
               <div className="text-2xl font-bold">
-                {new Set(instances?.map(i => i.subaccount?.id).filter(Boolean)).size || 0}
+                {instances.length > 0 ? Math.round((connectedInstances / instances.length) * 100) : 0}%
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Instances Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Todas las Instancias de WhatsApp</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!instances || instances.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                No hay instancias de WhatsApp en el sistema
-              </div>
-            ) : (
-              <div className="rounded-md border">
+        {/* Tabs */}
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="users" data-testid="tab-users">
+              <UserIcon className="w-4 h-4 mr-2" />
+              Usuarios
+            </TabsTrigger>
+            <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">
+              <Building2 className="w-4 h-4 mr-2" />
+              Subcuentas
+            </TabsTrigger>
+            <TabsTrigger value="instances" data-testid="tab-instances">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Instancias
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle>Todos los Usuarios</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Subcuenta</TableHead>
-                      <TableHead>Nombre Instancia</TableHead>
-                      <TableHead>Número</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha Creación</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Teléfono</TableHead>
+                      <TableHead>Rol</TableHead>
+                      <TableHead>Subcuentas</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {instances.map((item) => (
-                      <TableRow key={item.instance.id}>
+                    {users.map((u) => (
+                      <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
+                        <TableCell className="font-medium">{u.name}</TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>{u.phoneNumber || "—"}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.user?.name || "N/A"}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {item.user?.email || "N/A"}
-                            </span>
-                          </div>
+                          <Badge variant={u.role === "admin" ? "default" : "secondary"}>
+                            {u.role}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.subaccount?.name || "N/A"}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {item.subaccount?.locationId || "N/A"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {item.instance.customName || item.instance.evolutionInstanceName}
-                            </span>
-                            {item.instance.customName && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.instance.evolutionInstanceName}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.instance.phoneNumber || (
-                            <span className="text-muted-foreground">No conectado</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(item.instance.status)}</TableCell>
-                        <TableCell>
-                          {new Date(item.instance.createdAt).toLocaleDateString("es-ES", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewDetails(item)}
-                              data-testid={`button-view-${item.instance.id}`}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalles
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteClick(item)}
-                              data-testid={`button-delete-${item.instance.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </Button>
-                          </div>
+                          {subaccounts.filter(s => s.userId === u.id).length}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Subaccounts Tab */}
+          <TabsContent value="subaccounts">
+            <Card>
+              <CardHeader>
+                <CardTitle>Todas las Subcuentas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Location ID</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Ubicación</TableHead>
+                      <TableHead>OpenAI</TableHead>
+                      <TableHead>Instancias</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subaccounts.map((s) => {
+                      const owner = users.find(u => u.id === s.userId);
+                      const instanceCount = instances.filter(i => i.subaccountId === s.id).length;
+                      
+                      return (
+                        <TableRow key={s.id} data-testid={`row-subaccount-${s.id}`}>
+                          <TableCell className="font-medium">{s.name}</TableCell>
+                          <TableCell className="font-mono text-xs">{s.locationId}</TableCell>
+                          <TableCell>{owner?.name || "—"}</TableCell>
+                          <TableCell>{s.email || "—"}</TableCell>
+                          <TableCell>
+                            {s.city && s.state ? `${s.city}, ${s.state}` : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {s.openaiApiKey ? (
+                              <Badge variant="default">Configurado</Badge>
+                            ) : (
+                              <Badge variant="outline">No configurado</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{instanceCount}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Instances Tab */}
+          <TabsContent value="instances">
+            <Card>
+              <CardHeader>
+                <CardTitle>Todas las Instancias</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Instance Name</TableHead>
+                      <TableHead>Subcuenta</TableHead>
+                      <TableHead>Usuario</TableHead>
+                      <TableHead>Número</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {instances.map((inst) => {
+                      const subaccount = subaccounts.find(s => s.id === inst.subaccountId);
+                      const owner = users.find(u => u.id === inst.userId);
+                      
+                      return (
+                        <TableRow key={inst.id} data-testid={`row-instance-${inst.id}`}>
+                          <TableCell className="font-medium">
+                            {inst.customName || "Sin nombre"}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {inst.evolutionInstanceName}
+                          </TableCell>
+                          <TableCell>{subaccount?.name || "—"}</TableCell>
+                          <TableCell>{owner?.name || "—"}</TableCell>
+                          <TableCell>{inst.phoneNumber || "—"}</TableCell>
+                          <TableCell>{getStatusBadge(inst.status)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalles de la Instancia</DialogTitle>
-            <DialogDescription>
-              Información completa de la instancia de WhatsApp
-            </DialogDescription>
-          </DialogHeader>
-          {selectedInstance && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Información de Usuario</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Nombre:</span> {selectedInstance.user?.name || "N/A"}</p>
-                    <p><span className="font-medium">Email:</span> {selectedInstance.user?.email || "N/A"}</p>
-                    <p><span className="font-medium">Rol:</span> {selectedInstance.user?.role || "N/A"}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Información de Subcuenta</h3>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="font-medium">Nombre:</span> {selectedInstance.subaccount?.name || "N/A"}</p>
-                    <p><span className="font-medium">Location ID:</span> {selectedInstance.subaccount?.locationId || "N/A"}</p>
-                    <p><span className="font-medium">Company ID:</span> {selectedInstance.subaccount?.companyId || "N/A"}</p>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Información de Instancia</h3>
-                <div className="space-y-1 text-sm">
-                  <p><span className="font-medium">ID:</span> {selectedInstance.instance.id}</p>
-                  <p><span className="font-medium">Nombre Evolution:</span> {selectedInstance.instance.evolutionInstanceName}</p>
-                  <p><span className="font-medium">Nombre Personalizado:</span> {selectedInstance.instance.customName || "N/A"}</p>
-                  <p><span className="font-medium">Número:</span> {selectedInstance.instance.phoneNumber || "No conectado"}</p>
-                  <div><span className="font-medium">Estado:</span> {getStatusBadge(selectedInstance.instance.status)}</div>
-                  <p><span className="font-medium">Creado:</span> {new Date(selectedInstance.instance.createdAt).toLocaleString("es-ES")}</p>
-                  <p><span className="font-medium">Actualizado:</span> {new Date(selectedInstance.instance.updatedAt).toLocaleString("es-ES")}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente la instancia{" "}
-              <span className="font-semibold">
-                {instanceToDelete?.instance.customName || instanceToDelete?.instance.evolutionInstanceName}
-              </span>{" "}
-              y todos sus datos asociados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                "Eliminar"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

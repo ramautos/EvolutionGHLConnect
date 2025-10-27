@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { useUser } from "@/contexts/UserContext";
@@ -21,7 +21,10 @@ import {
   XCircle,
   Loader2,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Key,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
@@ -39,6 +42,8 @@ export default function SubaccountDetails() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<WhatsappInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
+  const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Obtener subcuenta
   const { data: subaccounts = [], isLoading: subaccountLoading } = useQuery<Subaccount[]>({
@@ -47,6 +52,13 @@ export default function SubaccountDetails() {
   });
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
+
+  // Inicializar API key cuando se carga la subcuenta
+  useEffect(() => {
+    if (subaccount?.openaiApiKey) {
+      setOpenaiApiKey(subaccount.openaiApiKey);
+    }
+  }, [subaccount]);
 
   // Obtener instancias
   const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
@@ -161,6 +173,33 @@ export default function SubaccountDetails() {
     },
   });
 
+  // Mutation para actualizar OpenAI API key
+  const updateOpenAIKeyMutation = useMutation({
+    mutationFn: async (apiKey: string) => {
+      if (!subaccount?.locationId) {
+        throw new Error("Location ID no encontrado");
+      }
+      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/openai-key`, {
+        openaiApiKey: apiKey,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "API Key actualizada",
+        description: "El API Key de OpenAI ha sido guardado exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el API Key",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateInstance = () => {
     if (!instanceName.trim()) {
       toast({
@@ -185,6 +224,23 @@ export default function SubaccountDetails() {
 
   const handleSyncInstance = (instanceId: string) => {
     syncInstanceMutation.mutate(instanceId);
+  };
+
+  const handleUpdateOpenAIKey = () => {
+    if (!openaiApiKey || openaiApiKey.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa un API Key válido",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateOpenAIKeyMutation.mutate(openaiApiKey);
+  };
+
+  const maskApiKey = (apiKey: string) => {
+    if (!apiKey || apiKey.length < 8) return apiKey;
+    return `${apiKey.substring(0, 7)}${"•".repeat(20)}${apiKey.substring(apiKey.length - 4)}`;
   };
 
   const getStatusColor = (status: string) => {
@@ -296,6 +352,69 @@ export default function SubaccountDetails() {
                     <p className="text-muted-foreground">{subaccount.email}</p>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* OpenAI Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-muted-foreground" />
+                <CardTitle>Configuración de OpenAI</CardTitle>
+              </div>
+              <CardDescription>
+                Configura el API Key de OpenAI para esta subcuenta. Se usa para transcripción de voz en WhatsApp.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="openai-key">API Key de OpenAI</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="openai-key"
+                      type={showApiKey ? "text" : "password"}
+                      value={showApiKey ? openaiApiKey : (openaiApiKey ? maskApiKey(openaiApiKey) : "")}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      placeholder="sk-proj-..."
+                      data-testid="input-openai-key"
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      data-testid="button-toggle-visibility"
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={handleUpdateOpenAIKey}
+                    disabled={updateOpenAIKeyMutation.isPending}
+                    data-testid="button-save-openai-key"
+                  >
+                    {updateOpenAIKeyMutation.isPending ? "Guardando..." : "Guardar"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Obtén tu API Key en{" "}
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    platform.openai.com/api-keys
+                  </a>
+                </p>
               </div>
             </CardContent>
           </Card>

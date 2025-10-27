@@ -8,7 +8,15 @@ import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
@@ -106,36 +114,40 @@ function DashboardContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setLocation("/profile")}
-              data-testid="button-profile"
-            >
-              <User className="w-4 h-4 mr-2" />
-              {user?.name}
-            </Button>
-            {user?.role === "admin" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation("/admin")}
-                data-testid="button-admin-panel"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Panel de Admin
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              data-testid="button-logout"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
-            </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" data-testid="button-account-menu">
+                  <User className="w-4 h-4 mr-2" />
+                  Mi Cuenta
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Perfil
+                </DropdownMenuItem>
+                {user?.role === "admin" && (
+                  <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Panel de Admin
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar Sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
