@@ -112,6 +112,7 @@ export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances
   id: true,
   createdAt: true,
   connectedAt: true,
+  disconnectedAt: true,
   lastActivityAt: true,
 });
 
@@ -131,6 +132,7 @@ export const updateWhatsappInstanceSchema = z.object({
   webhookUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
   connectedAt: z.date().optional(),
+  disconnectedAt: z.date().optional(),
   lastActivityAt: z.date().optional(),
 });
 
