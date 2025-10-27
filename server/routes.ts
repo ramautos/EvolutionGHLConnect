@@ -816,8 +816,9 @@ ${ghlErrorDetails}
           } else if (state === "close") {
             await storage.updateWhatsappInstance(instance.id, {
               status: "disconnected",
+              disconnectedAt: new Date(),
             });
-            console.log(`Instance ${instance.id} disconnected`);
+            console.log(`Instance ${instance.id} disconnected at ${new Date().toISOString()}`);
           }
         } else {
           console.error(`Instance not found for name: ${instanceName}`);
@@ -842,12 +843,24 @@ ${ghlErrorDetails}
           try {
             const stateData = await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
             
+            // Check if disconnected
+            if (stateData.instance.state === "close" && instance.status === "connected") {
+              await storage.updateWhatsappInstance(instance.id, {
+                status: "disconnected",
+                disconnectedAt: new Date(),
+              });
+              console.log(`📴 Instance ${instance.evolutionInstanceName} disconnected at ${new Date().toISOString()}`);
+              
+              io.to(`instance-${instance.id}`).emit("instance-disconnected", {
+                instanceId: instance.id,
+                disconnectedAt: new Date(),
+              });
+            }
             // Update if transitioning to connected OR if already connected but missing phone number
-            const needsUpdate = 
+            else if (
               (stateData.instance.state === "open" && instance.status !== "connected") ||
-              (stateData.instance.state === "open" && instance.status === "connected" && !instance.phoneNumber);
-            
-            if (needsUpdate) {
+              (stateData.instance.state === "open" && instance.status === "connected" && !instance.phoneNumber)
+            ) {
               let phoneNumber = instance.phoneNumber;
               
               try {
