@@ -8,6 +8,33 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 27, 2025)
 
+### CRM Settings & Webhook Configuration ✅ COMPLETE
+**New Feature**: Per-subaccount CRM configuration and admin-controlled webhook forwarding.
+
+1. **CRM Settings per Subaccount**:
+   - Added `calendarId` field to `subaccounts` table for GoHighLevel calendar integration
+   - Users configure Calendar ID and OpenAI API Key via "Ajustes del CRM" dialog in SubaccountDetails
+   - Dialog shows Location ID (read-only), Calendar ID (editable), and OpenAI Key (editable)
+   - Replaced standalone OpenAI card with unified CRM Settings interface
+
+2. **Admin Webhook Configuration**:
+   - New `webhookConfig` table stores global webhook URL and activation state
+   - Admin Panel includes "Webhook" tab for complete webhook management
+   - Admin can configure webhook URL and toggle activation (users cannot see this)
+   - Messages forwarded to configured URL with locationId, message, from, instanceName, timestamp
+
+3. **API Endpoints**:
+   - `PATCH /api/subaccounts/:locationId/crm-settings` - Update Calendar ID and OpenAI Key (authenticated)
+   - `GET /api/admin/webhook-config` - Get webhook configuration (admin only)
+   - `PATCH /api/admin/webhook-config` - Update webhook URL and activation (admin only)
+   - `POST /api/webhook/message` - Receive messages and forward to configured webhook (public)
+
+4. **Business Logic**:
+   - Webhook forwarding only active when admin enables it
+   - Each subaccount has independent CRM configuration (Calendar ID + OpenAI Key)
+   - Messages include locationId for proper n8n routing
+   - Automatic webhook creation on first admin access
+
 ### Billing Architecture Refactor - Subaccount-Level Billing ✅ BACKEND COMPLETE
 **Major Change**: Billing model migrated from user-level to subaccount-level for granular control.
 
@@ -36,14 +63,13 @@ Preferred communication style: Simple, everyday language.
    - **Smart error handling**: API returns `needsPlan` or `needsUpgrade` flags for frontend
 
 5. **Frontend Integration (PENDING)**:
-   - [ ] SubaccountDetails: Move OpenAI config to Dialog, add plan section
    - [ ] Create PlanSelector component for elegant plan selection
    - [ ] Update Billing/Invoices pages to use new subaccount-scoped API
 
 ### Previous UI/UX Improvements
 1. **Dashboard Header**: DropdownMenu with "Mi Cuenta" showing user details and navigation
-2. **OpenAI Configuration**: Stored at subaccount level for independent AI config per location
-3. **Admin Panel**: Tabs interface with Users, Subcuentas, and Instancias overview
+2. **CRM Settings Dialog**: Unified interface for Calendar ID and OpenAI API Key configuration
+3. **Admin Panel**: Tabs interface with Users, Subcuentas, Instancias, and Webhook configuration
 4. **Profile Page**: Simplified to personal info and password change only
 
 ## System Architecture
