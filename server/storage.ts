@@ -178,6 +178,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(subaccounts);
   }
 
+  async updateSubaccountBilling(id: string, billingEnabled: boolean): Promise<Subaccount | undefined> {
+    const [updated] = await db
+      .update(subaccounts)
+      .set({ billingEnabled })
+      .where(eq(subaccounts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async updateSubaccountActivation(id: string, manuallyActivated: boolean): Promise<Subaccount | undefined> {
+    const [updated] = await db
+      .update(subaccounts)
+      .set({ manuallyActivated })
+      .where(eq(subaccounts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   // ============================================
   // WHATSAPP INSTANCE OPERATIONS
   // ============================================
