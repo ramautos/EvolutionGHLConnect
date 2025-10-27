@@ -8,6 +8,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 27, 2025)
 
+### Admin Control System ✅ COMPLETE
+**New Feature**: Admin role with manual control over subaccount billing and activation.
+
+1. **Admin-Only Access**:
+   - Admins automatically redirected to `/admin` panel when accessing dashboard
+   - Admins cannot create subaccounts (restricted to admin panel only)
+   - Admin panel includes tabs: Users, Subcuentas, Instancias, Webhook
+
+2. **Manual Billing & Activation Controls**:
+   - Added `billingEnabled` field to `subaccounts` - controls if billing applies to subaccount
+   - Added `manuallyActivated` field to `subaccounts` - controls if subaccount is active
+   - Both default to `true` for backwards compatibility
+   - Admin can toggle both flags via switches in Subcuentas tab
+
+3. **Instance Creation Validation**:
+   - VALIDATION 1: `manuallyActivated` must be true (always checked)
+   - VALIDATION 2: `billingEnabled` must be true (only checked after trial period)
+   - Users receive clear error messages when validation fails
+
+4. **API Endpoints**:
+   - `PATCH /api/admin/subaccounts/:id/billing` - Toggle billing enabled/disabled (admin only)
+   - `PATCH /api/admin/subaccounts/:id/activation` - Toggle manual activation (admin only)
+
+5. **UX Changes**:
+   - Dashboard redirects admins to `/admin` via useEffect (prevents render loop)
+   - Admin panel shows billing/activation switches with status labels
+   - Queries disabled for admins on dashboard (performance optimization)
+
 ### CRM Settings & Webhook Configuration ✅ COMPLETE
 **New Feature**: Per-subaccount CRM configuration and admin-controlled webhook forwarding.
 

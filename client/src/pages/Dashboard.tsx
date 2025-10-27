@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
@@ -36,21 +36,22 @@ function DashboardContent() {
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
 
   // Si el usuario es admin, redirigir al panel de admin
-  if (user?.role === "admin") {
-    setLocation("/admin");
-    return null;
-  }
+  useEffect(() => {
+    if (user?.role === "admin") {
+      setLocation("/admin");
+    }
+  }, [user?.role, setLocation]);
 
   // Obtener subcuentas del usuario
   const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/subaccounts/user", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && user?.role !== "admin",
   });
 
   // Obtener todas las instancias del usuario
   const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/instances/user", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && user?.role !== "admin",
   });
 
   const handleLogout = async () => {

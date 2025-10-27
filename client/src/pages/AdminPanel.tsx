@@ -43,6 +43,8 @@ interface Subaccount {
   city: string | null;
   state: string | null;
   openaiApiKey: string | null;
+  billingEnabled: boolean;
+  manuallyActivated: boolean;
 }
 
 interface WhatsappInstance {
@@ -144,6 +146,52 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: error.message || "No se pudo eliminar el usuario",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateBillingMutation = useMutation({
+    mutationFn: async ({ subaccountId, billingEnabled }: { subaccountId: string; billingEnabled: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/subaccounts/${subaccountId}/billing`, {
+        billingEnabled,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Billing actualizado",
+        description: "El estado de billing se actualizó exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subaccounts"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el billing",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateActivationMutation = useMutation({
+    mutationFn: async ({ subaccountId, manuallyActivated }: { subaccountId: string; manuallyActivated: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/subaccounts/${subaccountId}/activation`, {
+        manuallyActivated,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Activación actualizada",
+        description: "El estado de activación se actualizó exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subaccounts"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar la activación",
         variant: "destructive",
       });
     },
@@ -370,10 +418,9 @@ export default function AdminPanel() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Location ID</TableHead>
                       <TableHead>Usuario</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Ubicación</TableHead>
-                      <TableHead>OpenAI</TableHead>
                       <TableHead>Instancias</TableHead>
+                      <TableHead>Billing</TableHead>
+                      <TableHead>Activada</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,18 +433,41 @@ export default function AdminPanel() {
                           <TableCell className="font-medium">{s.name}</TableCell>
                           <TableCell className="font-mono text-xs">{s.locationId}</TableCell>
                           <TableCell>{owner?.name || "—"}</TableCell>
-                          <TableCell>{s.email || "—"}</TableCell>
-                          <TableCell>
-                            {s.city && s.state ? `${s.city}, ${s.state}` : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {s.openaiApiKey ? (
-                              <Badge variant="default">Configurado</Badge>
-                            ) : (
-                              <Badge variant="outline">No configurado</Badge>
-                            )}
-                          </TableCell>
                           <TableCell>{instanceCount}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={s.billingEnabled}
+                                onCheckedChange={(checked) => 
+                                  updateBillingMutation.mutate({ 
+                                    subaccountId: s.id, 
+                                    billingEnabled: checked 
+                                  })
+                                }
+                                data-testid={`switch-billing-${s.id}`}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {s.billingEnabled ? "Habilitado" : "Deshabilitado"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={s.manuallyActivated}
+                                onCheckedChange={(checked) => 
+                                  updateActivationMutation.mutate({ 
+                                    subaccountId: s.id, 
+                                    manuallyActivated: checked 
+                                  })
+                                }
+                                data-testid={`switch-activation-${s.id}`}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {s.manuallyActivated ? "Activa" : "Inactiva"}
+                              </span>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
