@@ -127,11 +127,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Subaccount Management Flow (GHL OAuth)
 
-**Adding a Subaccount**:
+**Adding a Subaccount** (Updated October 27, 2025):
 1. User clicks "Add Subaccount" in Dashboard
 2. `AddSubaccountModal` opens
 3. User clicks "Connect with GoHighLevel"
-4. Modal opens centered popup to GHL OAuth:
+4. **Full page redirects** to GHL OAuth (NOT popup - changed from popup to full redirect for Replit compatibility):
    ```
    https://marketplace.gohighlevel.com/oauth/chooselocation
    ?response_type=code
@@ -139,7 +139,7 @@ Preferred communication style: Simple, everyday language.
    &client_id={GHL_CLIENT_ID}
    &scope=locations.readonly contacts.readonly
    ```
-5. User authorizes in GoHighLevel popup
+5. User authorizes in GoHighLevel
 6. GHL redirects to n8n webhook (`https://ray.cloude.es/webhook/registrocuenta`)
 7. n8n webhook:
    - Exchanges authorization code for tokens
@@ -151,13 +151,14 @@ Preferred communication style: Simple, everyday language.
    - Backend fetches location details from GHL API
    - Creates subaccount record in Replit DB
    - Fires confetti celebration
-   - Sets `localStorage.ghl_oauth_success = "true"`
    - Redirects to `/dashboard`
-9. Modal detects success via localStorage event
-10. Dashboard refreshes subaccount list
+9. Dashboard loads with new subaccount visible
 
 **Why n8n Intermediary?**
 GoHighLevel blocks redirect URIs containing "ghl", "highlevel", or "gohighlevel" in domain or path. Using n8n webhook as intermediary bypasses this restriction while maintaining security (tokens never exposed to client).
+
+**Why Full Redirect instead of Popup?**
+Popups have communication issues in Replit's iframe environment due to cross-origin restrictions. Full page redirect is more reliable and works consistently across all environments.
 
 ### WhatsApp Instance Management
 
