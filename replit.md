@@ -8,8 +8,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 27, 2025)
 
+### Billing & Subscription System
+1. **Subscription Plans**: Two pricing tiers implemented:
+   - **Plan Básico**: $8/month for 1 WhatsApp location
+   - **Plan Pro**: $25/month for 5 WhatsApp locations
+   - **Free Trial**: 10 days for new users
+2. **Billing Page**: Modern interface showing current plan, usage stats, trial countdown, and upgrade/downgrade options
+3. **Invoices Page**: Complete payment history with status badges, filtering, and download capabilities
+4. **Plan Enforcement**: Users cannot exceed their subscription quota when creating subaccounts
+5. **Database Schema**: New `subscriptions` and `invoices` tables with proper relational constraints
+6. **API Endpoints**:
+   - `GET /api/subscription` - Retrieve current subscription
+   - `PATCH /api/subscription` - Upgrade/downgrade plan (creates invoice only on actual change)
+   - `GET /api/invoices` - List all invoices for user
+7. **Navigation**: Added "Planes" and "Facturas" links to Dashboard dropdown menu
+
 ### UI/UX Improvements
-1. **Dashboard Header**: Replaced simple name display with professional DropdownMenu showing "Mi Cuenta" with user details (name/email) and navigation options (Perfil, Panel de Admin, Cerrar Sesión)
+1. **Dashboard Header**: Replaced simple name display with professional DropdownMenu showing "Mi Cuenta" with user details (name/email) and navigation options (Perfil, Planes, Facturas, Panel de Admin, Cerrar Sesión)
 2. **OpenAI Configuration Location**: Moved from user Profile page to individual Subaccount Details page - each subcuenta now manages its own OpenAI API key
 3. **Admin Panel Enhancement**: Completely redesigned with Tabs interface showing:
    - **Usuarios Tab**: All system users with role badges and subaccount counts
@@ -18,6 +33,8 @@ Preferred communication style: Simple, everyday language.
    - Statistics cards showing: Total users, subaccounts, instances, and connection rate
 
 ### Architecture Changes
+- **Subscription Model**: Per-user billing with slot-based limits for subaccounts
+- **Invoice Creation**: Smart invoice generation that prevents duplicates when selecting current plan
 - **OpenAI API Key**: Stored at subcuenta level (not user level), allowing independent AI configuration per GoHighLevel location
 - **Admin Access**: API endpoints `/api/admin/users`, `/api/admin/subaccounts`, `/api/admin/instances` provide complete system visibility for administrators
 - **Profile Page**: Simplified to only show personal information (name, phone, email) and password change functionality
