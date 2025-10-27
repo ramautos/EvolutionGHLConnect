@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Sparkles, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import heroImage from '@assets/generated_images/AI_WhatsApp_dashboard_hero_5c133378.png';
 import { useLocation } from "wouter";
 
@@ -13,11 +13,6 @@ export default function Hero() {
       <div className="container mx-auto px-6 lg:px-12 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Automatización Inteligente</span>
-            </div>
-            
             <h1 className="text-5xl lg:text-7xl font-bold leading-tight" style={{ fontFamily: 'var(--font-accent)' }}>
               <span className="bg-gradient-to-r from-primary via-chart-2 to-primary bg-clip-text text-transparent">
                 WhatsApp AI
