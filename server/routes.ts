@@ -528,6 +528,30 @@ ${ghlErrorDetails}
     }
   });
 
+  // Eliminar usuario (solo admin)
+  app.delete("/api/admin/users/:userId", isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Prevenir que el admin se elimine a sí mismo
+      if ((req.user as any).id === userId) {
+        res.status(400).json({ error: "No puedes eliminar tu propia cuenta" });
+        return;
+      }
+
+      const deleted = await storage.deleteUser(userId);
+      if (!deleted) {
+        res.status(404).json({ error: "Usuario no encontrado" });
+        return;
+      }
+
+      res.json({ success: true, message: "Usuario eliminado exitosamente" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Error al eliminar usuario" });
+    }
+  });
+
   // Listar todas las subcuentas (solo admin)
   app.get("/api/admin/subaccounts", isAdmin, async (req, res) => {
     try {
@@ -985,34 +1009,99 @@ ${ghlErrorDetails}
         subscription = await storage.createSubscription(validatedData.subaccountId);
       }
 
-      // Verificar si tiene un plan activo
-      if (subscription.plan === "none") {
-        res.status(403).json({ 
-          error: "No active plan",
-          message: "Debes seleccionar un plan antes de crear una instancia de WhatsApp",
-          needsPlan: true
-        });
-        return;
-      }
-
       // Contar instancias actuales
       const currentInstances = await storage.countWhatsappInstances(validatedData.subaccountId);
-      const maxInstances = parseInt(subscription.includedInstances) + parseInt(subscription.extraSlots);
+      
+      // LÓGICA AUTOMÁTICA DE BILLING
+      let needsPlanChange = false;
+      let newPlan = subscription.plan;
+      let newExtraSlots = parseInt(subscription.extraSlots);
+      let invoiceGenerated = false;
+      let invoiceId: string | undefined;
 
-      // Verificar límite
-      if (currentInstances >= maxInstances) {
-        res.status(403).json({ 
-          error: "Instance limit reached",
-          message: `Tu plan actual permite ${maxInstances} ${maxInstances === 1 ? 'instancia' : 'instancias'}. Actualiza tu plan para agregar más.`,
-          currentInstances,
-          maxInstances,
-          needsUpgrade: true
+      // Primera instancia: asignar plan básico automáticamente
+      if (currentInstances === 0 && subscription.plan === "none") {
+        needsPlanChange = true;
+        newPlan = "basic_1_instance";
+        newExtraSlots = 0;
+        
+        // Generar factura para plan básico
+        const invoice = await storage.createInvoice({
+          subaccountId: validatedData.subaccountId,
+          amount: "8.00",
+          plan: "basic_1_instance",
+          baseAmount: "8.00",
+          extraAmount: "0.00",
+          extraSlots: "0",
+          description: "Plan Básico - 1 instancia de WhatsApp",
+          status: "pending",
         });
-        return;
+        invoiceGenerated = true;
+        invoiceId = invoice.id;
+      }
+      // Segunda instancia: upgrade automático a plan pro
+      else if (currentInstances === 1 && subscription.plan === "basic_1_instance") {
+        needsPlanChange = true;
+        newPlan = "pro_5_instances";
+        newExtraSlots = 0;
+        
+        // Generar factura para upgrade a plan pro
+        const invoice = await storage.createInvoice({
+          subaccountId: validatedData.subaccountId,
+          amount: "25.00",
+          plan: "pro_5_instances",
+          baseAmount: "25.00",
+          extraAmount: "0.00",
+          extraSlots: "0",
+          description: "Plan Pro - 5 instancias de WhatsApp (Upgrade automático)",
+          status: "pending",
+        });
+        invoiceGenerated = true;
+        invoiceId = invoice.id;
+      }
+      // Más de 5 instancias: agregar slot extra ($5 cada uno)
+      else if (currentInstances >= 5 && subscription.plan === "pro_5_instances") {
+        needsPlanChange = true;
+        newPlan = subscription.plan; // Mantener plan pro
+        newExtraSlots = currentInstances - 4; // Número de slots extra necesarios
+        
+        // Generar factura por el slot adicional
+        const invoice = await storage.createInvoice({
+          subaccountId: validatedData.subaccountId,
+          amount: "5.00",
+          plan: "pro_5_instances",
+          baseAmount: "0.00",
+          extraAmount: "5.00",
+          extraSlots: "1",
+          description: `Slot adicional #${newExtraSlots} - Instancia extra de WhatsApp`,
+          status: "pending",
+        });
+        invoiceGenerated = true;
+        invoiceId = invoice.id;
       }
 
+      // Aplicar cambios al plan si es necesario
+      if (needsPlanChange) {
+        subscription = await storage.updateSubscription(validatedData.subaccountId, {
+          plan: newPlan,
+          extraSlots: newExtraSlots.toString(),
+          includedInstances: newPlan === "basic_1_instance" ? "1" : "5",
+          basePrice: newPlan === "basic_1_instance" ? "8.00" : "25.00",
+          extraPrice: newExtraSlots > 0 ? (newExtraSlots * 5).toFixed(2) : "0.00",
+        }) || subscription;
+      }
+
+      // Crear la instancia
       const instance = await storage.createWhatsappInstance(validatedData);
-      res.json(instance);
+      
+      // Responder con la instancia y la factura generada (si aplica)
+      res.json({
+        instance,
+        invoiceGenerated,
+        invoiceId,
+        planChanged: needsPlanChange,
+        currentPlan: newPlan,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
