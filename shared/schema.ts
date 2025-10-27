@@ -19,6 +19,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
+  phoneNumber: text("phone_number"), // Número de teléfono con código de país
   passwordHash: text("password_hash"), // Para email/password auth
   googleId: text("google_id"), // Para Google OAuth
   role: text("role").notNull().default("user"), // "user" o "admin"
@@ -97,6 +98,16 @@ export const loginUserSchema = z.object({
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
+export const updateUserProfileSchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").optional(),
+  phoneNumber: z.string().min(1, "El número de teléfono es requerido").optional(),
+});
+
+export const updateUserPasswordSchema = z.object({
+  currentPassword: z.string().min(1, "La contraseña actual es requerida"),
+  newPassword: z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
+});
+
 // Subaccounts
 export const insertSubaccountSchema = createInsertSchema(subaccounts).omit({
   id: true,
@@ -152,6 +163,8 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type RegisterUser = z.infer<typeof registerUserSchema>;
 export type LoginUser = z.infer<typeof loginUserSchema>;
+export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
+export type UpdateUserPassword = z.infer<typeof updateUserPasswordSchema>;
 
 export type Subaccount = typeof subaccounts.$inferSelect;
 export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
