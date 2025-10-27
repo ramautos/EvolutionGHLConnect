@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema } from "@shared/schema";
+import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -582,6 +582,59 @@ ${ghlErrorDetails}
     }
   });
 
+  // Obtener configuración de webhook (solo admin)
+  app.get("/api/admin/webhook-config", isAdmin, async (req, res) => {
+    try {
+      let config = await storage.getWebhookConfig();
+      
+      // Si no existe, crear una configuración por defecto
+      if (!config) {
+        config = await storage.createWebhookConfig({
+          webhookUrl: "",
+          isActive: false,
+        });
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error getting webhook config:", error);
+      res.status(500).json({ error: "Failed to get webhook configuration" });
+    }
+  });
+
+  // Actualizar configuración de webhook (solo admin)
+  app.patch("/api/admin/webhook-config", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateWebhookConfigSchema.parse(req.body);
+      
+      let config = await storage.getWebhookConfig();
+      
+      if (!config) {
+        // Si no existe, crear una nueva
+        config = await storage.createWebhookConfig({
+          webhookUrl: validatedData.webhookUrl || "",
+          isActive: validatedData.isActive ?? false,
+        });
+      } else {
+        // Actualizar existente
+        config = await storage.updateWebhookConfig(config.id, validatedData);
+        if (!config) {
+          res.status(500).json({ error: "Failed to update webhook config" });
+          return;
+        }
+      }
+      
+      res.json(config);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        console.error("Error updating webhook config:", error);
+        res.status(500).json({ error: "Failed to update webhook configuration" });
+      }
+    }
+  });
+
   // ============================================
   // RUTAS DE BILLING Y SUSCRIPCIONES POR SUBCUENTA (Protegidas)
   // ============================================
@@ -844,6 +897,40 @@ ${ghlErrorDetails}
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
         res.status(500).json({ error: "Failed to update OpenAI API key" });
+      }
+    }
+  });
+
+  // Actualizar Ajustes del CRM (Calendar ID) por locationId
+  app.patch("/api/subaccounts/:locationId/crm-settings", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const validatedData = updateSubaccountCrmSettingsSchema.parse(req.body);
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.userId !== user.id && user.role !== "admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const updated = await storage.updateSubaccount(subaccount.id, {
+        calendarId: validatedData.calendarId,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to update CRM settings" });
       }
     }
   });
@@ -1305,6 +1392,64 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Webhook error:", error);
       res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
+  // ============================================
+  // WEBHOOK DE MENSAJES (Público - llamado por Evolution API/n8n)
+  // ============================================
+  
+  // Recibir mensaje y reenviarlo a webhook configurado
+  app.post("/api/webhook/message", async (req, res) => {
+    try {
+      const { locationId, message, from, instanceName } = req.body;
+      
+      if (!locationId || !message) {
+        res.status(400).json({ error: "locationId and message are required" });
+        return;
+      }
+
+      // Obtener configuración de webhook
+      const webhookConfig = await storage.getWebhookConfig();
+      
+      if (!webhookConfig || !webhookConfig.isActive || !webhookConfig.webhookUrl) {
+        console.log("Webhook not configured or inactive");
+        res.status(200).json({ success: true, message: "Webhook not configured" });
+        return;
+      }
+
+      // Preparar datos para enviar al webhook
+      const webhookPayload = {
+        locationId,
+        message,
+        from,
+        instanceName,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Enviar al webhook configurado
+      try {
+        const response = await fetch(webhookConfig.webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(webhookPayload),
+        });
+
+        if (!response.ok) {
+          console.error(`Webhook failed with status: ${response.status}`);
+        } else {
+          console.log(`✅ Message forwarded to webhook for locationId: ${locationId}`);
+        }
+      } catch (webhookError) {
+        console.error("Error forwarding to webhook:", webhookError);
+      }
+
+      res.json({ success: true, message: "Message processed" });
+    } catch (error) {
+      console.error("Error processing webhook message:", error);
+      res.status(500).json({ error: "Failed to process message" });
     }
   });
 

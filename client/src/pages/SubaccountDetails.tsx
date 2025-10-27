@@ -40,9 +40,11 @@ export default function SubaccountDetails() {
 
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [crmSettingsOpen, setCrmSettingsOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<WhatsappInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
   const [openaiApiKey, setOpenaiApiKey] = useState("");
+  const [calendarId, setCalendarId] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Obtener subcuenta
@@ -53,10 +55,13 @@ export default function SubaccountDetails() {
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
 
-  // Inicializar API key cuando se carga la subcuenta
+  // Inicializar API key y calendar ID cuando se carga la subcuenta
   useEffect(() => {
     if (subaccount?.openaiApiKey) {
       setOpenaiApiKey(subaccount.openaiApiKey);
+    }
+    if (subaccount?.calendarId) {
+      setCalendarId(subaccount.calendarId);
     }
   }, [subaccount]);
 
@@ -173,28 +178,52 @@ export default function SubaccountDetails() {
     },
   });
 
-  // Mutation para actualizar OpenAI API key
-  const updateOpenAIKeyMutation = useMutation({
-    mutationFn: async (apiKey: string) => {
+  // Mutation para actualizar CRM Settings (OpenAI + Calendar ID)
+  const updateCrmSettingsMutation = useMutation({
+    mutationFn: async ({ openaiKey, calendId }: { openaiKey?: string; calendId?: string }) => {
       if (!subaccount?.locationId) {
         throw new Error("Location ID no encontrado");
       }
-      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/openai-key`, {
-        openaiApiKey: apiKey,
-      });
-      return await res.json();
+      
+      const promises = [];
+      
+      // Actualizar OpenAI Key si cambió
+      if (openaiKey !== undefined && openaiKey !== subaccount.openaiApiKey) {
+        promises.push(
+          apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/openai-key`, {
+            openaiApiKey: openaiKey,
+          })
+        );
+      }
+      
+      // Actualizar Calendar ID si cambió
+      if (calendId !== undefined && calendId !== subaccount.calendarId) {
+        promises.push(
+          apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/crm-settings`, {
+            calendarId: calendId,
+          })
+        );
+      }
+      
+      if (promises.length === 0) {
+        return { message: "No changes to save" };
+      }
+      
+      await Promise.all(promises);
+      return { success: true };
     },
     onSuccess: () => {
       toast({
-        title: "API Key actualizada",
-        description: "El API Key de OpenAI ha sido guardado exitosamente",
+        title: "Configuración actualizada",
+        description: "Los ajustes del CRM se guardaron exitosamente",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      setCrmSettingsOpen(false);
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo actualizar el API Key",
+        description: error.message || "No se pudo actualizar la configuración",
         variant: "destructive",
       });
     },
@@ -226,16 +255,11 @@ export default function SubaccountDetails() {
     syncInstanceMutation.mutate(instanceId);
   };
 
-  const handleUpdateOpenAIKey = () => {
-    if (!openaiApiKey || openaiApiKey.trim() === "") {
-      toast({
-        title: "Error",
-        description: "Por favor ingresa un API Key válido",
-        variant: "destructive",
-      });
-      return;
-    }
-    updateOpenAIKeyMutation.mutate(openaiApiKey);
+  const handleSaveCrmSettings = () => {
+    updateCrmSettingsMutation.mutate({
+      openaiKey: openaiApiKey,
+      calendId: calendarId,
+    });
   };
 
   const maskApiKey = (apiKey: string) => {
@@ -356,65 +380,35 @@ export default function SubaccountDetails() {
             </CardContent>
           </Card>
 
-          {/* OpenAI Configuration */}
+          {/* CRM Settings */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-muted-foreground" />
-                <CardTitle>Configuración de OpenAI</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-muted-foreground" />
+                  <CardTitle>Ajustes del CRM</CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCrmSettingsOpen(true)}
+                  data-testid="button-crm-settings"
+                >
+                  Configurar
+                </Button>
               </div>
               <CardDescription>
-                Configura el API Key de OpenAI para esta subcuenta. Se usa para transcripción de voz en WhatsApp.
+                Configura las opciones del CRM y gestiona las integraciones
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="openai-key">API Key de OpenAI</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="openai-key"
-                      type={showApiKey ? "text" : "password"}
-                      value={showApiKey ? openaiApiKey : (openaiApiKey ? maskApiKey(openaiApiKey) : "")}
-                      onChange={(e) => setOpenaiApiKey(e.target.value)}
-                      placeholder="sk-proj-..."
-                      data-testid="input-openai-key"
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      data-testid="button-toggle-visibility"
-                    >
-                      {showApiKey ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <Button
-                    onClick={handleUpdateOpenAIKey}
-                    disabled={updateOpenAIKeyMutation.isPending}
-                    data-testid="button-save-openai-key"
-                  >
-                    {updateOpenAIKeyMutation.isPending ? "Guardando..." : "Guardar"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Obtén tu API Key en{" "}
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    platform.openai.com/api-keys
-                  </a>
-                </p>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Calendar ID:</span>
+                <span className="font-mono">{subaccount.calendarId || "No configurado"}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">OpenAI API Key:</span>
+                <span className="font-mono">{subaccount.openaiApiKey ? "Configurado ✓" : "No configurado"}</span>
               </div>
             </CardContent>
           </Card>
@@ -611,6 +605,131 @@ export default function SubaccountDetails() {
                 <p className="text-sm text-muted-foreground">Generando código QR...</p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CRM Settings Dialog */}
+      <Dialog open={crmSettingsOpen} onOpenChange={setCrmSettingsOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Ajustes del CRM
+            </DialogTitle>
+            <DialogDescription>
+              Configure las opciones del CRM y gestione sus etiquetas personalizadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Location ID (Read-only) */}
+            <div className="space-y-2">
+              <Label htmlFor="location-id">Location ID</Label>
+              <Input
+                id="location-id"
+                value={subaccount?.locationId || ""}
+                readOnly
+                className="bg-muted"
+                data-testid="input-location-id"
+              />
+            </div>
+
+            {/* Calendar ID */}
+            <div className="space-y-2">
+              <Label htmlFor="calendar-id">Calendar ID</Label>
+              <Input
+                id="calendar-id"
+                value={calendarId}
+                onChange={(e) => setCalendarId(e.target.value)}
+                placeholder="Ingresa el Calendar ID de GHL"
+                data-testid="input-calendar-id"
+              />
+            </div>
+
+            {/* OpenAI Integration */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <Key className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Integración Cloude AI</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Conecte su cuenta de Cloude AI con el CRM
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="openai-key-dialog">API Key de OpenAI</Label>
+                <div className="relative">
+                  <Input
+                    id="openai-key-dialog"
+                    type={showApiKey ? "text" : "password"}
+                    value={showApiKey ? openaiApiKey : (openaiApiKey ? maskApiKey(openaiApiKey) : "")}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    placeholder="sk-proj-..."
+                    data-testid="input-openai-key-dialog"
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    data-testid="button-toggle-visibility-dialog"
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Se usa para transcripción de voz en WhatsApp. Obtén tu API Key en{" "}
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    platform.openai.com
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCrmSettingsOpen(false);
+                  // Reset to original values
+                  setOpenaiApiKey(subaccount?.openaiApiKey || "");
+                  setCalendarId(subaccount?.calendarId || "");
+                }}
+                data-testid="button-cancel-crm-settings"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSaveCrmSettings}
+                disabled={updateCrmSettingsMutation.isPending}
+                data-testid="button-save-crm-settings"
+              >
+                {updateCrmSettingsMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar Configuración"
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
