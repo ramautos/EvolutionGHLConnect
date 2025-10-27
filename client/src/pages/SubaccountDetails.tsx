@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function SubaccountDetails() {
   const { user } = useUser();
@@ -327,6 +329,18 @@ export default function SubaccountDetails() {
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="w-4 h-4 text-muted-foreground" />
                           <span className="font-medium">{instance.phoneNumber}</span>
+                        </div>
+                      )}
+
+                      {instance.status === "disconnected" && instance.disconnectedAt && (
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <XCircle className="w-4 h-4" />
+                          <span>
+                            Desconectado hace {formatDistanceToNow(new Date(instance.disconnectedAt), { 
+                              addSuffix: false, 
+                              locale: es 
+                            })}
+                          </span>
                         </div>
                       )}
 
