@@ -161,7 +161,7 @@ function DashboardContent() {
       </header>
 
       {/* Main Content */}
-      <main className="container py-8">
+      <main className="container max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="space-y-8">
           {/* Page Header */}
           <div className="flex items-center justify-between">
