@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, ArrowLeft, Webhook, Trash2 } from "lucide-react";
+import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, LogOut, Webhook, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -205,6 +205,31 @@ export default function AdminPanel() {
   const confirmDeleteUser = () => {
     if (userToDelete) {
       deleteUserMutation.mutate(userToDelete);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Sesión cerrada",
+          description: "Has cerrado sesión exitosamente",
+        });
+        window.location.href = "/login";
+      } else {
+        throw new Error("Error al cerrar sesión");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Hubo un error al cerrar sesión",
+        variant: "destructive",
+      });
     }
   };
 
