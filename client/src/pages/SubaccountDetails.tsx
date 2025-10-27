@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { useUser } from "@/contexts/UserContext";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,14 +26,6 @@ import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
 
 export default function SubaccountDetails() {
-  return (
-    <ProtectedRoute>
-      <SubaccountDetailsContent />
-    </ProtectedRoute>
-  );
-}
-
-function SubaccountDetailsContent() {
   const { user } = useUser();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
