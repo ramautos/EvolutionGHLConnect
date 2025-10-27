@@ -90,6 +90,11 @@ export const subscriptions = pgTable("subscriptions", {
   basePrice: text("base_price").notNull().default("0.00"), // Precio base del plan ($8 o $25)
   extraPrice: text("extra_price").notNull().default("0.00"), // Precio total de slots extra
   status: text("status").notNull().default("active"), // active, expired, cancelled
+  
+  // Período de prueba gratuito
+  trialEndsAt: timestamp("trial_ends_at"), // Fecha cuando termina el período de prueba (null = sin prueba)
+  inTrial: boolean("in_trial").notNull().default(true), // Indicador si está actualmente en prueba
+  
   currentPeriodStart: timestamp("current_period_start").defaultNow(),
   currentPeriodEnd: timestamp("current_period_end"),
   cancelledAt: timestamp("cancelled_at"),

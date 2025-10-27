@@ -44,7 +44,7 @@ export interface IStorage {
   // SUBSCRIPTION OPERATIONS (Por subcuenta)
   // ============================================
   getSubscription(subaccountId: string): Promise<Subscription | undefined>;
-  createSubscription(subaccountId: string): Promise<Subscription>;
+  createSubscription(subaccountId: string, trialDays?: number): Promise<Subscription>;
   updateSubscription(subaccountId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
   countWhatsappInstances(subaccountId: string): Promise<number>;
   
@@ -276,7 +276,11 @@ export class DatabaseStorage implements IStorage {
     return subscription || undefined;
   }
 
-  async createSubscription(subaccountId: string): Promise<Subscription> {
+  async createSubscription(subaccountId: string, trialDays: number = 14): Promise<Subscription> {
+    // Calcular fecha de fin de prueba (14 días por defecto)
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+    
     const [subscription] = await db
       .insert(subscriptions)
       .values({
@@ -287,6 +291,8 @@ export class DatabaseStorage implements IStorage {
         basePrice: "0.00",
         extraPrice: "0.00",
         status: "active",
+        trialEndsAt,
+        inTrial: true,
       })
       .returning();
     return subscription;

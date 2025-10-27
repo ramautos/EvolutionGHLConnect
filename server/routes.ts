@@ -1006,13 +1006,38 @@ ${ghlErrorDetails}
       // Obtener o crear subscription
       let subscription = await storage.getSubscription(validatedData.subaccountId);
       if (!subscription) {
-        subscription = await storage.createSubscription(validatedData.subaccountId);
+        subscription = await storage.createSubscription(validatedData.subaccountId, 14); // 14 días de prueba
+      }
+
+      // Verificar si está en período de prueba
+      const now = new Date();
+      const isInTrial = subscription.inTrial && 
+                        subscription.trialEndsAt && 
+                        new Date(subscription.trialEndsAt) > now;
+
+      // Si está en período de prueba, permitir crear instancia sin restricciones
+      if (isInTrial) {
+        const instance = await storage.createWhatsappInstance(validatedData);
+        res.json({
+          instance,
+          inTrial: true,
+          trialEndsAt: subscription.trialEndsAt,
+          invoiceGenerated: false,
+        });
+        return;
+      }
+
+      // Si terminó el período de prueba, marcar como no en prueba
+      if (subscription.inTrial && subscription.trialEndsAt && new Date(subscription.trialEndsAt) <= now) {
+        subscription = await storage.updateSubscription(validatedData.subaccountId, {
+          inTrial: false,
+        }) || subscription;
       }
 
       // Contar instancias actuales
       const currentInstances = await storage.countWhatsappInstances(validatedData.subaccountId);
       
-      // LÓGICA AUTOMÁTICA DE BILLING
+      // LÓGICA AUTOMÁTICA DE BILLING (después del período de prueba)
       let needsPlanChange = false;
       let newPlan = subscription.plan;
       let newExtraSlots = parseInt(subscription.extraSlots);
