@@ -659,6 +659,54 @@ ${ghlErrorDetails}
     }
   });
 
+  // Actualizar estado de billing de una subcuenta (solo admin)
+  app.patch("/api/admin/subaccounts/:id/billing", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { billingEnabled } = req.body;
+      
+      if (typeof billingEnabled !== "boolean") {
+        res.status(400).json({ error: "billingEnabled debe ser un booleano" });
+        return;
+      }
+      
+      const subaccount = await storage.updateSubaccountBilling(id, billingEnabled);
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada" });
+        return;
+      }
+      
+      res.json(subaccount);
+    } catch (error) {
+      console.error("Error updating subaccount billing:", error);
+      res.status(500).json({ error: "Error al actualizar billing" });
+    }
+  });
+
+  // Actualizar estado de activación manual de una subcuenta (solo admin)
+  app.patch("/api/admin/subaccounts/:id/activation", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { manuallyActivated } = req.body;
+      
+      if (typeof manuallyActivated !== "boolean") {
+        res.status(400).json({ error: "manuallyActivated debe ser un booleano" });
+        return;
+      }
+      
+      const subaccount = await storage.updateSubaccountActivation(id, manuallyActivated);
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada" });
+        return;
+      }
+      
+      res.json(subaccount);
+    } catch (error) {
+      console.error("Error updating subaccount activation:", error);
+      res.status(500).json({ error: "Error al actualizar activación" });
+    }
+  });
+
   // ============================================
   // RUTAS DE BILLING Y SUSCRIPCIONES POR SUBCUENTA (Protegidas)
   // ============================================
