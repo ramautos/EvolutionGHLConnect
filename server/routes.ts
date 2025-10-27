@@ -1489,7 +1489,7 @@ ${ghlErrorDetails}
       }
 
       // Validar que el usuario tenga acceso a esta instancia
-      if (instance.userId !== req.user!.id) {
+      if (instance.userId !== (req.user as any).id) {
         res.status(403).json({ error: "Access denied" });
         return;
       }
