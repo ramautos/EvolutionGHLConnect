@@ -1335,6 +1335,17 @@ ${ghlErrorDetails}
       console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
       await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
+      // Configurar webhook automáticamente
+      try {
+        const webhookUrl = 'https://whatsapp.cloude.es/api/webhook/message';
+        console.log(`🔗 Configuring webhook for instance ${whatsappInstance.evolutionInstanceName}: ${webhookUrl}`);
+        await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
+        console.log(`✅ Webhook configured successfully`);
+      } catch (webhookError) {
+        console.error('⚠️ Failed to configure webhook:', webhookError);
+        // Continuar aunque falle el webhook - no es crítico para la creación
+      }
+
       const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
       await storage.updateWhatsappInstance(req.params.id, {
