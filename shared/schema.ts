@@ -42,6 +42,7 @@ export const subaccounts = pgTable("subaccounts", {
   city: text("city"),
   state: text("state"),
   address: text("address"),
+  openaiApiKey: text("openai_api_key"), // API Key de OpenAI para transcripción
   isActive: boolean("is_active").notNull().default(true),
   installedAt: timestamp("installed_at").defaultNow(),
   uninstalledAt: timestamp("uninstalled_at"),
@@ -127,6 +128,10 @@ export const createSubaccountSchema = z.object({
   address: z.string().optional(),
 });
 
+export const updateSubaccountOpenAIKeySchema = z.object({
+  openaiApiKey: z.string().min(1, "API Key de OpenAI es requerida"),
+});
+
 // WhatsApp Instances
 export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances).omit({
   id: true,
@@ -169,6 +174,7 @@ export type UpdateUserPassword = z.infer<typeof updateUserPasswordSchema>;
 export type Subaccount = typeof subaccounts.$inferSelect;
 export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
 export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
+export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
 
 export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;

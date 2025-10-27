@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema } from "@shared/schema";
+import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -673,6 +673,62 @@ ${ghlErrorDetails}
     } catch (error: any) {
       console.error("❌ Error creating subaccount from GHL:", error);
       res.status(500).json({ error: error.message || "Failed to create subaccount from GHL" });
+    }
+  });
+
+  // Actualizar API Key de OpenAI por locationId
+  app.patch("/api/subaccounts/:locationId/openai-key", async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const validatedData = updateSubaccountOpenAIKeySchema.parse(req.body);
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      const updated = await storage.updateSubaccount(subaccount.id, {
+        openaiApiKey: validatedData.openaiApiKey,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to update OpenAI API key" });
+      }
+    }
+  });
+
+  // Obtener información completa del cliente por locationId
+  app.get("/api/subaccounts/:locationId/info", async (req, res) => {
+    try {
+      const { locationId } = req.params;
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Retornar toda la información del cliente
+      res.json({
+        name: subaccount.name,
+        phone: subaccount.phone,
+        email: subaccount.email,
+        locationId: subaccount.locationId,
+        openaiApiKey: subaccount.openaiApiKey,
+        companyId: subaccount.companyId,
+        city: subaccount.city,
+        state: subaccount.state,
+        address: subaccount.address,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get subaccount info" });
     }
   });
 

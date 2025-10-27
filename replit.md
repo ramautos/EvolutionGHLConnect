@@ -67,6 +67,39 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 -   Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 ## Recent Updates (October 27, 2025)
 
+### OpenAI API Key Integration (October 27, 2025)
+**Feature**: Store and manage OpenAI API keys per location for transcription services
+
+**Implementation**:
+1. **Database Schema**:
+   - Added `openaiApiKey` field to `subaccounts` table
+   - Nullable text field to store OpenAI API key per location
+
+2. **API Endpoints**:
+   - `PATCH /api/subaccounts/:locationId/openai-key` - Update OpenAI API key
+   - `GET /api/subaccounts/:locationId/info` - Get complete client information
+
+3. **Response Format** (GET /api/subaccounts/:locationId/info):
+```json
+{
+  "name": "Client Name",
+  "phone": "+18094973030",
+  "email": "client@example.com",
+  "locationId": "12334455",
+  "openaiApiKey": "sk-...",
+  "companyId": "wW07...",
+  "city": "Santo Domingo",
+  "state": "Distrito Nacional",
+  "address": "123 Main St"
+}
+```
+
+**Use Case**: n8n workflows can fetch OpenAI API key for each location to perform voice transcription
+
+**Technical Details**:
+- Schema validation: `updateSubaccountOpenAIKeySchema`
+- Production build: `dist/index.js` (73.3kb)
+
 ### Instance Naming Convention Change (October 27, 2025)
 **Feature**: Changed instance naming from `wa-locationId` to sequential numbering format
 
@@ -83,7 +116,6 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 - Modified `createWhatsappInstance()` in `server/storage.ts`
 - Uses `getWhatsappInstancesByLocationId()` to count existing instances
 - Sequential numbering: `${locationId}_${existingCount + 1}`
-- Production build: `dist/index.js` (71.5kb)
 
 ## Recent Updates (October 27, 2025)
 
