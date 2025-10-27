@@ -64,29 +64,30 @@ Preferred communication style: Simple, everyday language.
    - Automatic webhook creation on first admin access
 
 ### FREE TRIAL & Automatic Billing System ✅ COMPLETE
-**Major Features**: 14-day free trial + automatic plan assignment + subaccount-level billing.
+**Major Features**: 15-day free trial + automatic plan assignment + subaccount-level billing.
 
 1. **FREE TRIAL Period**:
-   - **14-day trial**: Every new subaccount automatically gets a 14-day free trial
+   - **15-day trial**: Every new subaccount automatically gets a 15-day free trial
    - **Unlimited instances during trial**: Create unlimited WhatsApp instances without billing
    - **Automatic activation**: Trial starts immediately upon subaccount creation
    - **Auto-expiration**: When trial expires, automatic billing kicks in
    - **Legacy protection**: Automatic backfill for existing subscriptions without trial data
 
-2. **Automatic Billing (Post-Trial)**:
-   - **1st instance**: Auto-assign "basic_1_instance" plan ($8/month) + generate invoice
-   - **2nd instance**: Auto-upgrade to "pro_5_instances" plan ($25/month) + invoice
-   - **6+ instances**: Add extra slots ($5 each) + invoice per additional instance
+2. **Automatic Billing (Post-Trial)** - Updated Pricing Model:
+   - **1 instance**: Auto-assign "starter" plan ($10/month)
+   - **2-3 instances**: Auto-upgrade to "basic" plan ($19/month)
+   - **4-5 instances**: Auto-upgrade to "pro" plan ($29/month)
+   - **6+ instances**: Add extra slots ($5 each) on top of Pro plan
    - **Smart detection**: System calculates needed plan based on instance count
    
 3. **Database Schema**:
-   - `subscriptions.trialEndsAt`: Timestamp when trial expires (14 days from creation)
+   - `subscriptions.trialEndsAt`: Timestamp when trial expires (15 days from creation)
    - `subscriptions.inTrial`: Boolean flag for active trial status
    - Automatic backfill: Legacy subscriptions (inTrial=true, trialEndsAt=null) auto-disabled on first access
    - Auto-update: When trial expires, `inTrial` automatically set to `false`
 
 4. **Business Logic Flow**:
-   - New subaccount → subscription created with trialEndsAt = now + 14 days
+   - New subaccount → subscription created with trialEndsAt = now + 15 days
    - During trial → unlimited instance creation, no billing logic
    - Trial expires → `inTrial` set to false, billing logic activates
    - Instance creation post-trial → automatic plan assignment + invoice generation
@@ -98,17 +99,32 @@ Preferred communication style: Simple, everyday language.
    - `GET /api/subaccounts/:subaccountId/invoices` - Get invoices
    - `POST /api/instances` - Creates instance with trial check + automatic billing
 
-6. **Frontend Integration (PENDING)**:
-   - [ ] Display trial countdown/status in UI
-   - [ ] Show "Trial Active" badge on subaccounts
+6. **Frontend Integration** ✅ COMPLETE:
+   - ✅ Trial Banner with 3-state countdown (active >3 days, warning last 3 days, expired ≤0)
+   - ✅ Planes y Facturación section with current plan status and plan selector cards
+   - ✅ Additional Accounts Calculator (conditional for Pro plan with >5 instances)
+   - ✅ Instance creation validation blocks when trial expires or billing disabled
    - [ ] Update Billing/Invoices pages to use new subaccount-scoped API
-   - [ ] Create PlanSelector component for manual plan changes
 
-### Previous UI/UX Improvements
+### UI/UX Improvements ✅ COMPLETE
 1. **Dashboard Header**: DropdownMenu with "Mi Cuenta" showing user details and navigation
 2. **CRM Settings Dialog**: Unified interface for Calendar ID and OpenAI API Key configuration
 3. **Admin Panel**: Tabs interface with Users, Subcuentas, Instancias, and Webhook configuration
 4. **Profile Page**: Simplified to personal info and password change only
+5. **Trial Banner** (SubaccountDetails): 
+   - 3-state visual countdown with gradient backgrounds
+   - Active state (>3 days): Blue/purple gradient with unlimited instances message
+   - Warning state (last 3 days): Yellow/orange/red gradient with animated pulse
+   - Expired state (≤0 days): Gray/red gradient with activation CTA
+6. **Planes y Facturación Section** (SubaccountDetails):
+   - Left column: Current plan status card with metrics (instances used, price, extras)
+   - Right column: 3 interactive plan cards (Starter $10, Básico $19, Pro $29)
+   - Visual hierarchy with badges, borders, and recommended labels
+   - Progress bar showing instance usage vs plan limits
+7. **Additional Accounts Calculator** (SubaccountDetails):
+   - Conditional display for Pro plan users with >5 instances
+   - Real-time cost simulator with input field
+   - Breakdown showing base plan + additional slots = total monthly cost
 
 ## System Architecture
 
