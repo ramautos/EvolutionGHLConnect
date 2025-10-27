@@ -1,4 +1,4 @@
-import { users, subaccounts, whatsappInstances, subscriptions, invoices, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice } from "@shared/schema";
+import { users, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -52,6 +52,13 @@ export interface IStorage {
   // ============================================
   getInvoices(subaccountId: string): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  
+  // ============================================
+  // WEBHOOK CONFIG OPERATIONS (Admin-only)
+  // ============================================
+  getWebhookConfig(): Promise<WebhookConfig | undefined>;
+  createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig>;
+  updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -309,6 +316,35 @@ export class DatabaseStorage implements IStorage {
       .values(invoice)
       .returning();
     return created;
+  }
+
+  // ============================================
+  // WEBHOOK CONFIG OPERATIONS (Admin-only)
+  // ============================================
+
+  async getWebhookConfig(): Promise<WebhookConfig | undefined> {
+    const [config] = await db
+      .select()
+      .from(webhookConfig)
+      .limit(1);
+    return config || undefined;
+  }
+
+  async createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig> {
+    const [created] = await db
+      .insert(webhookConfig)
+      .values(config)
+      .returning();
+    return created;
+  }
+
+  async updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined> {
+    const [updated] = await db
+      .update(webhookConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(webhookConfig.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 
