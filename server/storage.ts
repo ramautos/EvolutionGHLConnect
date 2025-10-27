@@ -40,16 +40,17 @@ export interface IStorage {
   deleteWhatsappInstance(id: string): Promise<boolean>;
   
   // ============================================
-  // SUBSCRIPTION OPERATIONS
+  // SUBSCRIPTION OPERATIONS (Por subcuenta)
   // ============================================
-  getSubscription(userId: string): Promise<Subscription | undefined>;
-  createSubscription(userId: string): Promise<Subscription>;
-  updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
+  getSubscription(subaccountId: string): Promise<Subscription | undefined>;
+  createSubscription(subaccountId: string): Promise<Subscription>;
+  updateSubscription(subaccountId: string, updates: Partial<Subscription>): Promise<Subscription | undefined>;
+  countWhatsappInstances(subaccountId: string): Promise<number>;
   
   // ============================================
-  // INVOICE OPERATIONS
+  // INVOICE OPERATIONS (Por subcuenta)
   // ============================================
-  getInvoices(userId: string): Promise<Invoice[]>;
+  getInvoices(subaccountId: string): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
 }
 
@@ -248,53 +249,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-  // SUBSCRIPTION OPERATIONS
+  // SUBSCRIPTION OPERATIONS (Por subcuenta)
   // ============================================
 
-  async getSubscription(userId: string): Promise<Subscription | undefined> {
+  async getSubscription(subaccountId: string): Promise<Subscription | undefined> {
     const [subscription] = await db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.userId, userId));
+      .where(eq(subscriptions.subaccountId, subaccountId));
     return subscription || undefined;
   }
 
-  async createSubscription(userId: string): Promise<Subscription> {
-    // Calcular fecha de fin de prueba (10 días desde ahora)
-    const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + 10);
-
+  async createSubscription(subaccountId: string): Promise<Subscription> {
     const [subscription] = await db
       .insert(subscriptions)
       .values({
-        userId,
-        plan: "trial",
-        maxSubaccounts: "1",
+        subaccountId,
+        plan: "none",
+        includedInstances: "0",
+        extraSlots: "0",
+        basePrice: "0.00",
+        extraPrice: "0.00",
         status: "active",
-        trialEndsAt,
       })
       .returning();
     return subscription;
   }
 
-  async updateSubscription(userId: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
+  async updateSubscription(subaccountId: string, updates: Partial<Subscription>): Promise<Subscription | undefined> {
     const [updated] = await db
       .update(subscriptions)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(subscriptions.userId, userId))
+      .where(eq(subscriptions.subaccountId, subaccountId))
       .returning();
     return updated || undefined;
   }
 
+  async countWhatsappInstances(subaccountId: string): Promise<number> {
+    const instances = await this.getWhatsappInstances(subaccountId);
+    return instances.length;
+  }
+
   // ============================================
-  // INVOICE OPERATIONS
+  // INVOICE OPERATIONS (Por subcuenta)
   // ============================================
 
-  async getInvoices(userId: string): Promise<Invoice[]> {
+  async getInvoices(subaccountId: string): Promise<Invoice[]> {
     const results = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.userId, userId))
+      .where(eq(invoices.subaccountId, subaccountId))
       .orderBy(invoices.createdAt);
     return results;
   }

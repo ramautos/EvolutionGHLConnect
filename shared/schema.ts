@@ -78,15 +78,17 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
 });
 
 // ============================================
-// SUBSCRIPTIONS TABLE - Planes de usuario
+// SUBSCRIPTIONS TABLE - Planes por subcuenta
 // ============================================
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  plan: text("plan").notNull().default("trial"), // trial, basic_1, pro_5
-  maxSubaccounts: text("max_subaccounts").notNull().default("1"), // Número máximo de subcuentas
+  subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }).unique(),
+  plan: text("plan").notNull().default("none"), // none, basic_1_instance, pro_5_instances
+  includedInstances: text("included_instances").notNull().default("0"), // Instancias incluidas en el plan base
+  extraSlots: text("extra_slots").notNull().default("0"), // Instancias adicionales compradas ($5 c/u)
+  basePrice: text("base_price").notNull().default("0.00"), // Precio base del plan ($8 o $25)
+  extraPrice: text("extra_price").notNull().default("0.00"), // Precio total de slots extra
   status: text("status").notNull().default("active"), // active, expired, cancelled
-  trialEndsAt: timestamp("trial_ends_at"),
   currentPeriodStart: timestamp("current_period_start").defaultNow(),
   currentPeriodEnd: timestamp("current_period_end"),
   cancelledAt: timestamp("cancelled_at"),
@@ -99,9 +101,12 @@ export const subscriptions = pgTable("subscriptions", {
 // ============================================
 export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  amount: text("amount").notNull(), // Monto en dólares (ej: "8.00", "25.00")
-  plan: text("plan").notNull(), // basic_1, pro_5
+  subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
+  amount: text("amount").notNull(), // Monto total en dólares
+  plan: text("plan").notNull(), // basic_1_instance, pro_5_instances, extra_slot
+  baseAmount: text("base_amount").notNull().default("0.00"), // Monto del plan base
+  extraAmount: text("extra_amount").notNull().default("0.00"), // Monto de slots extra
+  extraSlots: text("extra_slots").notNull().default("0"), // Cantidad de slots extra en esta factura
   description: text("description").notNull(),
   status: text("status").notNull().default("pending"), // pending, paid, failed
   stripeInvoiceId: text("stripe_invoice_id"), // Para futura integración
@@ -213,8 +218,31 @@ export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema
 export type CreateWhatsappInstance = z.infer<typeof createWhatsappInstanceSchema>;
 export type UpdateWhatsappInstance = z.infer<typeof updateWhatsappInstanceSchema>;
 
+// Subscriptions
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateSubscriptionSchema = z.object({
+  plan: z.enum(["none", "basic_1_instance", "pro_5_instances"]).optional(),
+  includedInstances: z.string().optional(),
+  extraSlots: z.string().optional(),
+  basePrice: z.string().optional(),
+  extraPrice: z.string().optional(),
+  status: z.enum(["active", "expired", "cancelled"]).optional(),
+});
+
+// Invoices
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type Subscription = typeof subscriptions.$inferSelect;
-export type InsertSubscription = typeof subscriptions.$inferInsert;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
 
 export type Invoice = typeof invoices.$inferSelect;
-export type InsertInvoice = typeof invoices.$inferInsert;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
