@@ -45,6 +45,11 @@ export const subaccounts = pgTable("subaccounts", {
   openaiApiKey: text("openai_api_key"), // API Key de OpenAI para transcripción
   calendarId: text("calendar_id"), // GHL Calendar ID para integraciones
   isActive: boolean("is_active").notNull().default(true),
+  
+  // Control manual por administrador
+  billingEnabled: boolean("billing_enabled").notNull().default(true), // Si se cobra o no a esta subcuenta
+  manuallyActivated: boolean("manually_activated").notNull().default(true), // Si está activada manualmente por admin
+  
   installedAt: timestamp("installed_at").defaultNow(),
   uninstalledAt: timestamp("uninstalled_at"),
 });
