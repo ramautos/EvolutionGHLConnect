@@ -1,7 +1,7 @@
 # WhatsApp-GoHighLevel AI Integration Platform
 
 ## Overview
-A production-ready multi-tenant SaaS platform that integrates WhatsApp Business with GoHighLevel CRM. It provides comprehensive user authentication (email/password + Google OAuth), role-based access control, automated WhatsApp instance management, and real-time connection monitoring. The platform aims to streamline communication and CRM processes for businesses, offering significant market potential by bridging two critical business tools.
+A production-ready multi-tenant SaaS platform that integrates WhatsApp Business with GoHighLevel CRM. It provides comprehensive user authentication (email/password + Google OAuth), role-based access control, automated WhatsApp instance management, and real-time connection monitoring. WhatsApp instances are named using the GoHighLevel locationId with sequential numbering (e.g., `12334455_1`, `12334455_2`) for easy identification and n8n routing. The platform aims to streamline communication and CRM processes for businesses, offering significant market potential by bridging two critical business tools.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -65,6 +65,26 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 -   `GHL_DB_HOST`, `GHL_DB_PORT`, `GHL_DB_NAME`, `GHL_DB_USER`, `GHL_DB_PASSWORD`
 -   `NODE_ENV` (development | production)
 -   Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+## Recent Updates (October 27, 2025)
+
+### Instance Naming Convention Change (October 27, 2025)
+**Feature**: Changed instance naming from `wa-locationId` to sequential numbering format
+
+**Implementation**:
+- WhatsApp instances now use format: `{locationId}_{number}`
+  - First instance: `12334455_1`
+  - Second instance: `12334455_2`
+  - Third instance: `12334455_3`, etc.
+- Auto-counts existing instances for the locationId before creating new ones
+- Makes routing and identification easier in n8n workflows
+- Evolution API instances maintain consistent naming with application database
+
+**Technical Details**:
+- Modified `createWhatsappInstance()` in `server/storage.ts`
+- Uses `getWhatsappInstancesByLocationId()` to count existing instances
+- Sequential numbering: `${locationId}_${existingCount + 1}`
+- Production build: `dist/index.js` (71.5kb)
+
 ## Recent Updates (October 27, 2025)
 
 ### Phone Number Registration & Profile Management (October 27, 2025)

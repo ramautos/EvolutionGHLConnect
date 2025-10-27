@@ -199,7 +199,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWhatsappInstance(insertInstance: CreateWhatsappInstance): Promise<WhatsappInstance> {
-    const evolutionName = `wa-${insertInstance.locationId}`;
+    // Contar instancias existentes para este locationId
+    const existingInstances = await this.getWhatsappInstancesByLocationId(insertInstance.locationId);
+    const instanceNumber = existingInstances.length + 1;
+    
+    // Generar nombre: locationId_1, locationId_2, etc.
+    const evolutionName = `${insertInstance.locationId}_${instanceNumber}`;
+    
     const [instance] = await db
       .insert(whatsappInstances)
       .values({
