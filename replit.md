@@ -160,7 +160,12 @@ Employs a consistent design system with CSS utilities for elevation, HSL color v
 - Real-time: Socket.io events keep frontend in sync
 - Build: `dist/index.js` (68.6kb), `index-NOm6XC9M.js` (477.66kb)
 
-**Latest Update**: Enhanced auto-sync polling (October 27, 2025)
+**Latest Update**: Fixed Evolution API Response Format (October 27, 2025)
+**Critical Bug Found & Fixed**:
+- Evolution API `/instance/fetchInstances` returns **array** `[{...}]` not object `{instance: {...}}`
+- Field is `ownerJid` (not `owner`): `"ownerJid": "18094973030@s.whatsapp.net"`
+- Updated `InstanceInfoResponse` interface to match actual Evolution API response
+- Fixed all 3 locations that extract phone numbers: sync endpoint, webhook, polling
 - Polling now checks disconnected instances too (not just connected/qr)
 - Automatically detects connected instances without phone numbers
 - Auto-fetches phone numbers from Evolution API every 5 seconds

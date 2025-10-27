@@ -792,7 +792,7 @@ ${ghlErrorDetails}
           
           try {
             const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
-            const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+            const rawPhoneNumber = instanceInfo.ownerJid || null;
             phoneNumber = extractPhoneNumber(rawPhoneNumber);
             console.log(`📞 Sync: extracted phone ${phoneNumber} from Evolution API`);
           } catch (infoError) {
@@ -928,7 +928,7 @@ ${ghlErrorDetails}
               try {
                 console.log(`📞 Webhook didn't provide phone number, fetching from Evolution API...`);
                 const instanceInfo = await evolutionAPI.getInstanceInfo(instanceName);
-                rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                rawPhoneNumber = instanceInfo.ownerJid || null;
                 phoneNumber = extractPhoneNumber(rawPhoneNumber);
                 console.log(`📞 Fetched from Evolution API: ${phoneNumber} (raw: ${rawPhoneNumber})`);
               } catch (infoError) {
@@ -1028,7 +1028,7 @@ ${ghlErrorDetails}
               if (needsUpdate) {
                 try {
                   const instanceInfo = await evolutionAPI.getInstanceInfo(instance.evolutionInstanceName);
-                  const rawPhoneNumber = instanceInfo.instance.owner || instanceInfo.instance.phoneNumber || null;
+                  const rawPhoneNumber = instanceInfo.ownerJid || null;
                   const extractedPhone = extractPhoneNumber(rawPhoneNumber);
                   
                   if (extractedPhone) {

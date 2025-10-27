@@ -25,13 +25,13 @@ interface InstanceStateResponse {
 }
 
 interface InstanceInfoResponse {
-  instance: {
-    instanceName: string;
-    owner: string;
-    profileName?: string;
-    profilePicUrl?: string;
-    phoneNumber?: string;
-  };
+  id: string;
+  name: string;
+  connectionStatus: string;
+  ownerJid: string;
+  profileName?: string;
+  profilePicUrl?: string;
+  number?: string | null;
 }
 
 export class EvolutionAPIService {
@@ -99,7 +99,11 @@ export class EvolutionAPIService {
   }
 
   async getInstanceInfo(instanceName: string): Promise<InstanceInfoResponse> {
-    return this.request<InstanceInfoResponse>('GET', `/instance/fetchInstances?instanceName=${instanceName}`);
+    const response = await this.request<InstanceInfoResponse[]>('GET', `/instance/fetchInstances?instanceName=${instanceName}`);
+    if (!response || response.length === 0) {
+      throw new Error(`Instance ${instanceName} not found`);
+    }
+    return response[0];
   }
 
   async deleteInstance(instanceName: string): Promise<void> {
