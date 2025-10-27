@@ -71,6 +71,12 @@ export default function SubaccountDetails() {
     enabled: !!subaccountId,
   });
 
+  // Obtener subscription (plan y trial info)
+  const { data: subscription } = useQuery<any>({
+    queryKey: ["/api/subaccounts", subaccountId, "subscription"],
+    enabled: !!subaccountId,
+  });
+
   // Mutation para crear instancia
   const createInstanceMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -286,6 +292,25 @@ export default function SubaccountDetails() {
     return `${apiKey.substring(0, 7)}${"•".repeat(20)}${apiKey.substring(apiKey.length - 4)}`;
   };
 
+  // Helper para calcular días restantes del trial
+  const getDaysRemaining = () => {
+    if (!subscription?.trialEndsAt) return 0;
+    const now = new Date();
+    const trialEnd = new Date(subscription.trialEndsAt);
+    const diff = trialEnd.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return Math.max(0, days);
+  };
+
+  // Helper para determinar estado del trial
+  const getTrialStatus = () => {
+    if (!subscription?.inTrial) return "expired";
+    const daysRemaining = getDaysRemaining();
+    if (daysRemaining > 3) return "active"; // Días 4-15
+    if (daysRemaining > 0) return "warning"; // Últimos 3 días
+    return "expired";
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "connected":
@@ -365,6 +390,80 @@ export default function SubaccountDetails() {
       {/* Main Content */}
       <main className="container py-8">
         <div className="space-y-8 max-w-4xl mx-auto">
+          {/* Trial Banner */}
+          {subscription && (
+            <>
+              {getTrialStatus() === "active" && (
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 p-6 text-white">
+                  <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2">🎉 Período de Prueba Activo</h3>
+                      <p className="text-white/90 mb-1">
+                        Te quedan <span className="font-bold text-2xl">{getDaysRemaining()} días</span> de trial gratuito
+                      </p>
+                      <p className="text-sm text-white/80">
+                        Puedes crear instancias ilimitadas durante este período
+                      </p>
+                    </div>
+                    <Button 
+                      variant="secondary" 
+                      className="bg-white text-purple-600 hover:bg-white/90"
+                      data-testid="button-add-payment-method"
+                    >
+                      Agregar Método de Pago
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {getTrialStatus() === "warning" && (
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 p-6 text-white animate-pulse">
+                  <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2">⚠️ ¡Tu Trial Está Por Expirar!</h3>
+                      <p className="text-white/90 mb-1">
+                        Solo quedan <span className="font-bold text-2xl">{getDaysRemaining()} días</span> de prueba
+                      </p>
+                      <p className="text-sm text-white/80">
+                        Agrega un método de pago ahora para evitar la interrupción del servicio
+                      </p>
+                    </div>
+                    <Button 
+                      variant="secondary" 
+                      className="bg-white text-orange-600 hover:bg-white/90 font-bold"
+                      data-testid="button-add-payment-urgent"
+                    >
+                      Agregar Pago Ahora
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {getTrialStatus() === "expired" && (
+                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-gray-600 via-gray-700 to-red-600 p-6 text-white">
+                  <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2">🔒 Período de Prueba Finalizado</h3>
+                      <p className="text-white/90 mb-1">
+                        Tu trial de 15 días ha expirado
+                      </p>
+                      <p className="text-sm text-white/80">
+                        Tus instancias están pausadas. Activa tu cuenta para continuar.
+                      </p>
+                    </div>
+                    <Button 
+                      variant="secondary" 
+                      className="bg-white text-red-600 hover:bg-white/90 font-bold"
+                      data-testid="button-activate-account"
+                    >
+                      Activar Cuenta Ahora
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Subaccount Info */}
           <Card>
             <CardHeader>
@@ -428,6 +527,258 @@ export default function SubaccountDetails() {
             </CardContent>
           </Card>
 
+          {/* Planes y Facturación */}
+          {subscription && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Planes y Facturación</h2>
+                <p className="text-sm text-muted-foreground">
+                  Gestiona tu suscripción y selecciona el plan que mejor se adapte a tus necesidades
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Columna Izquierda - Estado Actual del Plan */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      {subscription.inTrial ? "Plan Trial" : `Plan ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}`}
+                    </CardTitle>
+                    <CardDescription>
+                      {subscription.inTrial ? "Prueba gratuita activa" : "Plan actual"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {subscription.inTrial ? (
+                      <>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Instancias disponibles</p>
+                          <p className="text-2xl font-bold">Ilimitadas</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Días restantes</p>
+                          <p className="text-2xl font-bold">{getDaysRemaining()} días</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Precio mensual</p>
+                          <p className="text-2xl font-bold">${subscription.basePrice}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">WhatsApps incluidos</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-primary h-full transition-all"
+                                style={{ width: `${Math.min((instances.length / parseInt(subscription.includedInstances || "1")) * 100, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium">
+                              {instances.length} / {subscription.includedInstances}
+                            </span>
+                          </div>
+                        </div>
+                        {parseInt(subscription.extraSlots) > 0 && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">Instancias adicionales</p>
+                            <p className="text-lg font-bold">
+                              {subscription.extraSlots} × $5 = ${(parseInt(subscription.extraSlots) * 5).toFixed(2)}
+                            </p>
+                          </div>
+                        )}
+                        <div className="pt-4 border-t">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1"
+                              data-testid="button-change-plan"
+                            >
+                              Cambiar Plan
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="flex-1 text-destructive"
+                              data-testid="button-cancel-subscription"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Columna Derecha - Selector de Planes */}
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-muted-foreground">Planes disponibles</p>
+                  
+                  {/* Grid de 3 planes */}
+                  <div className="grid gap-4">
+                    {/* Plan Starter */}
+                    <Card className={subscription.plan === "starter" ? "border-primary" : ""}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-base">Plan Starter</CardTitle>
+                            <p className="text-2xl font-bold mt-1">$10<span className="text-sm text-muted-foreground">/mes</span></p>
+                          </div>
+                          {subscription.plan === "starter" && (
+                            <Badge variant="default">ACTUAL</Badge>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm text-muted-foreground">✓ 1 cuenta de WhatsApp</p>
+                        <p className="text-sm text-muted-foreground">✓ Soporte 24/7</p>
+                        <p className="text-sm text-muted-foreground">✓ API completa</p>
+                        {subscription.plan !== "starter" && !subscription.inTrial && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full mt-2"
+                            data-testid="button-select-starter"
+                          >
+                            Seleccionar
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Plan Básico */}
+                    <Card className={subscription.plan === "basic" ? "border-primary" : ""}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-base">Plan Básico</CardTitle>
+                            <p className="text-2xl font-bold mt-1">$19<span className="text-sm text-muted-foreground">/mes</span></p>
+                            <p className="text-xs text-green-600 font-medium">Ahorras $11</p>
+                          </div>
+                          {subscription.plan === "basic" && (
+                            <Badge variant="default">ACTUAL</Badge>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm text-muted-foreground">✓ 3 cuentas de WhatsApp</p>
+                        <p className="text-sm text-muted-foreground">✓ Soporte prioritario</p>
+                        <p className="text-sm text-muted-foreground">✓ API completa</p>
+                        {subscription.plan !== "basic" && !subscription.inTrial && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full mt-2"
+                            data-testid="button-select-basic"
+                          >
+                            Seleccionar
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Plan Pro */}
+                    <Card className={subscription.plan === "pro" ? "border-primary border-2" : "border-purple-500 border-2"}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-base">Plan Pro</CardTitle>
+                            <p className="text-2xl font-bold mt-1">$29<span className="text-sm text-muted-foreground">/mes</span></p>
+                            <p className="text-xs text-green-600 font-medium">Ahorras $21</p>
+                          </div>
+                          <Badge variant="default" className="bg-purple-600">
+                            {subscription.plan === "pro" ? "ACTUAL" : "RECOMENDADO"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm text-muted-foreground">✓ 5 cuentas de WhatsApp</p>
+                        <p className="text-sm text-muted-foreground">✓ Soporte VIP</p>
+                        <p className="text-sm text-muted-foreground">✓ API completa</p>
+                        <p className="text-sm text-muted-foreground">✓ Webhooks avanzados</p>
+                        {subscription.plan !== "pro" && !subscription.inTrial && (
+                          <Button 
+                            size="sm" 
+                            className="w-full mt-2"
+                            data-testid="button-select-pro"
+                          >
+                            Seleccionar
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Alert de instancias adicionales */}
+                  <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-blue-900 dark:text-blue-100">
+                        💡 <span className="font-medium">¿Necesitas más de 5 cuentas?</span> Cada WhatsApp adicional cuesta $5/mes
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Calculadora de Cuentas Adicionales (solo si plan Pro y >5 instancias) */}
+              {subscription.plan === "pro" && instances.length > 5 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Calculadora de Cuentas Adicionales</CardTitle>
+                    <CardDescription>
+                      Simula el costo de tu plan con diferentes cantidades de instancias
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Resumen actual */}
+                    <div className="grid sm:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Plan Pro Base</p>
+                        <p className="text-lg font-bold">$29.00</p>
+                        <p className="text-xs text-muted-foreground">(5 incluidas)</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Cuentas Adicionales</p>
+                        <p className="text-lg font-bold">{instances.length - 5} × $5</p>
+                        <p className="text-xs text-muted-foreground">= ${((instances.length - 5) * 5).toFixed(2)}</p>
+                      </div>
+                      <div className="sm:border-l sm:pl-4">
+                        <p className="text-xs text-muted-foreground mb-1">Total Mensual</p>
+                        <p className="text-2xl font-bold text-primary">
+                          ${(29 + (instances.length - 5) * 5).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Simulador */}
+                    <div className="space-y-3">
+                      <Label htmlFor="instance-simulator">Simular cantidad de instancias</Label>
+                      <div className="flex items-center gap-4">
+                        <Input
+                          id="instance-simulator"
+                          type="number"
+                          min="6"
+                          max="50"
+                          defaultValue={instances.length}
+                          className="max-w-[120px]"
+                          data-testid="input-instance-calculator"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-muted-foreground">
+                            Precio estimado: <span className="font-bold text-foreground">$29 + ${((parseInt((document.getElementById('instance-simulator') as HTMLInputElement)?.value || "6") - 5) * 5).toFixed(2)} = ${(29 + ((parseInt((document.getElementById('instance-simulator') as HTMLInputElement)?.value || "6") - 5) * 5)).toFixed(2)}/mes</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           {/* WhatsApp Instances */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -438,7 +789,18 @@ export default function SubaccountDetails() {
                 </p>
               </div>
               <Button
-                onClick={() => setCreateInstanceOpen(true)}
+                onClick={() => {
+                  if (getTrialStatus() === "expired") {
+                    toast({
+                      title: "Trial expirado",
+                      description: "Tu período de prueba ha finalizado. Activa tu cuenta para crear instancias.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setCreateInstanceOpen(true);
+                }}
+                disabled={getTrialStatus() === "expired"}
                 data-testid="button-add-instance"
               >
                 <Plus className="w-4 h-4 mr-2" />
