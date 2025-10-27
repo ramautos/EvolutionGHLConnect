@@ -253,6 +253,7 @@ function DashboardContent() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
+                        onClick={() => setLocation(`/subaccount/${subaccount.id}`)}
                         data-testid={`button-manage-${subaccount.id}`}
                       >
                         <Settings className="w-4 h-4 mr-2" />
@@ -262,6 +263,7 @@ function DashboardContent() {
                         variant="default"
                         size="sm"
                         className="flex-1"
+                        onClick={() => setLocation(`/subaccount/${subaccount.id}`)}
                         data-testid={`button-whatsapp-${subaccount.id}`}
                       >
                         <MessageSquare className="w-4 h-4 mr-2" />
