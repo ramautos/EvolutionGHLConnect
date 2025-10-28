@@ -15,6 +15,8 @@ import SubaccountDetails from "@/pages/SubaccountDetails";
 import AdminPanel from "@/pages/AdminPanel";
 import AdminDashboard from "@/pages/AdminDashboard";
 import CompaniesManagement from "@/pages/CompaniesManagement";
+import AdminWebhook from "@/pages/AdminWebhook";
+import AdminAPI from "@/pages/AdminAPI";
 import Billing from "@/pages/Billing";
 import Invoices from "@/pages/Invoices";
 import Onboarding from "@/pages/Onboarding";
@@ -104,7 +106,14 @@ function Router() {
       <Route path="/admin/webhook">
         <ProtectedRoute requireAdmin={true}>
           <AdminLayout>
-            <AdminPanel />
+            <AdminWebhook />
+          </AdminLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/api">
+        <ProtectedRoute requireAdmin={true}>
+          <AdminLayout>
+            <AdminAPI />
           </AdminLayout>
         </ProtectedRoute>
       </Route>

@@ -8,6 +8,7 @@ import {
   Webhook,
   Building,
   BarChart3,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,11 @@ const configItems = [
     title: "Webhook",
     icon: Webhook,
     url: "/admin/webhook",
+  },
+  {
+    title: "API",
+    icon: FileText,
+    url: "/admin/api",
   },
   {
     title: "Configuración",
