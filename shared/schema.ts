@@ -13,10 +13,33 @@ export const sessions = pgTable("sessions", {
 });
 
 // ============================================
+// COMPANIES TABLE - Empresas (agrupación de usuarios)
+// ============================================
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Nombre de la empresa
+  email: text("email").notNull(), // Email principal de contacto
+  phoneNumber: text("phone_number"), // Teléfono de contacto
+  country: text("country"), // País
+  address: text("address"), // Dirección
+  notes: text("notes"), // Notas internas del administrador
+  
+  // Stripe integration
+  stripeCustomerId: text("stripe_customer_id"), // ID del customer en Stripe
+  stripeSubscriptionId: text("stripe_subscription_id"), // ID de la suscripción en Stripe
+  
+  // Estado
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================
 // USERS TABLE - Usuarios con autenticación
 // ============================================
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyId: varchar("company_id").references(() => companies.id, { onDelete: "set null" }), // Empresa a la que pertenece
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
   phoneNumber: text("phone_number"), // Número de teléfono con código de país
@@ -139,6 +162,26 @@ export const webhookConfig = pgTable("webhook_config", {
 // ============================================
 // ZOD SCHEMAS - Validación
 // ============================================
+
+// Companies
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateCompanySchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").optional(),
+  email: z.string().email("Email inválido").optional(),
+  phoneNumber: z.string().optional(),
+  country: z.string().optional(),
+  address: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type UpdateCompany = z.infer<typeof updateCompanySchema>;
+export type SelectCompany = typeof companies.$inferSelect;
 
 // Users
 export const insertUserSchema = createInsertSchema(users).omit({
