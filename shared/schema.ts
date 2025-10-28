@@ -357,11 +357,11 @@ export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
 });
 
 export const updateSystemConfigSchema = z.object({
-  evolutionApiUrl: z.string().url("URL de Evolution API inválida").optional(),
-  evolutionApiKey: z.string().min(1, "API Key es requerida").optional(),
+  evolutionApiUrl: z.string().url("URL de Evolution API inválida").min(1, "URL de Evolution API es requerida"),
+  evolutionApiKey: z.string().min(1, "API Key de Evolution es requerida"),
   systemName: z.string().min(1, "Nombre del sistema es requerido").optional(),
-  systemEmail: z.string().email("Email inválido").optional(),
-  supportEmail: z.string().email("Email de soporte inválido").optional(),
+  systemEmail: z.union([z.string().email(), z.literal("")]).optional(),
+  supportEmail: z.union([z.string().email(), z.literal("")]).optional(),
   trialDays: z.string().optional(),
   trialEnabled: z.boolean().optional(),
   maintenanceMode: z.boolean().optional(),

@@ -15,11 +15,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { SystemConfig } from "@shared/schema";
 
 const systemConfigSchema = z.object({
-  evolutionApiUrl: z.string().url("URL de Evolution API inválida").optional().or(z.literal("")),
-  evolutionApiKey: z.string().optional(),
+  evolutionApiUrl: z.string().url("URL de Evolution API inválida").min(1, "URL de Evolution API es requerida"),
+  evolutionApiKey: z.string().min(1, "API Key de Evolution es requerida"),
   systemName: z.string().min(1, "Nombre del sistema es requerido"),
-  systemEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  supportEmail: z.string().email("Email de soporte inválido").optional().or(z.literal("")),
+  systemEmail: z.union([z.string().email(), z.literal("")]).optional(),
+  supportEmail: z.union([z.string().email(), z.literal("")]).optional(),
   trialDays: z.string(),
   trialEnabled: z.boolean(),
   maintenanceMode: z.boolean(),
@@ -64,7 +64,7 @@ export default function AdminSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: SystemConfigForm) => {
-      return apiRequest("/api/admin/system-config", "PATCH", data);
+      return apiRequest("PATCH", "/api/admin/system-config", data);
     },
     onSuccess: () => {
       toast({

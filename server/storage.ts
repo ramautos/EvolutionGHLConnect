@@ -526,9 +526,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSystemConfig(id: string, updates: UpdateSystemConfig): Promise<SystemConfig | undefined> {
+    // Get existing config to prevent overwriting critical credentials with empty values
+    const existing = await this.getSystemConfig();
+    
+    // Protect critical Evolution API credentials from being cleared
+    const protectedUpdates = { ...updates };
+    
+    if (existing) {
+      // If evolutionApiKey exists and update tries to clear it, keep existing value
+      if (existing.evolutionApiKey && (!updates.evolutionApiKey || updates.evolutionApiKey === "")) {
+        protectedUpdates.evolutionApiKey = existing.evolutionApiKey;
+      }
+      
+      // If evolutionApiUrl exists and update tries to clear it, keep existing value
+      if (existing.evolutionApiUrl && (!updates.evolutionApiUrl || updates.evolutionApiUrl === "")) {
+        protectedUpdates.evolutionApiUrl = existing.evolutionApiUrl;
+      }
+    }
+    
     const [updated] = await db
       .update(systemConfig)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...protectedUpdates, updatedAt: new Date() })
       .where(eq(systemConfig.id, id))
       .returning();
     return updated || undefined;

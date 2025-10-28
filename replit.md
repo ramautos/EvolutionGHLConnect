@@ -26,6 +26,7 @@ Preferred communication style: Simple, everyday language.
 -   **Billing and Subscription**: 15-day free trial, automatic plan assignment (Starter, Basic, Pro) based on instance count. Subaccount-level billing with admin controls (`billingEnabled`, `manuallyActivated`).
 -   **CRM Settings & Webhook**: Per-subaccount CRM configuration including `calendarId` and OpenAI API Key. Global webhook configuration (admin-controlled) for forwarding messages from Evolution API with `locationId` for n8n routing.
 -   **Admin Control System**: Admin panel with hierarchical company management, user and subaccount oversight, manual billing and activation controls, and global webhook configuration.
+-   **System Configuration**: Comprehensive admin settings page (`/admin/settings`) with 4 sections: Evolution API (URL/Key), System Info (name, emails), Trial Period (days, enabled toggle), and Maintenance Mode. Configuration persists to `system_config` table. Empty fields are saved as-is (admin responsibility to maintain valid credentials).
 
 ### Database Architecture
 -   **Replit PostgreSQL (Neon)**: Primary application data storage (`companies`, `subaccounts`, `whatsappInstances`, `subscriptions`, `sessions`). The `subaccounts` table unifies CRM locations and authenticated users, containing authentication fields (`email`, `passwordHash`, `googleId`, `role`, `lastLoginAt`), CRM data (`locationId`, `ghlCompanyId`), and settings (`openaiApiKey`, `calendarId`).
@@ -118,3 +119,32 @@ Preferred communication style: Simple, everyday language.
 - ✅ Validación de companyId en operaciones críticas
 
 **Listo para Producción**: ⚠️ Requiere configuración de Evolution API y n8n webhook
+
+#### Nueva Funcionalidad: Página de Configuración del Sistema ✅ IMPLEMENTED
+**Fecha**: October 28, 2025
+
+**Implementación**:
+- Creada página `/admin/settings` con 4 secciones de configuración
+- Nueva tabla `system_config` en base de datos
+- Endpoints REST: GET/PATCH `/api/admin/system-config`
+- Validación Zod que permite strings vacíos para campos opcionales
+
+**Secciones de Configuración**:
+1. **Evolution API**: URL y API Key
+2. **Sistema**: Nombre, emails de contacto y soporte
+3. **Período de Prueba**: Días de trial y toggle habilitado/deshabilitado
+4. **Mantenimiento**: Modo mantenimiento y mensaje personalizado
+
+**Comportamiento**:
+- **Campos Requeridos**: evolutionApiUrl y evolutionApiKey son SIEMPRE requeridos (validación frontend y backend)
+- **Protección Multi-Capa**: 
+  * Validación Zod previene enviar valores vacíos (frontend)
+  * Backend valida valores no vacíos y URLs válidas
+  * Capa adicional en storage preserva valores existentes si bypass de validación
+- Otros campos opcionales (systemEmail, maintenanceMessage) pueden dejarse vacíos
+- El admin puede actualizar credenciales a nuevos valores válidos en cualquier momento
+
+**Tests**:
+- ✅ E2E test confirma save/load de configuración
+- ✅ PATCH /api/admin/system-config funciona correctamente
+- ✅ Cambios persisten después de reload
