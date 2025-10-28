@@ -13,67 +13,63 @@ export const sessions = pgTable("sessions", {
 });
 
 // ============================================
-// COMPANIES TABLE - Empresas (agrupación de usuarios)
+// COMPANIES TABLE - Empresas (nivel superior de jerarquía)
 // ============================================
 export const companies = pgTable("companies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(), // Nombre de la empresa
-  email: text("email").notNull(), // Email principal de contacto
-  phoneNumber: text("phone_number"), // Teléfono de contacto
-  country: text("country"), // País
-  address: text("address"), // Dirección
-  notes: text("notes"), // Notas internas del administrador
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phoneNumber: text("phone_number"),
+  country: text("country"),
+  address: text("address"),
+  notes: text("notes"),
   
-  // Stripe integration
-  stripeCustomerId: text("stripe_customer_id"), // ID del customer en Stripe
-  stripeSubscriptionId: text("stripe_subscription_id"), // ID de la suscripción en Stripe
+  // Stripe integration (a nivel de empresa para facturación consolidada)
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
   
-  // Estado
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // ============================================
-// USERS TABLE - Usuarios con autenticación
-// ============================================
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  companyId: varchar("company_id").references(() => companies.id, { onDelete: "set null" }), // Empresa a la que pertenece
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  phoneNumber: text("phone_number"), // Número de teléfono con código de país
-  passwordHash: text("password_hash"), // Para email/password auth
-  googleId: text("google_id"), // Para Google OAuth
-  role: text("role").notNull().default("user"), // "user" o "admin"
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  lastLoginAt: timestamp("last_login_at"),
-});
-
-// ============================================
-// SUBACCOUNTS TABLE - Locations de GHL
+// SUBACCOUNTS TABLE - Subcuentas (usuarios del sistema con autenticación)
 // ============================================
 export const subaccounts = pgTable("subaccounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  locationId: text("location_id").notNull().unique(), // GHL Location ID
-  companyId: text("company_id").notNull(), // GHL Company ID
-  name: text("name").notNull(), // Nombre de la location en GHL
-  email: text("email"),
+  companyId: varchar("company_id").references(() => companies.id, { onDelete: "cascade" }),
+  
+  // GoHighLevel Integration
+  locationId: text("location_id").notNull().unique(),
+  ghlCompanyId: text("ghl_company_id").notNull(),
+  
+  // Información básica
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(), // Email para login
   phone: text("phone"),
   city: text("city"),
   state: text("state"),
   address: text("address"),
-  openaiApiKey: text("openai_api_key"), // API Key de OpenAI para transcripción
-  calendarId: text("calendar_id"), // GHL Calendar ID para integraciones
+  
+  // Autenticación (fusionado desde users)
+  passwordHash: text("password_hash"),
+  googleId: text("google_id"),
+  role: text("role").notNull().default("user"), // "user" o "admin"
+  lastLoginAt: timestamp("last_login_at"),
+  
+  // Configuración de CRM
+  openaiApiKey: text("openai_api_key"),
+  calendarId: text("calendar_id"),
+  
+  // Control de estado
   isActive: boolean("is_active").notNull().default(true),
+  billingEnabled: boolean("billing_enabled").notNull().default(true),
+  manuallyActivated: boolean("manually_activated").notNull().default(true),
   
-  // Control manual por administrador
-  billingEnabled: boolean("billing_enabled").notNull().default(true), // Si se cobra o no a esta subcuenta
-  manuallyActivated: boolean("manually_activated").notNull().default(true), // Si está activada manualmente por admin
-  
-  installedAt: timestamp("installed_at").defaultNow(),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  installedAt: timestamp("installed_at"),
   uninstalledAt: timestamp("uninstalled_at"),
 });
 
@@ -82,17 +78,16 @@ export const subaccounts = pgTable("subaccounts", {
 // ============================================
 export const whatsappInstances = pgTable("whatsapp_instances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
-  locationId: text("location_id").notNull(), // GHL location ID (redundante pero útil)
+  locationId: text("location_id").notNull(),
   
   // Nombres
-  customName: text("custom_name"), // Nombre personalizado por el usuario
-  evolutionInstanceName: text("evolution_instance_name").notNull(), // wa-{locationId}
+  customName: text("custom_name"),
+  evolutionInstanceName: text("evolution_instance_name").notNull(),
   
   // Conexión
-  phoneNumber: text("phone_number"), // Número de WhatsApp conectado (readonly)
-  status: text("status").notNull().default("created"), // created, qr_generated, connected, disconnected, error
+  phoneNumber: text("phone_number"),
+  status: text("status").notNull().default("created"),
   qrCode: text("qr_code"),
   
   // Configuración
@@ -112,16 +107,16 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }).unique(),
-  plan: text("plan").notNull().default("none"), // none, starter, basic, pro
-  includedInstances: text("included_instances").notNull().default("0"), // Instancias incluidas en el plan base
-  extraSlots: text("extra_slots").notNull().default("0"), // Instancias adicionales compradas ($5 c/u)
-  basePrice: text("base_price").notNull().default("0.00"), // Precio base del plan ($10, $19 o $29)
-  extraPrice: text("extra_price").notNull().default("0.00"), // Precio total de slots extra
-  status: text("status").notNull().default("active"), // active, expired, cancelled
+  plan: text("plan").notNull().default("none"),
+  includedInstances: text("included_instances").notNull().default("0"),
+  extraSlots: text("extra_slots").notNull().default("0"),
+  basePrice: text("base_price").notNull().default("0.00"),
+  extraPrice: text("extra_price").notNull().default("0.00"),
+  status: text("status").notNull().default("active"),
   
-  // Período de prueba gratuito (15 días)
-  trialEndsAt: timestamp("trial_ends_at"), // Fecha cuando termina el período de prueba (null = sin prueba)
-  inTrial: boolean("in_trial").notNull().default(true), // Indicador si está actualmente en prueba
+  // Trial period
+  trialEndsAt: timestamp("trial_ends_at"),
+  inTrial: boolean("in_trial").notNull().default(true),
   
   currentPeriodStart: timestamp("current_period_start").defaultNow(),
   currentPeriodEnd: timestamp("current_period_end"),
@@ -136,14 +131,14 @@ export const subscriptions = pgTable("subscriptions", {
 export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
-  amount: text("amount").notNull(), // Monto total en dólares
-  plan: text("plan").notNull(), // starter, basic, pro, extra_slot
-  baseAmount: text("base_amount").notNull().default("0.00"), // Monto del plan base
-  extraAmount: text("extra_amount").notNull().default("0.00"), // Monto de slots extra
-  extraSlots: text("extra_slots").notNull().default("0"), // Cantidad de slots extra en esta factura
+  amount: text("amount").notNull(),
+  plan: text("plan").notNull(),
+  baseAmount: text("base_amount").notNull().default("0.00"),
+  extraAmount: text("extra_amount").notNull().default("0.00"),
+  extraSlots: text("extra_slots").notNull().default("0"),
   description: text("description").notNull(),
-  status: text("status").notNull().default("pending"), // pending, paid, failed
-  stripeInvoiceId: text("stripe_invoice_id"), // Para futura integración
+  status: text("status").notNull().default("pending"),
+  stripeInvoiceId: text("stripe_invoice_id"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -153,7 +148,7 @@ export const invoices = pgTable("invoices", {
 // ============================================
 export const webhookConfig = pgTable("webhook_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  webhookUrl: text("webhook_url").notNull(), // URL donde se reenvían los mensajes
+  webhookUrl: text("webhook_url").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -183,51 +178,49 @@ export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type UpdateCompany = z.infer<typeof updateCompanySchema>;
 export type SelectCompany = typeof companies.$inferSelect;
 
-// Users
-export const insertUserSchema = createInsertSchema(users).omit({
+// Subaccounts (usuarios del sistema)
+export const insertSubaccountSchema = createInsertSchema(subaccounts).omit({
   id: true,
   createdAt: true,
+  installedAt: true,
+  uninstalledAt: true,
   lastLoginAt: true,
 });
 
-export const registerUserSchema = z.object({
+export const registerSubaccountSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  locationId: z.string().min(1, "Location ID es requerido"),
+  ghlCompanyId: z.string().min(1, "Company ID es requerido"),
+  companyId: z.string().uuid().optional(),
 });
 
-export const loginUserSchema = z.object({
+export const loginSubaccountSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
-export const updateUserProfileSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").optional(),
-  phoneNumber: z.string().min(1, "El número de teléfono es requerido").optional(),
-});
-
-export const updateUserPasswordSchema = z.object({
-  currentPassword: z.string().min(1, "La contraseña actual es requerida"),
-  newPassword: z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
-});
-
-// Subaccounts
-export const insertSubaccountSchema = createInsertSchema(subaccounts).omit({
-  id: true,
-  installedAt: true,
-  uninstalledAt: true,
-});
-
 export const createSubaccountSchema = z.object({
-  userId: z.string().uuid(),
+  companyId: z.string().uuid(),
   locationId: z.string().min(1, "Location ID es requerido"),
-  companyId: z.string().min(1, "Company ID es requerido"),
+  ghlCompanyId: z.string().min(1, "Company ID es requerido"),
   name: z.string().min(1, "El nombre es requerido"),
-  email: z.string().email().optional(),
+  email: z.string().email("Email inválido"),
   phone: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   address: z.string().optional(),
+});
+
+export const updateSubaccountProfileSchema = z.object({
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").optional(),
+  phone: z.string().min(1, "El número de teléfono es requerido").optional(),
+});
+
+export const updateSubaccountPasswordSchema = z.object({
+  currentPassword: z.string().min(1, "La contraseña actual es requerida"),
+  newPassword: z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
 });
 
 export const updateSubaccountOpenAIKeySchema = z.object({
@@ -242,6 +235,17 @@ export const updateSubaccountCrmSettingsSchema = z.object({
   calendarId: z.string().optional(),
 });
 
+export type Subaccount = typeof subaccounts.$inferSelect;
+export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
+export type RegisterSubaccount = z.infer<typeof registerSubaccountSchema>;
+export type LoginSubaccount = z.infer<typeof loginSubaccountSchema>;
+export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
+export type UpdateSubaccountProfile = z.infer<typeof updateSubaccountProfileSchema>;
+export type UpdateSubaccountPassword = z.infer<typeof updateSubaccountPasswordSchema>;
+export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
+export type UpdateSubaccountCalendarId = z.infer<typeof updateSubaccountCalendarIdSchema>;
+export type UpdateSubaccountCrmSettings = z.infer<typeof updateSubaccountCrmSettingsSchema>;
+
 // WhatsApp Instances
 export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances).omit({
   id: true,
@@ -252,7 +256,6 @@ export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances
 });
 
 export const createWhatsappInstanceSchema = z.object({
-  userId: z.string().uuid(),
   subaccountId: z.string().uuid(),
   locationId: z.string().min(1, "Location ID es requerido"),
   customName: z.string().min(1, "El nombre es requerido").max(50, "Máximo 50 caracteres"),
@@ -270,23 +273,6 @@ export const updateWhatsappInstanceSchema = z.object({
   disconnectedAt: z.date().optional(),
   lastActivityAt: z.date().optional(),
 });
-
-// ============================================
-// TYPESCRIPT TYPES
-// ============================================
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type RegisterUser = z.infer<typeof registerUserSchema>;
-export type LoginUser = z.infer<typeof loginUserSchema>;
-export type UpdateUserProfile = z.infer<typeof updateUserProfileSchema>;
-export type UpdateUserPassword = z.infer<typeof updateUserPasswordSchema>;
-
-export type Subaccount = typeof subaccounts.$inferSelect;
-export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
-export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
-export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
-export type UpdateSubaccountCalendarId = z.infer<typeof updateSubaccountCalendarIdSchema>;
-export type UpdateSubaccountCrmSettings = z.infer<typeof updateSubaccountCrmSettingsSchema>;
 
 export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
@@ -309,15 +295,15 @@ export const updateSubscriptionSchema = z.object({
   status: z.enum(["active", "expired", "cancelled"]).optional(),
 });
 
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
+
 // Invoices
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
 });
-
-export type Subscription = typeof subscriptions.$inferSelect;
-export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
-export type UpdateSubscription = z.infer<typeof updateSubscriptionSchema>;
 
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
