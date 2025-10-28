@@ -128,13 +128,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }));
 
   // Callback de Google OAuth
-  app.get("/api/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login" }),
-    (req, res) => {
-      // Redirigir al dashboard después del login exitoso
-      res.redirect("/dashboard");
-    }
-  );
+  app.get("/api/auth/google/callback", (req, res, next) => {
+    passport.authenticate("google", (err: any, user: any, info: any) => {
+      if (err) {
+        console.error("Error en Google OAuth:", err);
+        return res.redirect("/login?error=oauth_error");
+      }
+      
+      if (!user) {
+        console.error("Google OAuth: Usuario no autenticado", info);
+        return res.redirect("/login?error=auth_failed");
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Error al crear sesión después de Google OAuth:", loginErr);
+          return res.redirect("/login?error=session_error");
+        }
+        
+        // Redirigir al dashboard después del login exitoso
+        res.redirect("/dashboard");
+      });
+    })(req, res, next);
+  });
 
   // Obtener usuario actual
   app.get("/api/auth/me", (req, res) => {
