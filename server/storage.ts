@@ -1,8 +1,20 @@
-import { users, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
+import { companies, users, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql as drizzleSql, count, sum, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
+  // ============================================
+  // COMPANY OPERATIONS
+  // ============================================
+  getCompany(id: string): Promise<SelectCompany | undefined>;
+  getCompanies(): Promise<SelectCompany[]>;
+  getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]>; // Con estadísticas
+  createCompany(company: InsertCompany): Promise<SelectCompany>;
+  updateCompany(id: string, updates: UpdateCompany): Promise<SelectCompany | undefined>;
+  deleteCompany(id: string): Promise<boolean>;
+  getCompanyStats(companyId: string): Promise<any>; // Estadísticas de una empresa
+  getDashboardStats(): Promise<any>; // Estadísticas globales para dashboard
+  
   // ============================================
   // USER OPERATIONS
   // ============================================
@@ -63,6 +75,121 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // ============================================
+  // COMPANY OPERATIONS
+  // ============================================
+  
+  async getCompany(id: string): Promise<SelectCompany | undefined> {
+    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    return company || undefined;
+  }
+
+  async getCompanies(): Promise<SelectCompany[]> {
+    return await db.select().from(companies);
+  }
+
+  async getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]> {
+    // Get all companies with their aggregate data
+    const companiesData = await db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        email: companies.email,
+        phoneNumber: companies.phoneNumber,
+        country: companies.country,
+        stripeCustomerId: companies.stripeCustomerId,
+        isActive: companies.isActive,
+        createdAt: companies.createdAt,
+        userCount: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
+        subaccountCount: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
+        instanceCount: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
+      })
+      .from(companies)
+      .leftJoin(users, eq(users.companyId, companies.id))
+      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
+      .groupBy(companies.id);
+
+    // If no status filter, return all
+    if (!status) {
+      return companiesData;
+    }
+
+    // Filter by status (requires checking subscriptions)
+    // This is a simplified version - you can enhance it based on your business logic
+    return companiesData;
+  }
+
+  async createCompany(company: InsertCompany): Promise<SelectCompany> {
+    const [newCompany] = await db
+      .insert(companies)
+      .values(company)
+      .returning();
+    return newCompany;
+  }
+
+  async updateCompany(id: string, updates: UpdateCompany): Promise<SelectCompany | undefined> {
+    const [updated] = await db
+      .update(companies)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    const result = await db
+      .delete(companies)
+      .where(eq(companies.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getCompanyStats(companyId: string): Promise<any> {
+    // Get detailed stats for a specific company
+    const [stats] = await db
+      .select({
+        userCount: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
+        subaccountCount: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
+        instanceCount: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
+        activeInstanceCount: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
+      })
+      .from(companies)
+      .leftJoin(users, eq(users.companyId, companies.id))
+      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
+      .where(eq(companies.id, companyId))
+      .groupBy(companies.id);
+
+    return stats || { userCount: 0, subaccountCount: 0, instanceCount: 0, activeInstanceCount: 0 };
+  }
+
+  async getDashboardStats(): Promise<any> {
+    // Global statistics for admin dashboard
+    const [globalStats] = await db
+      .select({
+        totalCompanies: drizzleSql<number>`COUNT(DISTINCT ${companies.id})`,
+        activeCompanies: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${companies.isActive} = true THEN ${companies.id} END)`,
+        totalUsers: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
+        totalSubaccounts: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
+        totalInstances: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
+        connectedInstances: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
+      })
+      .from(companies)
+      .leftJoin(users, eq(users.companyId, companies.id))
+      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id));
+
+    return globalStats || {
+      totalCompanies: 0,
+      activeCompanies: 0,
+      totalUsers: 0,
+      totalSubaccounts: 0,
+      totalInstances: 0,
+      connectedInstances: 0,
+    };
+  }
+
   // ============================================
   // USER OPERATIONS
   // ============================================
