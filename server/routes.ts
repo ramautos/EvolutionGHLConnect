@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, insertUserSchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerUserSchema, loginUserSchema, updateUserProfileSchema, updateUserPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -680,6 +680,110 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error updating subaccount billing:", error);
       res.status(500).json({ error: "Error al actualizar billing" });
+    }
+  });
+
+  // ============================================
+  // RUTAS DE COMPANIES (Admin only)
+  // ============================================
+
+  // Obtener todas las empresas con estadísticas
+  app.get("/api/admin/companies", isAdmin, async (req, res) => {
+    try {
+      const { status } = req.query;
+      const companies = await storage.getCompaniesByStatus(status as any);
+      res.json(companies);
+    } catch (error) {
+      console.error("Error getting companies:", error);
+      res.status(500).json({ error: "Failed to get companies" });
+    }
+  });
+
+  // Obtener una empresa específica con estadísticas
+  app.get("/api/admin/companies/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const company = await storage.getCompany(id);
+      
+      if (!company) {
+        res.status(404).json({ error: "Empresa no encontrada" });
+        return;
+      }
+      
+      const stats = await storage.getCompanyStats(id);
+      
+      res.json({ ...company, stats });
+    } catch (error) {
+      console.error("Error getting company:", error);
+      res.status(500).json({ error: "Failed to get company" });
+    }
+  });
+
+  // Crear nueva empresa
+  app.post("/api/admin/companies", isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.parse(req.body);
+      const company = await storage.createCompany(validatedData);
+      res.json(company);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+        return;
+      }
+      console.error("Error creating company:", error);
+      res.status(500).json({ error: "Failed to create company" });
+    }
+  });
+
+  // Actualizar empresa
+  app.patch("/api/admin/companies/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateCompanySchema.parse(req.body);
+      const updated = await storage.updateCompany(id, validatedData);
+      
+      if (!updated) {
+        res.status(404).json({ error: "Empresa no encontrada" });
+        return;
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+        return;
+      }
+      console.error("Error updating company:", error);
+      res.status(500).json({ error: "Failed to update company" });
+    }
+  });
+
+  // Eliminar empresa
+  app.delete("/api/admin/companies/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteCompany(id);
+      
+      if (!deleted) {
+        res.status(404).json({ error: "Empresa no encontrada" });
+        return;
+      }
+      
+      res.json({ success: true, message: "Empresa eliminada exitosamente" });
+    } catch (error) {
+      console.error("Error deleting company:", error);
+      res.status(500).json({ error: "Failed to delete company" });
+    }
+  });
+
+  // Obtener estadísticas globales para el dashboard
+  app.get("/api/admin/dashboard/stats", isAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting dashboard stats:", error);
+      res.status(500).json({ error: "Failed to get dashboard stats" });
     }
   });
 

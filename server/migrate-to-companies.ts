@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { companies, users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 
 /**
  * Script de migración para agrupar usuarios existentes en empresas
@@ -23,7 +23,7 @@ async function migrateUsersToCompanies() {
     const allUsers = await db
       .select()
       .from(users)
-      .where(eq(users.companyId, null as any));
+      .where(isNull(users.companyId));
     
     if (allUsers.length === 0) {
       console.log('✅ No hay usuarios pendientes de migrar');

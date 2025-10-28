@@ -89,7 +89,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]> {
-    // Get all companies with their aggregate data
+    // Get all companies with their aggregate data including subscription info
     const companiesData = await db
       .select({
         id: companies.id,
@@ -103,10 +103,14 @@ export class DatabaseStorage implements IStorage {
         userCount: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
         subaccountCount: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
         instanceCount: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
+        // Subscription status indicators
+        hasActiveTrial: drizzleSql<boolean>`BOOL_OR(${subscriptions.inTrial} = true AND ${subscriptions.trialEndsAt} > NOW())`,
+        hasExpiredSubscription: drizzleSql<boolean>`BOOL_OR(${subscriptions.status} = 'expired')`,
       })
       .from(companies)
       .leftJoin(users, eq(users.companyId, companies.id))
       .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(subscriptions, eq(subscriptions.subaccountId, subaccounts.id))
       .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
       .groupBy(companies.id);
 
@@ -115,9 +119,17 @@ export class DatabaseStorage implements IStorage {
       return companiesData;
     }
 
-    // Filter by status (requires checking subscriptions)
-    // This is a simplified version - you can enhance it based on your business logic
-    return companiesData;
+    // Filter by status based on subscription data
+    return companiesData.filter(company => {
+      if (status === 'trial') {
+        return company.hasActiveTrial;
+      } else if (status === 'expired') {
+        return company.hasExpiredSubscription;
+      } else if (status === 'active') {
+        return !company.hasActiveTrial && !company.hasExpiredSubscription && company.isActive;
+      }
+      return true;
+    });
   }
 
   async createCompany(company: InsertCompany): Promise<SelectCompany> {
