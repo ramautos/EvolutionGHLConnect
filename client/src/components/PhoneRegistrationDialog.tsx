@@ -21,7 +21,7 @@ export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps
     mutationFn: async (phone: string) => {
       const response = await fetch("/api/user/profile", {
         method: "PATCH",
-        body: JSON.stringify({ phoneNumber: `+${phone}` }),
+        body: JSON.stringify({ phone: `+${phone}` }),
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });

@@ -27,14 +27,14 @@ function ProfileContent() {
 
   // Estados para formularios
   const [name, setName] = useState(user?.name || "");
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber?.replace("+", "") || "");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phone?.replace("+", "") || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Mutación para actualizar perfil
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: { name?: string; phoneNumber?: string }) => {
+    mutationFn: async (data: { name?: string; phone?: string }) => {
       const response = await fetch("/api/user/profile", {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -99,15 +99,15 @@ function ProfileContent() {
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    const updates: { name?: string; phoneNumber?: string } = {};
+    const updates: { name?: string; phone?: string } = {};
     
     if (name !== user?.name) {
       updates.name = name;
     }
     
     const fullPhone = phoneNumber ? `+${phoneNumber}` : "";
-    if (fullPhone !== user?.phoneNumber) {
-      updates.phoneNumber = fullPhone;
+    if (fullPhone !== user?.phone) {
+      updates.phone = fullPhone;
     }
 
     if (Object.keys(updates).length === 0) {
