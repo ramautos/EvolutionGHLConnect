@@ -228,9 +228,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {
+    // Asegurar que siempre hay un companyId asignado
+    let companyId = insertSubaccount.companyId;
+    
+    if (!companyId) {
+      // Intentar obtener la empresa por defecto (test-company-001)
+      let defaultCompany = await this.getCompany('test-company-001');
+      
+      // Si no existe, buscar cualquier empresa activa
+      if (!defaultCompany) {
+        const allCompanies = await this.getCompanies();
+        const activeCompany = allCompanies.find(c => c.isActive);
+        
+        if (activeCompany) {
+          defaultCompany = activeCompany;
+        } else {
+          // Si no hay ninguna empresa, crear una por defecto
+          defaultCompany = await this.createCompany({
+            name: 'Default Company',
+            email: 'default@company.com',
+            isActive: true,
+          });
+        }
+      }
+      
+      companyId = defaultCompany.id;
+    }
+    
     const [subaccount] = await db
       .insert(subaccounts)
-      .values(insertSubaccount as InsertSubaccount)
+      .values({ ...insertSubaccount, companyId } as InsertSubaccount)
       .returning();
     return subaccount;
   }
