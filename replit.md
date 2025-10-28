@@ -71,11 +71,32 @@ Preferred communication style: Simple, everyday language.
    - **Solución**: Unificación de campo `phone` en frontend y backend
    - **Verificación**: ✅ Registro de teléfono funcional
 
+4. **Bug de Eliminación de Subcuentas** ✅ FIXED
+   - **Problema**: Endpoint incorrecto en frontend (`/api/admin/subaccounts/:id` vs `/api/admin/users/:id`)
+   - **Solución**: Corregido endpoint de eliminación en AdminPanel.tsx
+   - **Verificación**: ✅ Eliminación funciona correctamente con toast de éxito
+
+5. **Bug de Dashboard Métricas** ✅ FIXED
+   - **Problema**: Dashboard mostraba 0 empresas por métrica duplicada "Total Usuarios"
+   - **Solución**: Eliminada métrica duplicada que no existía en backend
+   - **Verificación**: ✅ Dashboard muestra correctamente "1 empresa"
+
+6. **Bug de Usuarios Eliminados en Panel Admin** ✅ FIXED
+   - **Problema**: Usuarios eliminados (isActive=false) aparecían en tabla de admin
+   - **Solución**: Agregado filtro `WHERE is_active = true` en `getAllSubaccounts()`
+   - **Verificación**: ✅ Solo usuarios activos aparecen en panel admin
+
+7. **Bug de Inconsistencia Dashboard-Tabla** ✅ FIXED
+   - **Problema**: Dashboard contaba todos los usuarios, tabla solo mostraba activos
+   - **Solución**: `getDashboardStats()` ahora cuenta solo usuarios activos
+   - **Verificación**: ✅ Dashboard y tabla muestran el mismo conteo
+
 #### Estado Actual del Sistema 📊
 
 **Métricas**:
 - Empresas: 1 (test-company-001 / RAM Autos)
-- Usuarios/Subcuentas: 7 (todos con companyId válido)
+- Usuarios/Subcuentas Activos: 5 (todos con companyId válido)
+- Usuarios Eliminados (soft-delete): 3
 - Instancias WhatsApp: 0
 - Base de datos: ✅ Integridad completa
 
