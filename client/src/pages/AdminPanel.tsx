@@ -829,6 +829,20 @@ export default function AdminPanel() {
                       </div>
                       <p className="text-sm text-muted-foreground">Eliminar una instancia</p>
                     </div>
+
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">POST</Badge>
+                        <code className="text-sm">/api/instances/:id/send-message</code>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Enviar mensaje de WhatsApp (para n8n)</p>
+                      <div className="bg-muted p-3 rounded text-xs font-mono">
+                        Body: {"{ number: string, text: string }"}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Nota: La instancia debe estar conectada. El número puede incluir código de país.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -920,6 +934,27 @@ export default function AdminPanel() {
                     <li>Los trial duran 15 días con instancias ilimitadas</li>
                     <li>Planes disponibles: starter ($10), basic ($19), pro ($29) + $5 por instancia adicional</li>
                   </ul>
+                </div>
+
+                {/* n8n Integration Info */}
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    🔗 Integración con n8n
+                  </h4>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Flujo completo de mensajería:</p>
+                    <div className="space-y-1 pl-4">
+                      <p>1. <strong>Recibir mensajes:</strong> WhatsApp → Evolution API → <code className="bg-muted px-1">/api/webhook/message</code> → n8n</p>
+                      <p>2. <strong>Enviar mensajes:</strong> n8n → <code className="bg-muted px-1">/api/instances/:id/send-message</code> → Evolution API → WhatsApp</p>
+                    </div>
+                    <p className="mt-2">
+                      <strong>Configuración automática:</strong> Cada instancia se configura automáticamente con el webhook de Evolution API.
+                      No requiere configuración manual.
+                    </p>
+                    <p>
+                      <strong>Formato del webhook:</strong> Los mensajes recibidos incluyen <code className="bg-muted px-1">locationId</code> para enrutamiento en n8n.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

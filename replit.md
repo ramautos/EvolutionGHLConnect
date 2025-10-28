@@ -6,6 +6,38 @@ A production-ready multi-tenant SaaS platform integrating WhatsApp Business with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 28, 2025)
+
+### WhatsApp Messaging Integration with n8n ✅ COMPLETE
+**New Feature**: Automatic webhook configuration and bidirectional messaging through n8n.
+
+1. **Automatic Webhook Configuration**:
+   - Evolution API webhooks configured automatically on instance creation
+   - Webhook URL: `https://whatsapp.cloude.es/api/webhook/message`
+   - Events monitored: MESSAGES_UPSERT, MESSAGES_UPDATE, CONNECTION_UPDATE
+   - No manual configuration required per instance
+
+2. **Message Flow Architecture**:
+   - **Incoming**: WhatsApp → Evolution API → `/api/webhook/message` → Admin Webhook → n8n
+   - **Outgoing**: n8n → `/api/instances/:id/send-message` → Evolution API → WhatsApp
+   - Messages include `locationId` for proper n8n routing
+
+3. **API Endpoints**:
+   - `POST /api/instances/:id/send-message` - Send WhatsApp message (requires auth)
+   - `POST /api/webhook/message` - Receive messages from Evolution API (public)
+   - Both endpoints forward to admin-configured n8n webhook
+
+4. **Evolution API Service**:
+   - `setWebhook()` - Configure webhook for instance
+   - `sendTextMessage()` - Send text message to WhatsApp number
+   - Automatic number formatting (adds @s.whatsapp.net if needed)
+
+5. **Admin Panel Documentation**:
+   - New "API" tab with complete endpoint reference
+   - Organized by categories: Auth, Users, Subaccounts, Instances, Subscriptions, Webhook
+   - n8n integration guide included
+   - Color-coded HTTP method badges
+
 ## Recent Changes (October 27, 2025)
 
 ### Admin Control System ✅ COMPLETE
