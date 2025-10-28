@@ -51,3 +51,41 @@ Preferred communication style: Simple, everyday language.
 
 ### Build Tools
 -   Vite, TypeScript, Tailwind CSS, PostCSS, esbuild.
+
+## Recent Changes (October 28, 2025)
+
+### Company Delete Functionality ✅ COMPLETE
+**New Feature**: Safe company deletion with confirmation dialog and dependency warnings.
+
+1. **Delete Functionality**:
+   - Delete button (red trash icon) in Companies Management table
+   - AlertDialog confirmation before deletion
+   - Visual warning when company has dependencies (users/subaccounts/instances)
+   - DELETE mutation with proper error handling
+
+2. **Safety Features**:
+   - Two-step confirmation process (click delete → confirm in dialog)
+   - Dynamic warning messages showing exact dependency counts
+   - Cancel option to abort deletion
+   - Toast notifications for success/error
+
+3. **UI/UX**:
+   - Red trash icon indicates destructive action
+   - AlertDialog shows company name for confirmation
+   - Warning displays: "⚠️ Esta empresa tiene: X usuario(s), Y subcuenta(s), Z instancia(s)"
+   - Loading state during deletion ("Eliminando...")
+
+4. **Data Integrity**:
+   - Query invalidation: ["/api/admin/companies"], ["/api/admin/dashboard/stats"]
+   - Real-time table update after deletion
+   - Persistent deletion verified on page reload
+
+### Enterprise Admin Panel ✅ COMPLETE
+**Complete Implementation**: Full admin panel with company management, dashboard, and CRUD operations.
+
+- Admin dashboard with real-time metrics
+- Companies management with accordion table, filtering, search
+- Edit and delete functionality for companies
+- Sidebar navigation with smart route highlighting
+- Protected admin routes with requireAdmin middleware
+- Migration script to group existing users into companies (14 users → 5 companies)

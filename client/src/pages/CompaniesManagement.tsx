@@ -30,6 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   ChevronDown,
@@ -78,7 +88,9 @@ export default function CompaniesManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   
   const form = useForm<EditCompanyForm>({
@@ -127,6 +139,30 @@ export default function CompaniesManagement() {
     },
   });
 
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/companies/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard/stats"] });
+      toast({
+        title: "Empresa eliminada",
+        description: "La empresa se eliminó exitosamente",
+      });
+      setDeleteDialogOpen(false);
+      setCompanyToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la empresa",
+        variant: "destructive",
+      });
+    },
+  });
+
   const toggleCompany = (companyId: string) => {
     const newExpanded = new Set(expandedCompanies);
     if (newExpanded.has(companyId)) {
@@ -147,6 +183,16 @@ export default function CompaniesManagement() {
       address: company.address || "",
     });
     setEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (company: Company) => {
+    setCompanyToDelete(company);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!companyToDelete) return;
+    deleteCompanyMutation.mutate(companyToDelete.id);
   };
 
   const onSubmit = (data: EditCompanyForm) => {
@@ -288,9 +334,13 @@ export default function CompaniesManagement() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeleteDialog(company);
+                                  }}
                                   data-testid={`button-delete-${company.id}`}
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -396,6 +446,40 @@ export default function CompaniesManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar empresa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente la empresa <strong>{companyToDelete?.name}</strong> 
+              {companyToDelete && (companyToDelete.userCount > 0 || companyToDelete.subaccountCount > 0 || companyToDelete.instanceCount > 0) && (
+                <>
+                  <br /><br />
+                  <span className="text-destructive font-semibold">⚠️ Advertencia:</span> Esta empresa tiene:
+                  {companyToDelete.userCount > 0 && <><br />• {companyToDelete.userCount} usuario(s)</>}
+                  {companyToDelete.subaccountCount > 0 && <><br />• {companyToDelete.subaccountCount} subcuenta(s)</>}
+                  {companyToDelete.instanceCount > 0 && <><br />• {companyToDelete.instanceCount} instancia(s)</>}
+                  <br /><br />
+                  Todos los datos relacionados serán afectados.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteCompanyMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteCompanyMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
