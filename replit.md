@@ -1,7 +1,7 @@
 # WhatsApp-GoHighLevel AI Integration Platform
 
 ## Overview
-A production-ready multi-tenant SaaS platform integrating WhatsApp Business with GoHighLevel CRM. It provides user authentication, role-based access control, automated WhatsApp instance management with a `locationId_number` naming convention for n8n routing, and real-time connection monitoring. The platform aims to streamline communication and CRM processes for businesses, offering significant market potential by bridging these two critical business tools. It also supports storing and managing OpenAI API keys per GoHighLevel location for transcription services. The platform includes a hierarchical company management system with Stripe integration for billing, a free trial period, and automatic plan assignment based on WhatsApp instance usage.
+A production-ready multi-tenant SaaS platform integrating WhatsApp Business with GoHighLevel CRM. It streamlines communication and CRM processes by offering user authentication, role-based access control, automated WhatsApp instance management, and real-time connection monitoring. The platform supports storing and managing OpenAI API keys per GoHighLevel location for transcription services. It includes a hierarchical company management system with Stripe integration for billing, a free trial period, and automatic plan assignment based on WhatsApp instance usage.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -12,192 +12,33 @@ Preferred communication style: Simple, everyday language.
 -   **Framework**: React 19 (TypeScript, Vite)
 -   **UI/UX**: Radix UI primitives, shadcn/ui ("New York" style) with Material Design influences.
 -   **Styling**: Tailwind CSS with HSL-based theming, light/dark mode, and an elevation system.
--   **State Management**: React Query v5, UserContext for authentication, `useState` for local UI state.
+-   **State Management**: React Query v5, UserContext for authentication, `useState`.
 -   **Routing**: Wouter for navigation, including protected routes.
 -   **Real-time**: Socket.io client for live WhatsApp status updates.
--   **Design System**: Consistent design system with CSS utilities for elevation, HSL color variables, 4px base unit spacing, responsive layouts, and customized shadcn/ui components.
 
 ### Backend
 -   **Runtime**: Node.js with Express.js.
--   **Authentication**: Passport.js with Local (bcrypt) and Google OAuth 2.0.
--   **Session Management**: PostgreSQL session store (connect-pg-simple) using HttpOnly cookies.
+-   **Authentication**: Passport.js with Local (bcrypt) and Google OAuth 2.0; HttpOnly cookies for session management. Mandatory phone number registration on first login.
 -   **Authorization**: Role-based middleware (`isAuthenticated`, `isAdmin`).
 -   **API Design**: RESTful API for authentication, user management, subaccount operations, WhatsApp instance lifecycle, GoHighLevel integration, and admin functionalities.
--   **Authentication Flow**: Supports email/password and Google OAuth, establishing a Passport session, redirecting to the dashboard, and utilizing `UserContext` for client-side authentication. Protected routes enforce authentication. Mandatory phone number registration on first login.
--   **Subaccount Management Flow (GoHighLevel OAuth)**: Users add subaccounts via a full-page redirect to GoHighLevel OAuth. An n8n webhook intermediates the token exchange, storing them in the External GHL DB, and redirecting back to the application to create a subaccount record.
--   **WhatsApp Instance Management**: Allows creation and management of multiple WhatsApp instances per subaccount, integrating with the Evolution API for instance creation, QR code generation, and status management. Real-time status updates are pushed via Socket.io. Instances are named using the pattern `{locationId}_{number}`. The system also tracks instance disconnections and provides bidirectional synchronization between the WhatsApp application, Evolution API, and the web application, including automatic phone number extraction and orphaned instance detection/deletion.
--   **Billing and Subscription**: Implements a 15-day free trial, automatic plan assignment based on instance count (Starter, Basic, Pro plans with additional slots), and subaccount-level billing with `billingEnabled` and `manuallyActivated` flags for admin control.
--   **CRM Settings & Webhook**: Per-subaccount CRM configuration including `calendarId` and OpenAI API Key. Admin-controlled global webhook configuration for forwarding messages from Evolution API with `locationId` for n8n routing.
--   **Admin Control System**: Provides an admin panel with hierarchical company management, user and subaccount oversight, manual billing and activation controls, and global webhook configuration.
+-   **Subaccount Management**: Integrates with GoHighLevel OAuth for subaccount creation. An n8n webhook intermediates token exchange and stores them in a dedicated GHL DB.
+-   **WhatsApp Instance Management**: Uses Evolution API for instance creation, QR code generation, and status management. Instances are named `{locationId}_{number}`. Real-time status updates via Socket.io. Includes bidirectional synchronization and detection/deletion of orphaned instances.
+-   **Billing and Subscription**: 15-day free trial, automatic plan assignment (Starter, Basic, Pro) based on instance count. Subaccount-level billing with admin controls (`billingEnabled`, `manuallyActivated`).
+-   **CRM Settings & Webhook**: Per-subaccount CRM configuration including `calendarId` and OpenAI API Key. Global webhook configuration (admin-controlled) for forwarding messages from Evolution API with `locationId` for n8n routing.
+-   **Admin Control System**: Admin panel with hierarchical company management, user and subaccount oversight, manual billing and activation controls, and global webhook configuration.
 
 ### Database Architecture
--   **Replit PostgreSQL (Neon)**: Stores application data including `companies`, `subaccounts` (unified table with authentication), `whatsappInstances`, `subscriptions`, and `sessions`. The `subaccounts` table now serves as the unified entity for both CRM locations and authenticated users, containing fields: `email`, `passwordHash`, `googleId`, `role`, `lastLoginAt`, `openaiApiKey`, and `calendarId`.
--   **External GHL PostgreSQL**: Dedicated to storing GoHighLevel OAuth tokens (`ghl_clientes`).
+-   **Replit PostgreSQL (Neon)**: Primary application data storage (`companies`, `subaccounts`, `whatsappInstances`, `subscriptions`, `sessions`). The `subaccounts` table unifies CRM locations and authenticated users, containing authentication fields (`email`, `passwordHash`, `googleId`, `role`, `lastLoginAt`), CRM data (`locationId`, `ghlCompanyId`), and settings (`openaiApiKey`, `calendarId`).
+-   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens (`ghl_clientes`).
 
 ## External Dependencies
 
 ### Third-Party APIs
--   **Evolution API**: For WhatsApp Business API integration.
--   **GoHighLevel**: CRM platform OAuth 2.0 for integration.
--   **OpenAI**: For AI services (e.g., transcription), API keys stored per subaccount.
--   **Stripe**: For subscription management and billing.
+-   **Evolution API**: WhatsApp Business API integration.
+-   **GoHighLevel**: CRM platform OAuth 2.0.
+-   **OpenAI**: AI services (e.g., transcription).
+-   **Stripe**: Subscription management and billing.
 
 ### Database Services
 -   **Neon PostgreSQL**: Primary database for application data.
 -   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens.
-
-### UI Libraries
--   Radix UI, shadcn/ui, React Hook Form, Zod, QRCode.react, canvas-confetti, react-phone-input-2.
-
-### Build Tools
--   Vite, TypeScript, Tailwind CSS, PostCSS, esbuild.
-
-## Recent Changes (October 28, 2025)
-
-### Bug Fixes: Google OAuth & Phone Registration ✅ COMPLETE (Latest)
-**Date**: October 28, 2025 (Session 4)
-
-Fixed two critical bugs affecting user registration and profile updates:
-
-1. **Google OAuth Bug Fix** ✅
-   - **Issue**: New users created via Google OAuth were missing `billingEnabled` and `manuallyActivated` fields
-   - **Solution**: Updated `server/auth.ts` to include billing fields when creating Google OAuth users
-   - **Fields Added**: `billingEnabled: true`, `manuallyActivated: true`
-   - **Impact**: Google OAuth users now have proper billing configuration on registration
-
-2. **Phone Number Registration Bug Fix** ✅
-   - **Issue**: Frontend-backend field name mismatch - frontend sent `phoneNumber`, backend expected `phone`
-   - **Root Cause**: Database schema uses `phone` field, but frontend components used `phoneNumber`
-   - **Files Fixed**:
-     * `client/src/components/PhoneRegistrationDialog.tsx` - Changed request body to use `phone`
-     * `client/src/pages/Dashboard.tsx` - Changed `user?.phoneNumber` to `user?.phone`
-     * `client/src/pages/Profile.tsx` - Changed all references from `phoneNumber` to `phone`
-   - **Testing**: End-to-end test confirmed phone registration works correctly, saves to DB with "+" prefix
-
-3. **Verification**:
-   - ✅ Created test user via Google OAuth flow (simulated) - all fields present
-   - ✅ Tested phone registration with playwright - number saves as '+18094973031'
-   - ✅ Database queries confirm both fixes working correctly
-
-## Recent Changes (October 28, 2025)
-
-### Schema Update: Optional GoHighLevel Fields ✅ COMPLETE
-**Date**: October 28, 2025 (Session 3)
-
-Fixed registration flow by making GoHighLevel integration fields optional:
-
-1. **Schema Changes**:
-   - Modified `subaccounts` table: `locationId` and `ghlCompanyId` are now optional (removed `.notNull()`)
-   - Updated database schema with `npm run db:push --force`
-   - These fields are only required for GHL OAuth flow, not for manual registration
-
-2. **Registration Improvements**:
-   - Manual registration now works: creates users with `locationId: LOCAL_{timestamp}` and `ghlCompanyId: LOCAL_AUTH`
-   - Both email/password and Google OAuth registration tested and working in development
-   - Added `billingEnabled: true` and `manuallyActivated: true` defaults for new registrations
-
-3. **Deployment Status**:
-   - ✅ Development environment: Fully functional
-   - ⚠️ Production environment: Needs deployment of updated code
-   - Database schema copied to production, but code deployment pending
-
-4. **Technical Details**:
-   - Removed TypeScript module cache issues with forced tsx restart
-   - Validated both registration endpoints work correctly in local environment
-   - Production URL (whatsapp.cloude.es) still running old code requiring these fields
-
-## Recent Changes (October 28, 2025)
-
-### Security & UX Improvements ✅ COMPLETE (Latest)
-**Date**: October 28, 2025 (Session 2)
-
-Implemented three critical improvements to enhance security and user experience:
-
-1. **Admin Self-Deletion Prevention** ✅
-   - **Issue**: Admins could delete their own company, destroying their session → 502 error
-   - **Solution**: Added validation in `DELETE /api/admin/companies/:id` endpoint
-   - **Implementation**: Server-side check prevents admin from deleting `companyId` matching their own
-   - **Response**: Returns 403 error with clear message if attempted
-   - **Impact**: Prevents catastrophic session destruction and maintains system integrity
-
-2. **Evolution API Auto-Delete** ✅ (Already implemented)
-   - **Confirmed**: DELETE endpoints already call `evolutionAPI.deleteInstance()`
-   - **Bidirectional Sync**: Auto-sync detects disconnections and deletes orphaned instances
-   - **Status**: Fully functional, no changes needed
-
-3. **Celebratory QR Connection Experience** ✅
-   - **Component**: `client/src/components/QRModal.tsx`
-   - **Features Implemented**:
-     * Confetti animation using canvas-confetti library (3-second burst)
-     * Enhanced success popup with gradient design and Sparkles icons
-     * Toast notification: "¡Felicidades! WhatsApp conectado exitosamente"
-     * Auto-close modal after 3 seconds (time to enjoy confetti)
-   - **Technical Details**:
-     * Used `useRef` for confetti interval and close timeout (prevents memory leaks)
-     * WebSocket listener for real-time "instance-connected" event
-     * Proper cleanup in useEffect return to clear timers on unmount
-   - **Design Compliance**: No emojis in UI copy (per design guidelines)
-   - **Architect Approval**: Verified lifecycle management, no memory leaks
-
-### Architectural Restructuring: Users-Subaccounts Unification ✅ COMPLETE
-**Major Refactor**: Merged `users` and `subaccounts` tables into a single unified `subaccounts` table.
-
-**Rationale**: Companies register subaccounts directly (not users who then create subaccounts). Each subaccount represents both a GoHighLevel location AND an authenticated user in the system.
-
-**Changes Made**:
-1. **Schema (shared/schema.ts)**:
-   - Removed `users` table entirely
-   - Added authentication fields to `subaccounts`: `passwordHash`, `googleId`, `role`, `lastLoginAt`
-   - Subaccounts now have: CRM data (locationId, ghlCompanyId) + Auth data (email, password) + Settings (openaiApiKey, calendarId)
-
-2. **Backend**:
-   - **storage.ts**: Removed all User-related methods (getUserByEmail, createUser, etc.), kept only Subaccount methods
-   - **auth.ts**: Passport.js now authenticates against `subaccounts` table directly
-   - **routes.ts**: ~80+ changes to use subaccounts instead of users in all endpoints
-
-3. **Frontend**:
-   - **UserContext.tsx**: Changed type from `User` to `Subaccount`
-   - **AdminPanel.tsx**: Eliminated "Users" tab, unified into "Subcuentas" tab with role/email/billing controls
-   - **AdminSidebar.tsx**: Removed "Usuarios" navigation link
-
-4. **Hierarchy**: 
-   - OLD: Companies → Users → Subaccounts → WhatsApp Instances
-   - NEW: Companies → Subaccounts (with auth) → WhatsApp Instances
-
-**Impact**: Simplified architecture, eliminated confusion between users and subaccounts, improved data consistency.
-
-### Company Delete Functionality ✅ COMPLETE
-**New Feature**: Safe company deletion with confirmation dialog and dependency warnings.
-
-1. **Delete Functionality**:
-   - Delete button (red trash icon) in Companies Management table
-   - AlertDialog confirmation before deletion
-   - Visual warning when company has dependencies (users/subaccounts/instances)
-   - DELETE mutation with proper error handling
-
-2. **Safety Features**:
-   - Two-step confirmation process (click delete → confirm in dialog)
-   - Dynamic warning messages showing exact dependency counts
-   - Cancel option to abort deletion
-   - Toast notifications for success/error
-
-3. **UI/UX**:
-   - Red trash icon indicates destructive action
-   - AlertDialog shows company name for confirmation
-   - Warning displays: "⚠️ Esta empresa tiene: X usuario(s), Y subcuenta(s), Z instancia(s)"
-   - Loading state during deletion ("Eliminando...")
-
-4. **Data Integrity**:
-   - Query invalidation: ["/api/admin/companies"], ["/api/admin/dashboard/stats"]
-   - Real-time table update after deletion
-   - Persistent deletion verified on page reload
-
-### Enterprise Admin Panel ✅ COMPLETE
-**Complete Implementation**: Full admin panel with company management, dashboard, and CRUD operations.
-
-- Admin dashboard with real-time metrics
-- Companies management with accordion table, filtering, search
-- Edit and delete functionality for companies
-- Sidebar navigation with smart route highlighting
-- Protected admin routes with requireAdmin middleware
-- Migration script to group existing users into companies (14 users → 5 companies)
