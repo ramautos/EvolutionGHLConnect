@@ -44,10 +44,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registro con email/password
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = registerUserSchema.parse(req.body);
+      const validatedData = registerSubaccountSchema.parse(req.body);
       
       // Verificar si el email ya existe
-      const existingUser = await storage.getUserByEmail(validatedData.email);
+      const existingUser = await storage.getSubaccountByEmail(validatedData.email);
       if (existingUser) {
         res.status(400).json({ error: "Este email ya está registrado" });
         return;
@@ -57,12 +57,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passwordHash = await hashPassword(validatedData.password);
 
       // Crear usuario
-      const user = await storage.createUser({
+      const user = await storage.createSubaccount({
         email: validatedData.email,
         name: validatedData.name,
         passwordHash,
         role: "user",
         isActive: true,
+        locationId: `LOCAL_${Date.now()}`,
+        ghlCompanyId: "LOCAL_AUTH",
       });
 
       // Auto-login después de registro
@@ -90,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login con email/password
   app.post("/api/auth/login", (req, res, next) => {
     try {
-      const validatedData = loginUserSchema.parse(req.body);
+      const validatedData = loginSubaccountSchema.parse(req.body);
       
       passport.authenticate("local", (err: any, user: any, info: any) => {
         if (err) {
@@ -170,9 +172,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const validatedData = updateUserProfileSchema.parse(req.body);
+      const validatedData = updateSubaccountProfileSchema.parse(req.body);
 
-      const updatedUser = await storage.updateUser(user.id, validatedData);
+      const updatedUser = await storage.updateSubaccount(user.id, validatedData);
       
       if (!updatedUser) {
         res.status(404).json({ error: "Usuario no encontrado" });
@@ -198,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/password", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const validatedData = updateUserPasswordSchema.parse(req.body);
+      const validatedData = updateSubaccountPasswordSchema.parse(req.body);
 
       // Verificar que el usuario tenga contraseña (no solo Google OAuth)
       if (!user.passwordHash) {
@@ -215,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Actualizar contraseña
       const hashedPassword = await bcrypt.hash(validatedData.newPassword, 10);
-      await storage.updateUser(user.id, { passwordHash: hashedPassword });
+      await storage.updateSubaccount(user.id, { passwordHash: hashedPassword });
 
       res.json({ success: true, message: "Contraseña actualizada exitosamente" });
     } catch (error: any) {
@@ -237,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users/:id", isAuthenticated, async (req, res) => {
     try {
-      const user = await storage.getUser(req.params.id);
+      const user = await storage.getSubaccount(req.params.id);
       if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
@@ -261,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Solo admin puede buscar por email
   app.get("/api/users/email/:email", isAdmin, async (req, res) => {
     try {
-      const user = await storage.getUserByEmail(req.params.email);
+      const user = await storage.getSubaccountByEmail(req.params.email);
       if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
@@ -516,7 +518,7 @@ ${ghlErrorDetails}
   // Listar todos los usuarios (solo admin)
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllSubaccounts();
       // No enviar datos sensibles
       const usersWithoutSensitive = users.map(user => {
         const { passwordHash: _, googleId: __, ...userWithoutSensitive } = user;
@@ -539,7 +541,7 @@ ${ghlErrorDetails}
         return;
       }
 
-      const deleted = await storage.deleteUser(userId);
+      const deleted = await storage.deleteSubaccount(userId);
       if (!deleted) {
         res.status(404).json({ error: "Usuario no encontrado" });
         return;
@@ -828,7 +830,7 @@ ${ghlErrorDetails}
       }
 
       const user = req.user as any;
-      if (subaccount.userId !== user.id && user.role !== "admin") {
+      if (subaccount.id !== user.id && user.role !== "admin") {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -861,7 +863,7 @@ ${ghlErrorDetails}
       }
 
       const user = req.user as any;
-      if (subaccount.userId !== user.id && user.role !== "admin") {
+      if (subaccount.id !== user.id && user.role !== "admin") {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -938,7 +940,7 @@ ${ghlErrorDetails}
       }
 
       const user = req.user as any;
-      if (subaccount.userId !== user.id && user.role !== "admin") {
+      if (subaccount.id !== user.id && user.role !== "admin") {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -969,30 +971,20 @@ ${ghlErrorDetails}
     }
   });
 
-  app.get("/api/subaccounts/user/:userId", isAuthenticated, async (req, res) => {
-    try {
-      const subaccounts = await storage.getSubaccounts(req.params.userId);
-      res.json(subaccounts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get subaccounts" });
-    }
-  });
-
   // Crear subcuenta desde GoHighLevel OAuth
   app.post("/api/subaccounts/from-ghl", isAuthenticated, async (req, res) => {
     try {
-      const { userId, companyId, locationId } = req.body;
+      const { companyId, locationId } = req.body;
 
-      if (!userId || !companyId || !locationId) {
-        res.status(400).json({ error: "Missing required fields: userId, companyId, locationId" });
+      if (!companyId || !locationId) {
+        res.status(400).json({ error: "Missing required fields: companyId, locationId" });
         return;
       }
 
-      console.log("📥 Creating subaccount from GHL OAuth:", { userId, companyId, locationId });
+      console.log("📥 Creating subaccount from GHL OAuth:", { companyId, locationId });
 
-      // Verificar si la subcuenta ya existe
-      const existingSubaccounts = await storage.getSubaccounts(userId);
-      const existing = existingSubaccounts.find(s => s.locationId === locationId);
+      // Verificar si la subcuenta ya existe por locationId
+      const existing = await storage.getSubaccountByLocationId(locationId);
       
       if (existing) {
         console.log("✅ Subaccount already exists:", existing.id);
@@ -1026,9 +1018,9 @@ ${ghlErrorDetails}
 
       // Crear subcuenta (solo con campos que existen en el schema)
       const subaccount = await storage.createSubaccount({
-        userId,
-        locationId: location.id,
         companyId,
+        locationId: location.id,
+        ghlCompanyId: companyId,
         name: location.name,
         email: location.email,
         phone: location.phone,
@@ -1092,7 +1084,7 @@ ${ghlErrorDetails}
 
       // Verificar que la subcuenta pertenece al usuario
       const user = req.user as any;
-      if (subaccount.userId !== user.id && user.role !== "admin") {
+      if (subaccount.id !== user.id && user.role !== "admin") {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -1352,15 +1344,6 @@ ${ghlErrorDetails}
     }
   });
 
-  app.get("/api/instances/user/:userId", isAuthenticated, async (req, res) => {
-    try {
-      const instances = await storage.getAllUserInstances(req.params.userId);
-      res.json(instances);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get user instances" });
-    }
-  });
-
   app.patch("/api/instances/:id", isAuthenticated, async (req, res) => {
     try {
       const validatedData = updateWhatsappInstanceSchema.parse(req.body);
@@ -1593,7 +1576,7 @@ ${ghlErrorDetails}
       }
 
       // Validar que el usuario tenga acceso a esta instancia
-      if (instance.userId !== (req.user as any).id) {
+      if (instance.subaccountId !== (req.user as any).id) {
         res.status(403).json({ error: "Access denied" });
         return;
       }
