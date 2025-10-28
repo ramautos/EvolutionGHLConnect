@@ -54,6 +54,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 28, 2025)
 
+### Security & UX Improvements ✅ COMPLETE (Latest)
+**Date**: October 28, 2025 (Session 2)
+
+Implemented three critical improvements to enhance security and user experience:
+
+1. **Admin Self-Deletion Prevention** ✅
+   - **Issue**: Admins could delete their own company, destroying their session → 502 error
+   - **Solution**: Added validation in `DELETE /api/admin/companies/:id` endpoint
+   - **Implementation**: Server-side check prevents admin from deleting `companyId` matching their own
+   - **Response**: Returns 403 error with clear message if attempted
+   - **Impact**: Prevents catastrophic session destruction and maintains system integrity
+
+2. **Evolution API Auto-Delete** ✅ (Already implemented)
+   - **Confirmed**: DELETE endpoints already call `evolutionAPI.deleteInstance()`
+   - **Bidirectional Sync**: Auto-sync detects disconnections and deletes orphaned instances
+   - **Status**: Fully functional, no changes needed
+
+3. **Celebratory QR Connection Experience** ✅
+   - **Component**: `client/src/components/QRModal.tsx`
+   - **Features Implemented**:
+     * Confetti animation using canvas-confetti library (3-second burst)
+     * Enhanced success popup with gradient design and Sparkles icons
+     * Toast notification: "¡Felicidades! WhatsApp conectado exitosamente"
+     * Auto-close modal after 3 seconds (time to enjoy confetti)
+   - **Technical Details**:
+     * Used `useRef` for confetti interval and close timeout (prevents memory leaks)
+     * WebSocket listener for real-time "instance-connected" event
+     * Proper cleanup in useEffect return to clear timers on unmount
+   - **Design Compliance**: No emojis in UI copy (per design guidelines)
+   - **Architect Approval**: Verified lifecycle management, no memory leaks
+
 ### Architectural Restructuring: Users-Subaccounts Unification ✅ COMPLETE
 **Major Refactor**: Merged `users` and `subaccounts` tables into a single unified `subaccounts` table.
 
