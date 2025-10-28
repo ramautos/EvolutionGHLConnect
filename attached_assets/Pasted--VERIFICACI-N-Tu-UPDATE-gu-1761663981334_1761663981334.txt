@@ -1,0 +1,75 @@
+-- ═══════════════════════════════════════════════════════════════
+-- 🔍 VERIFICACIÓN: ¿Tu UPDATE guarda el refresh token?
+-- ═══════════════════════════════════════════════════════════════
+
+-- Este es el UPDATE CORRECTO que debes tener en tu workflow:
+
+UPDATE ghl_clientes 
+SET 
+  accesstoken = '{{ $json.accesstoken }}',        -- ✅ Access token nuevo
+  refreshtoken = '{{ $json.refreshtoken }}',      -- ⭐ CRÍTICO: Refresh token nuevo
+  refreshtokenid = '{{ $json.refreshtokenid }}',  -- ✅ ID del refresh token
+  expiresat = {{ $json.expiresat }},              -- ✅ Nueva fecha expiración
+  lastrefreshed = CURRENT_TIMESTAMP               -- ✅ Timestamp actualización
+WHERE id = {{ $json.cliente_id }}
+RETURNING 
+  id, 
+  nombre_cliente, 
+  to_timestamp(expiresat) as nueva_expiracion,
+  lastrefreshed,
+  LEFT(refreshtoken, 50) || '...' as refresh_preview;
+
+-- ═══════════════════════════════════════════════════════════════
+-- ❌ UPDATE INCORRECTO (falta refreshtoken):
+-- ═══════════════════════════════════════════════════════════════
+
+-- UPDATE ghl_clientes 
+-- SET 
+--   accesstoken = '{{ $json.accesstoken }}',
+--   expiresat = {{ $json.expiresat }},
+--   lastrefreshed = CURRENT_TIMESTAMP
+--   -- ❌ FALTA: refreshtoken = '{{ $json.refreshtoken }}'
+-- WHERE id = {{ $json.cliente_id }};
+
+-- Resultado: Access token actualizado pero refresh token NO
+-- Próxima ejecución: "invalid_grant"
+
+-- ═══════════════════════════════════════════════════════════════
+-- 🔍 VERIFICAR ANTES/DESPUÉS DEL WORKFLOW
+-- ═══════════════════════════════════════════════════════════════
+
+-- EJECUTAR ANTES del workflow:
+SELECT 
+  id,
+  nombre_cliente,
+  MD5(refreshtoken) as hash_refresh_antes,
+  MD5(accesstoken) as hash_access_antes,
+  to_timestamp(expiresat) as expira_antes,
+  lastrefreshed as actualizado_antes
+FROM ghl_clientes
+WHERE isactive = true
+ORDER BY id;
+
+-- EJECUTAR DESPUÉS del workflow:
+SELECT 
+  id,
+  nombre_cliente,
+  MD5(refreshtoken) as hash_refresh_despues,
+  MD5(accesstoken) as hash_access_despues,
+  to_timestamp(expiresat) as expira_despues,
+  lastrefreshed as actualizado_despues,
+  CASE 
+    WHEN EXTRACT(EPOCH FROM (NOW() - lastrefreshed)) < 60 THEN '✅ Actualizado'
+    ELSE '❌ No actualizado'
+  END as estado
+FROM ghl_clientes
+WHERE isactive = true
+ORDER BY id;
+
+-- ═══════════════════════════════════════════════════════════════
+-- ✅ VERIFICACIÓN: ¿Cambió el refresh token?
+-- ═══════════════════════════════════════════════════════════════
+
+-- Comparar los hash:
+-- hash_refresh_antes ≠ hash_refresh_despues → ✅ Refresh token SÍ cambió
+-- hash_refresh_antes = hash_refresh_despues → ❌ Refresh token NO cambió (PROBLEMA)
