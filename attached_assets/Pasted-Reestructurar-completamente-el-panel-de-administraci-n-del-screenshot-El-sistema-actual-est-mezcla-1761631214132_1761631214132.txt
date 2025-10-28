@@ -1,0 +1,339 @@
+Reestructurar completamente el panel de administración del screenshot. El sistema actual está mezclando conceptos.
+
+══════════════════════════════════════════════════════════
+
+ACLARACIÓN IMPORTANTE:
+"Usuario" y "Subcuenta" son lo MISMO. No existen como entidades separadas.
+Cada subcuenta ES una cuenta de usuario con acceso al sistema.
+
+══════════════════════════════════════════════════════════
+
+ARQUITECTURA CORRECTA:
+
+Nivel 1: EMPRESAS (Companies)
+  └── Nivel 2: SUBCUENTAS/USUARIOS (Subaccounts) ← Son lo mismo
+      └── Nivel 3: INSTANCIAS DE WHATSAPP
+
+══════════════════════════════════════════════════════════
+
+PÁGINA 1: LISTA DE EMPRESAS
+
+Ruta: /admin/empresas
+
+Tabla con columnas:
+- [▼] Expandir
+- Empresa (nombre + icono)
+- Email principal
+- Plan
+- Estado (Activa/Trial/Vencida)
+- # Subcuentas
+- MRR
+- Próximo cobro
+- Acciones (Ver, Editar, Eliminar)
+
+Ejemplo de fila:
+┌──────────────────────────────────────────────────────────────────┐
+│ [▼] │ Test │ prueba@test.com │ Pro │ Activa │ 3 │ $150 │ 15 Nov │ [...] │
+└──────────────────────────────────────────────────────────────────┘
+
+Al hacer clic en [▼] o nombre:
+→ Navegar a /admin/empresas/{empresaId}
+
+══════════════════════════════════════════════════════════
+
+PÁGINA 2: DETALLE DE EMPRESA
+
+Ruta: /admin/empresas/{empresaId}
+
+Breadcrumb:
+Empresas > [Nombre de la Empresa]
+
+SECCIÓN A: Información de la Empresa
+┌─────────────────────────────────────────────────────┐
+│ 🏢 Información de la Empresa                        │
+├─────────────────────────────────────────────────────┤
+│ Nombre: Test                                        │
+│ Email: prueba-5Iv6Eq@test.com                       │
+│ Teléfono: N/A                                       │
+│ País: N/A                                           │
+│ Fecha registro: 15 Oct 2025                         │
+│ [Editar Empresa]                                    │
+└─────────────────────────────────────────────────────┘
+
+SECCIÓN B: Facturación
+┌─────────────────────────────────────────────────────┐
+│ 💳 Facturación                                      │
+├─────────────────────────────────────────────────────┤
+│ Stripe ID: Sin configurar                           │
+│ MRR Total: $150.00                                  │
+│ Estado: Activa                                      │
+│ [Configurar Stripe] [Ver Facturas]                  │
+└─────────────────────────────────────────────────────┘
+
+SECCIÓN C: Subcuentas de esta Empresa (TABLA PRINCIPAL)
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ 📍 Subcuentas (3)                                            [+ Nueva Subcuenta]│
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Location ID | Nombre/Email | Plan | Estado | # Instancias | Trial | Acciones   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ LOC_001     | ventas@test  | Pro  | Activa | 2            | -     | [Ver][Edit]│
+│ LOC_002     | mkt@test     | Básico| Trial | 1            | 5 días| [Ver][Edit]│
+│ LOC_003     | soporte@test | Pro  | Activa | 3            | -     | [Ver][Edit]│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+Al hacer clic en [Ver]:
+→ Navegar a /admin/subcuentas/{subcuentaId}
+
+══════════════════════════════════════════════════════════
+
+PÁGINA 3: LISTA GLOBAL DE SUBCUENTAS
+
+Ruta: /admin/subcuentas
+
+Tabla con columnas:
+- Location ID
+- Email/Nombre
+- Empresa (a la que pertenece) ← IMPORTANTE, clickeable
+- Plan
+- Estado
+- # Instancias
+- Trial expira
+- Acciones
+
+Ejemplo:
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Location ID | Email          | Empresa | Plan   | Estado | Instancias | ...│
+├────────────────────────────────────────────────────────────────────────────┤
+│ LOC_001     | ventas@test    | [Test]  | Pro    | Activa | 2          | ...│
+│ LOC_002     | demo@whatsapp  | [Demo]  | Básico | Trial  | 1          | ...│
+└────────────────────────────────────────────────────────────────────────────┘
+
+Al hacer clic en empresa:
+→ Navegar a /admin/empresas/{empresaId}
+
+Al hacer clic en subcuenta:
+→ Navegar a /admin/subcuentas/{subcuentaId}
+
+══════════════════════════════════════════════════════════
+
+PÁGINA 4: DETALLE DE SUBCUENTA
+
+Ruta: /admin/subcuentas/{subcuentaId}
+
+Breadcrumb:
+Empresas > [Nombre Empresa] > Subcuentas > [Nombre Subcuenta]
+
+SECCIÓN A: Información de la Subcuenta
+┌─────────────────────────────────────────────────────┐
+│ 📍 Información de la Subcuenta                      │
+├─────────────────────────────────────────────────────┤
+│ Email: ventas@test.com                              │
+│ Location ID: LOC_001                                │
+│ Pertenece a: [Test] ← Link a la empresa            │
+│ Plan: Pro ($50/mes)                                 │
+│ Estado: Activa                                      │
+│ Trial expira: -                                     │
+│ Fecha creación: 10 Oct 2025                         │
+│                                                     │
+│ [Editar] [Cambiar Plan] [Suspender]                │
+└─────────────────────────────────────────────────────┘
+
+SECCIÓN B: Credenciales de Acceso
+┌─────────────────────────────────────────────────────┐
+│ 🔑 Acceso al Sistema                                │
+├─────────────────────────────────────────────────────┤
+│ Email: ventas@test.com                              │
+│ Rol: Subcuenta (usuario estándar)                  │
+│ Último acceso: Hace 2 horas                         │
+│ [Resetear Contraseña] [Suspender Acceso]           │
+└─────────────────────────────────────────────────────┘
+
+SECCIÓN C: Instancias de WhatsApp
+┌─────────────────────────────────────────────────────────────────────┐
+│ 💬 Instancias de WhatsApp (2/5)              [+ Nueva Instancia]    │
+├─────────────────────────────────────────────────────────────────────┤
+│ Nombre | Número | Estado | Conversaciones | Última actividad | [...] │
+├─────────────────────────────────────────────────────────────────────┤
+│ WA-01  | +1809..| Activa | 1,234         | Hace 5 min       | [Ver] │
+│ WA-02  | +1829..| Activa | 856           | Hace 1 hora      | [Ver] │
+└─────────────────────────────────────────────────────────────────────┘
+
+══════════════════════════════════════════════════════════
+
+NAVEGACIÓN DEL SIDEBAR (Actualizar):
+
+📊 Dashboard
+
+👔 GESTIÓN
+├─ 🏢 Empresas
+└─ 📍 Subcuentas
+
+💳 FACTURACIÓN
+├─ 💰 Facturas
+├─ 💵 Pagos
+└─ 📊 Reportes
+
+⚙️ CONFIGURACIÓN
+├─ 🔗 Webhook
+└─ ⚙️ Configuración
+
+ELIMINAR del sidebar:
+- ❌ Usuarios (no existe como entidad separada)
+
+══════════════════════════════════════════════════════════
+
+LÓGICA DE DATOS:
+
+companies (empresas)
+  ├─ id
+  ├─ name
+  ├─ email
+  ├─ stripe_customer_id
+  └─ ...
+
+subaccounts (subcuentas = usuarios del sistema)
+  ├─ id
+  ├─ company_id ← FK a companies
+  ├─ location_id (ej: LOC_001)
+  ├─ email ← Email de login
+  ├─ password_hash ← Para autenticación
+  ├─ name
+  ├─ plan_type
+  ├─ status
+  ├─ trial_ends_at
+  └─ ...
+
+whatsapp_instances (instancias)
+  ├─ id
+  ├─ subaccount_id ← FK a subaccounts
+  ├─ name
+  ├─ phone_number
+  └─ ...
+
+invoices (facturas)
+  ├─ id
+  ├─ subaccount_id ← FK a subaccounts
+  ├─ amount
+  └─ ...
+
+══════════════════════════════════════════════════════════
+
+REGLAS DE NEGOCIO CORRECTAS:
+
+1. Una EMPRESA puede tener múltiples SUBCUENTAS
+2. Una SUBCUENTA pertenece a UNA EMPRESA
+3. Una SUBCUENTA es una cuenta de usuario con email/password
+4. Una SUBCUENTA puede tener múltiples INSTANCIAS de WhatsApp
+5. La facturación es por SUBCUENTA (cada subcuenta tiene su plan)
+6. Cada SUBCUENTA se loguea con su email y ve solo sus instancias
+7. El admin ve todas las empresas → subcuentas
+
+══════════════════════════════════════════════════════════
+
+COLUMNAS DE TABLAS CORREGIDAS:
+
+ANTES (incorrecto en screenshot):
+Empresa | Email | Usuarios | Subcuentas | Instancias | Estado | Acciones
+
+DESPUÉS (correcto):
+Empresa | Email | # Subcuentas | MRR | Estado | Próximo Cobro | Acciones
+
+Para la tabla de subcuentas dentro de empresa:
+Location ID | Email | Plan | Estado | # Instancias | Trial Expira | Acciones
+
+══════════════════════════════════════════════════════════
+
+VISTA EXPANDIDA CORRECTA:
+
+Al expandir una empresa en la tabla principal:
+
+┌────────────────────────────────────────────────────────────────┐
+│ [▲] │ Test │ prueba@test.com │ 3 subcuentas │ $150 │ Activa │ [...] │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   📋 INFORMACIÓN DE LA EMPRESA                                 │
+│   Nombre: Test                                                 │
+│   Email: prueba@test.com                                       │
+│   Teléfono: N/A                                                │
+│   [Editar Datos]                                               │
+│                                                                 │
+│   💳 FACTURACIÓN                                               │
+│   Stripe ID: Sin configurar                                    │
+│   MRR: $150.00                                                 │
+│   [Ver Facturas]                                               │
+│                                                                 │
+│   📍 SUBCUENTAS (3)                                            │
+│   ┌────────────────────────────────────────────────┐          │
+│   │ Location ID | Email        | Plan | Instancias│          │
+│   ├────────────────────────────────────────────────┤          │
+│   │ LOC_001     | ventas@test  | Pro  | 2         │          │
+│   │ LOC_002     | mkt@test     | Básico| 1        │          │
+│   │ LOC_003     | soporte@test | Pro  | 3         │          │
+│   └────────────────────────────────────────────────┘          │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
+
+══════════════════════════════════════════════════════════
+
+CARDS DE MÉTRICAS (actualizar):
+
+ANTES (incorrecto):
+┌──────────┐ ┌──────────┐ ┌──────────┐
+│ 3        │ │ 1        │ │ 1        │
+│ Usuarios │ │Subcuentas│ │Instancias│
+└──────────┘ └──────────┘ └──────────┘
+
+DESPUÉS (correcto):
+┌──────────┐ ┌──────────┐
+│ 3        │ │ 5        │
+│Subcuentas│ │Instancias│
+└──────────┘ └──────────┘
+
+Eliminar el card de "Usuarios" porque no existe.
+
+══════════════════════════════════════════════════════════
+
+AUTENTICACIÓN Y ROLES:
+
+Tipos de cuentas:
+1. ADMIN (super admin)
+   - Ve todas las empresas
+   - Ve todas las subcuentas
+   - Gestiona facturación
+
+2. SUBCUENTA (usuario estándar)
+   - Ve solo sus instancias
+   - Ve su plan
+   - No ve otras subcuentas
+
+Login:
+- Admin: admin@cloudeai.com
+- Subcuenta: ventas@test.com (su location_id)
+
+══════════════════════════════════════════════════════════
+
+PRIORIDAD DE IMPLEMENTACIÓN:
+
+1. Eliminar concepto de "Usuarios" como entidad separada
+2. Corregir columnas de tabla principal
+3. Actualizar vista expandida de empresa
+4. Crear página de detalle de empresa
+5. Crear página de detalle de subcuenta con link a empresa
+6. Actualizar sidebar (quitar "Usuarios")
+7. Corregir cards de métricas
+8. Implementar breadcrumbs
+9. Conectar navegación entre niveles
+
+══════════════════════════════════════════════════════════
+
+RESULTADO ESPERADO:
+
+Sistema con jerarquía clara:
+✓ Empresas contienen Subcuentas
+✓ Subcuentas SON los usuarios del sistema (no hay entidad separada)
+✓ Subcuentas contienen Instancias de WhatsApp
+✓ Cada subcuenta se loguea con su email
+✓ Admin ve todo, subcuentas ven solo lo suyo
+✓ No hay confusión entre "usuario" y "subcuenta"
+
+══════════════════════════════════════════════════════════
