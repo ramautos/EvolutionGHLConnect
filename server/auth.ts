@@ -135,8 +135,10 @@ export function setupPassport(app: Express) {
                   googleId: profile.id,
                   role: "user",
                   isActive: true,
-                  locationId: `GOOGLE_${profile.id}`, // Temporal
+                  locationId: `GOOGLE_${profile.id}`,
                   ghlCompanyId: "GOOGLE_AUTH",
+                  billingEnabled: true,
+                  manuallyActivated: true,
                 });
               } else if (subaccount && !subaccount.googleId) {
                 // Vincular Google ID a cuenta existente
