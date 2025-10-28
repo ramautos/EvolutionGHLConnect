@@ -1,4 +1,4 @@
-import { companies, users, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type User, type InsertUser, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
+import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql as drizzleSql, count, sum, isNotNull } from "drizzle-orm";
 
@@ -8,35 +8,28 @@ export interface IStorage {
   // ============================================
   getCompany(id: string): Promise<SelectCompany | undefined>;
   getCompanies(): Promise<SelectCompany[]>;
-  getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]>; // Con estadísticas
+  getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]>;
   createCompany(company: InsertCompany): Promise<SelectCompany>;
   updateCompany(id: string, updates: UpdateCompany): Promise<SelectCompany | undefined>;
   deleteCompany(id: string): Promise<boolean>;
-  getCompanyStats(companyId: string): Promise<any>; // Estadísticas de una empresa
-  getDashboardStats(): Promise<any>; // Estadísticas globales para dashboard
+  getCompanyStats(companyId: string): Promise<any>;
+  getDashboardStats(): Promise<any>;
   
   // ============================================
-  // USER OPERATIONS
-  // ============================================
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByGoogleId(googleId: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
-  deleteUser(id: string): Promise<boolean>;
-  updateLastLogin(id: string): Promise<void>;
-  getAllUsers(): Promise<User[]>; // Para admin panel
-  
-  // ============================================
-  // SUBACCOUNT OPERATIONS
+  // SUBACCOUNT OPERATIONS (con autenticación)
   // ============================================
   getSubaccount(id: string): Promise<Subaccount | undefined>;
-  getSubaccounts(userId: string): Promise<Subaccount[]>;
+  getSubaccountByEmail(email: string): Promise<Subaccount | undefined>;
+  getSubaccountByGoogleId(googleId: string): Promise<Subaccount | undefined>;
   getSubaccountByLocationId(locationId: string): Promise<Subaccount | undefined>;
-  createSubaccount(subaccount: CreateSubaccount): Promise<Subaccount>;
+  getSubaccountsByCompany(companyId: string): Promise<Subaccount[]>;
+  getAllSubaccounts(): Promise<Subaccount[]>;
+  createSubaccount(subaccount: Partial<InsertSubaccount>): Promise<Subaccount>;
   updateSubaccount(id: string, updates: Partial<Subaccount>): Promise<Subaccount | undefined>;
   deleteSubaccount(id: string): Promise<boolean>;
-  getAllSubaccounts(): Promise<Subaccount[]>; // Para admin panel
+  updateSubaccountLastLogin(id: string): Promise<void>;
+  updateSubaccountBilling(id: string, billingEnabled: boolean): Promise<Subaccount | undefined>;
+  updateSubaccountActivation(id: string, manuallyActivated: boolean): Promise<Subaccount | undefined>;
   
   // ============================================
   // WHATSAPP INSTANCE OPERATIONS
@@ -45,9 +38,8 @@ export interface IStorage {
   getWhatsappInstanceByName(instanceName: string): Promise<WhatsappInstance | undefined>;
   getWhatsappInstances(subaccountId: string): Promise<WhatsappInstance[]>;
   getWhatsappInstancesByLocationId(locationId: string): Promise<WhatsappInstance[]>;
-  getAllUserInstances(userId: string): Promise<WhatsappInstance[]>;
   getAllInstances(): Promise<WhatsappInstance[]>;
-  getAllWhatsappInstancesWithDetails(): Promise<any[]>; // Para admin panel con JOIN
+  getAllWhatsappInstancesWithDetails(): Promise<any[]>;
   createWhatsappInstance(instance: CreateWhatsappInstance): Promise<WhatsappInstance>;
   updateWhatsappInstance(id: string, updates: Partial<WhatsappInstance>): Promise<WhatsappInstance | undefined>;
   deleteWhatsappInstance(id: string): Promise<boolean>;
@@ -89,7 +81,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompaniesByStatus(status?: 'active' | 'trial' | 'expired'): Promise<any[]> {
-    // Get all companies with their aggregate data including subscription info
+    // Get all companies with their aggregate data
     const companiesData = await db
       .select({
         id: companies.id,
@@ -103,27 +95,22 @@ export class DatabaseStorage implements IStorage {
         stripeSubscriptionId: companies.stripeSubscriptionId,
         isActive: companies.isActive,
         createdAt: companies.createdAt,
-        userCount: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
         subaccountCount: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
         instanceCount: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
         connectedInstances: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
-        // Subscription status indicators
         hasActiveTrial: drizzleSql<boolean>`BOOL_OR(${subscriptions.inTrial} = true AND ${subscriptions.trialEndsAt} > NOW())`,
         hasExpiredSubscription: drizzleSql<boolean>`BOOL_OR(${subscriptions.status} = 'expired')`,
       })
       .from(companies)
-      .leftJoin(users, eq(users.companyId, companies.id))
-      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(subaccounts, eq(subaccounts.companyId, companies.id))
       .leftJoin(subscriptions, eq(subscriptions.subaccountId, subaccounts.id))
       .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
       .groupBy(companies.id);
 
-    // If no status filter, return all
     if (!status) {
       return companiesData;
     }
 
-    // Filter by status based on subscription data
     return companiesData.filter(company => {
       if (status === 'trial') {
         return company.hasActiveTrial;
@@ -162,44 +149,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompanyStats(companyId: string): Promise<any> {
-    // Get detailed stats for a specific company
     const [stats] = await db
       .select({
-        userCount: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
         subaccountCount: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
         instanceCount: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
         activeInstanceCount: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
       })
       .from(companies)
-      .leftJoin(users, eq(users.companyId, companies.id))
-      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(subaccounts, eq(subaccounts.companyId, companies.id))
       .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
       .where(eq(companies.id, companyId))
       .groupBy(companies.id);
 
-    return stats || { userCount: 0, subaccountCount: 0, instanceCount: 0, activeInstanceCount: 0 };
+    return stats || { subaccountCount: 0, instanceCount: 0, activeInstanceCount: 0 };
   }
 
   async getDashboardStats(): Promise<any> {
-    // Global statistics for admin dashboard
     const [globalStats] = await db
       .select({
         totalCompanies: drizzleSql<number>`COUNT(DISTINCT ${companies.id})`,
         activeCompanies: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${companies.isActive} = true THEN ${companies.id} END)`,
-        totalUsers: drizzleSql<number>`COUNT(DISTINCT ${users.id})`,
         totalSubaccounts: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
         totalInstances: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
         connectedInstances: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
       })
       .from(companies)
-      .leftJoin(users, eq(users.companyId, companies.id))
-      .leftJoin(subaccounts, eq(subaccounts.userId, users.id))
+      .leftJoin(subaccounts, eq(subaccounts.companyId, companies.id))
       .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id));
 
     return globalStats || {
       totalCompanies: 0,
       activeCompanies: 0,
-      totalUsers: 0,
       totalSubaccounts: 0,
       totalInstances: 0,
       connectedInstances: 0,
@@ -207,77 +187,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-  // USER OPERATIONS
+  // SUBACCOUNT OPERATIONS (con autenticación)
   // ============================================
   
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
-  }
-
-  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.googleId, googleId));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
-  }
-
-  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const [updated] = await db
-      .update(users)
-      .set(updates)
-      .where(eq(users.id, id))
-      .returning();
-    return updated || undefined;
-  }
-
-  async deleteUser(id: string): Promise<boolean> {
-    const result = await db
-      .delete(users)
-      .where(eq(users.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  async updateLastLogin(id: string): Promise<void> {
-    await db
-      .update(users)
-      .set({ lastLoginAt: new Date() })
-      .where(eq(users.id, id));
-  }
-
-  async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
-  }
-
-  // ============================================
-  // SUBACCOUNT OPERATIONS
-  // ============================================
-
   async getSubaccount(id: string): Promise<Subaccount | undefined> {
     const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.id, id));
     return subaccount || undefined;
   }
 
-  async getSubaccounts(userId: string): Promise<Subaccount[]> {
-    return await db
-      .select()
-      .from(subaccounts)
-      .where(and(
-        eq(subaccounts.userId, userId),
-        eq(subaccounts.isActive, true)
-      ));
+  async getSubaccountByEmail(email: string): Promise<Subaccount | undefined> {
+    const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.email, email));
+    return subaccount || undefined;
+  }
+
+  async getSubaccountByGoogleId(googleId: string): Promise<Subaccount | undefined> {
+    const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.googleId, googleId));
+    return subaccount || undefined;
   }
 
   async getSubaccountByLocationId(locationId: string): Promise<Subaccount | undefined> {
@@ -288,10 +213,24 @@ export class DatabaseStorage implements IStorage {
     return subaccount || undefined;
   }
 
-  async createSubaccount(insertSubaccount: CreateSubaccount): Promise<Subaccount> {
+  async getSubaccountsByCompany(companyId: string): Promise<Subaccount[]> {
+    return await db
+      .select()
+      .from(subaccounts)
+      .where(and(
+        eq(subaccounts.companyId, companyId),
+        eq(subaccounts.isActive, true)
+      ));
+  }
+
+  async getAllSubaccounts(): Promise<Subaccount[]> {
+    return await db.select().from(subaccounts);
+  }
+
+  async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {
     const [subaccount] = await db
       .insert(subaccounts)
-      .values(insertSubaccount)
+      .values(insertSubaccount as InsertSubaccount)
       .returning();
     return subaccount;
   }
@@ -317,8 +256,11 @@ export class DatabaseStorage implements IStorage {
     return !!deleted;
   }
 
-  async getAllSubaccounts(): Promise<Subaccount[]> {
-    return await db.select().from(subaccounts);
+  async updateSubaccountLastLogin(id: string): Promise<void> {
+    await db
+      .update(subaccounts)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(subaccounts.id, id));
   }
 
   async updateSubaccountBilling(id: string, billingEnabled: boolean): Promise<Subaccount | undefined> {
@@ -361,11 +303,6 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(whatsappInstances).where(eq(whatsappInstances.locationId, locationId));
   }
 
-  async getAllUserInstances(userId: string): Promise<WhatsappInstance[]> {
-    const instances = await db.select().from(whatsappInstances).where(eq(whatsappInstances.userId, userId));
-    return instances;
-  }
-
   async getAllInstances(): Promise<WhatsappInstance[]> {
     return await db.select().from(whatsappInstances);
   }
@@ -375,26 +312,16 @@ export class DatabaseStorage implements IStorage {
       .select({
         instance: whatsappInstances,
         subaccount: subaccounts,
-        user: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-        }
       })
       .from(whatsappInstances)
-      .leftJoin(subaccounts, eq(whatsappInstances.subaccountId, subaccounts.id))
-      .leftJoin(users, eq(subaccounts.userId, users.id));
+      .leftJoin(subaccounts, eq(whatsappInstances.subaccountId, subaccounts.id));
     
     return results;
   }
 
   async createWhatsappInstance(insertInstance: CreateWhatsappInstance): Promise<WhatsappInstance> {
-    // Contar instancias existentes para este locationId
     const existingInstances = await this.getWhatsappInstancesByLocationId(insertInstance.locationId);
     const instanceNumber = existingInstances.length + 1;
-    
-    // Generar nombre: locationId_1, locationId_2, etc.
     const evolutionName = `${insertInstance.locationId}_${instanceNumber}`;
     
     const [instance] = await db
@@ -439,11 +366,11 @@ export class DatabaseStorage implements IStorage {
       return undefined;
     }
 
-    // BACKFILL LOGIC: Si inTrial=true pero trialEndsAt=null (legacy), desactivar trial
+    // Si inTrial=true pero trialEndsAt=null, desactivar trial
     if (subscription.inTrial && !subscription.trialEndsAt) {
       const updated = await this.updateSubscription(subaccountId, {
         inTrial: false,
-        trialEndsAt: new Date(0), // Fecha en el pasado
+        trialEndsAt: new Date(0),
       });
       return updated || subscription;
     }
@@ -463,7 +390,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSubscription(subaccountId: string, trialDays: number = 15): Promise<Subscription> {
-    // Calcular fecha de fin de prueba (15 días por defecto)
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
     

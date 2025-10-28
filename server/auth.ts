@@ -6,7 +6,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import type { Express, Request, RequestHandler } from "express";
 import { storage } from "./storage";
-import type { User } from "@shared/schema";
+import type { Subaccount } from "@shared/schema";
 
 // ============================================
 // CONFIGURACIÓN DE SESIONES
@@ -65,30 +65,30 @@ export function setupPassport(app: Express) {
       },
       async (email, password, done) => {
         try {
-          const user = await storage.getUserByEmail(email);
+          const subaccount = await storage.getSubaccountByEmail(email);
 
-          if (!user) {
+          if (!subaccount) {
             return done(null, false, { message: "Email o contraseña incorrectos" });
           }
 
-          if (!user.passwordHash) {
+          if (!subaccount.passwordHash) {
             return done(null, false, { message: "Esta cuenta usa Google OAuth. Por favor inicia sesión con Google." });
           }
 
-          const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+          const isValidPassword = await bcrypt.compare(password, subaccount.passwordHash);
 
           if (!isValidPassword) {
             return done(null, false, { message: "Email o contraseña incorrectos" });
           }
 
-          if (!user.isActive) {
+          if (!subaccount.isActive) {
             return done(null, false, { message: "Esta cuenta está desactivada" });
           }
 
           // Actualizar último login
-          await storage.updateLastLogin(user.id);
+          await storage.updateSubaccountLastLogin(subaccount.id);
 
-          return done(null, user);
+          return done(null, subaccount);
         } catch (error) {
           return done(error);
         }
@@ -111,43 +111,45 @@ export function setupPassport(app: Express) {
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
-            // Buscar usuario existente por Google ID
-            let user = await storage.getUserByGoogleId(profile.id);
+            // Buscar subcuenta existente por Google ID
+            let subaccount = await storage.getSubaccountByGoogleId(profile.id);
 
-            if (!user) {
+            if (!subaccount) {
               // Si no existe, buscar por email
               const email = profile.emails?.[0]?.value;
               if (email) {
-                user = await storage.getUserByEmail(email);
+                subaccount = await storage.getSubaccountByEmail(email);
               }
 
-              if (!user && email) {
-                // Crear nuevo usuario
-                user = await storage.createUser({
+              if (!subaccount && email) {
+                // Crear nueva subcuenta (sin companyId por defecto)
+                subaccount = await storage.createSubaccount({
                   email,
                   name: profile.displayName || email.split('@')[0],
                   googleId: profile.id,
                   role: "user",
                   isActive: true,
+                  locationId: `GOOGLE_${profile.id}`, // Temporal
+                  ghlCompanyId: "GOOGLE_AUTH",
                 });
-              } else if (user && !user.googleId) {
+              } else if (subaccount && !subaccount.googleId) {
                 // Vincular Google ID a cuenta existente
-                user = await storage.updateUser(user.id, { googleId: profile.id }) || user;
+                subaccount = await storage.updateSubaccount(subaccount.id, { googleId: profile.id }) || subaccount;
               }
             }
 
-            if (!user) {
-              return done(new Error("No se pudo crear o encontrar el usuario"));
+            if (!subaccount) {
+              return done(new Error("No se pudo crear o encontrar la subcuenta"));
             }
 
-            if (!user.isActive) {
+            if (!subaccount.isActive) {
               return done(null, false, { message: "Esta cuenta está desactivada" });
             }
 
             // Actualizar último login
-            await storage.updateLastLogin(user.id);
+            await storage.updateSubaccountLastLogin(subaccount.id);
 
-            return done(null, user);
+            return done(null, subaccount);
           } catch (error) {
             return done(error as Error);
           }
@@ -165,8 +167,8 @@ export function setupPassport(app: Express) {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await storage.getUser(id);
-      done(null, user);
+      const subaccount = await storage.getSubaccount(id);
+      done(null, subaccount);
     } catch (error) {
       done(error);
     }
@@ -184,7 +186,7 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
 };
 
 export const isAdmin: RequestHandler = (req, res, next) => {
-  if (req.isAuthenticated() && (req.user as User)?.role === "admin") {
+  if (req.isAuthenticated() && (req.user as Subaccount)?.role === "admin") {
     return next();
   }
   res.status(403).json({ message: "Acceso denegado. Se requieren permisos de administrador." });
