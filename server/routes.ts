@@ -1010,14 +1010,19 @@ ${ghlErrorDetails}
   // Crear subcuenta desde GoHighLevel OAuth
   app.post("/api/subaccounts/from-ghl", isAuthenticated, async (req, res) => {
     try {
-      const { companyId, locationId } = req.body;
+      const { companyId, ghlCompanyId, locationId } = req.body;
 
-      if (!companyId || !locationId) {
-        res.status(400).json({ error: "Missing required fields: companyId, locationId" });
+      if (!locationId) {
+        res.status(400).json({ error: "Missing required field: locationId" });
         return;
       }
 
-      console.log("📥 Creating subaccount from GHL OAuth:", { companyId, locationId });
+      if (!companyId) {
+        res.status(400).json({ error: "User must have a company assigned to create subaccounts" });
+        return;
+      }
+
+      console.log("📥 Creating subaccount from GHL OAuth:", { companyId, ghlCompanyId, locationId });
 
       // Verificar si la subcuenta ya existe por locationId
       const existing = await storage.getSubaccountByLocationId(locationId);
@@ -1054,9 +1059,9 @@ ${ghlErrorDetails}
 
       // Crear subcuenta (solo con campos que existen en el schema)
       const subaccount = await storage.createSubaccount({
-        companyId,
+        companyId,  // ID de nuestra tabla companies (FK válida)
         locationId: location.id,
-        ghlCompanyId: companyId,
+        ghlCompanyId: ghlCompanyId || location.companyId,  // ID de GoHighLevel
         name: location.name,
         email: location.email,
         phone: location.phone,

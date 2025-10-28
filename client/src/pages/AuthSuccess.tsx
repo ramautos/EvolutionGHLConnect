@@ -14,10 +14,10 @@ export default function AuthSuccess() {
 
   // Mutation para crear subcuenta
   const createSubaccountMutation = useMutation({
-    mutationFn: async ({ companyId, locationId }: { companyId: string; locationId: string }) => {
+    mutationFn: async ({ ghlCompanyId, locationId }: { ghlCompanyId: string; locationId: string }) => {
       const res = await apiRequest("POST", "/api/subaccounts/from-ghl", {
-        userId: user?.id,
-        companyId,
+        companyId: user?.companyId,
+        ghlCompanyId,
         locationId,
       });
       return await res.json();
@@ -61,12 +61,12 @@ export default function AuthSuccess() {
 
     // Obtener parámetros de la URL
     const params = new URLSearchParams(window.location.search);
-    const companyId = params.get("company_id");
+    const ghlCompanyId = params.get("company_id");
     const locationId = params.get("location_id");
 
-    console.log("✅ OAuth exitoso - Datos recibidos de n8n:", { companyId, locationId });
+    console.log("✅ OAuth exitoso - Datos recibidos de n8n:", { ghlCompanyId, locationId, userCompanyId: user.companyId });
 
-    if (!companyId || !locationId) {
+    if (!ghlCompanyId || !locationId) {
       setStatus("error");
       setMessage("Faltan parámetros de autenticación");
       setTimeout(() => {
@@ -75,14 +75,23 @@ export default function AuthSuccess() {
       return;
     }
 
+    if (!user.companyId) {
+      setStatus("error");
+      setMessage("Tu usuario no tiene una empresa asignada. Contacta al administrador.");
+      setTimeout(() => {
+        setLocation("/dashboard");
+      }, 3000);
+      return;
+    }
+
     // Guardar en localStorage para referencia
-    localStorage.setItem("ghl_company_id", companyId);
+    localStorage.setItem("ghl_company_id", ghlCompanyId);
     localStorage.setItem("ghl_location_id", locationId);
-    console.log("💾 IDs guardados en localStorage:", { companyId, locationId });
+    console.log("💾 IDs guardados en localStorage:", { ghlCompanyId, locationId });
 
     // Crear subcuenta
     setMessage("Creando subcuenta...");
-    createSubaccountMutation.mutate({ companyId, locationId });
+    createSubaccountMutation.mutate({ ghlCompanyId, locationId });
   }, [user, setLocation]);
 
   return (
