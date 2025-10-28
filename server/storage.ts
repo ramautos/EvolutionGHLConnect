@@ -224,7 +224,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {
-    return await db.select().from(subaccounts);
+    return await db.select().from(subaccounts).where(eq(subaccounts.isActive, true));
   }
 
   async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {
