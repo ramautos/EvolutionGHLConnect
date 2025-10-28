@@ -66,7 +66,7 @@ export default function AdminPanel() {
 
   const deleteSubaccountMutation = useMutation({
     mutationFn: async (subaccountId: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/subaccounts/${subaccountId}`);
+      const res = await apiRequest("DELETE", `/api/admin/users/${subaccountId}`);
       return await res.json();
     },
     onSuccess: () => {

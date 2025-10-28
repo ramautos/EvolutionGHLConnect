@@ -59,20 +59,12 @@ export default function AdminDashboard() {
       trendValue: "+12%",
     },
     {
-      title: "Total Usuarios",
-      value: stats?.totalUsers || 0,
+      title: "Subcuentas",
+      value: stats?.totalSubaccounts || 0,
       description: "Usuarios registrados",
       icon: Users,
       trend: "up",
       trendValue: "+8%",
-    },
-    {
-      title: "Subcuentas",
-      value: stats?.totalSubaccounts || 0,
-      description: "Locations activas",
-      icon: Building,
-      trend: "up",
-      trendValue: "+15%",
     },
     {
       title: "Instancias",
