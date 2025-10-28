@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 -   **Admin Control System**: Provides an admin panel with hierarchical company management, user and subaccount oversight, manual billing and activation controls, and global webhook configuration.
 
 ### Database Architecture
--   **Replit PostgreSQL (Neon)**: Stores application data including `users`, `subaccounts`, `whatsappInstances`, `companies`, `subscriptions`, and `sessions`. `subaccounts` also store `openaiApiKey` and `calendarId`.
+-   **Replit PostgreSQL (Neon)**: Stores application data including `companies`, `subaccounts` (unified table with authentication), `whatsappInstances`, `subscriptions`, and `sessions`. The `subaccounts` table now serves as the unified entity for both CRM locations and authenticated users, containing fields: `email`, `passwordHash`, `googleId`, `role`, `lastLoginAt`, `openaiApiKey`, and `calendarId`.
 -   **External GHL PostgreSQL**: Dedicated to storing GoHighLevel OAuth tokens (`ghl_clientes`).
 
 ## External Dependencies
@@ -53,6 +53,33 @@ Preferred communication style: Simple, everyday language.
 -   Vite, TypeScript, Tailwind CSS, PostCSS, esbuild.
 
 ## Recent Changes (October 28, 2025)
+
+### Architectural Restructuring: Users-Subaccounts Unification ✅ COMPLETE
+**Major Refactor**: Merged `users` and `subaccounts` tables into a single unified `subaccounts` table.
+
+**Rationale**: Companies register subaccounts directly (not users who then create subaccounts). Each subaccount represents both a GoHighLevel location AND an authenticated user in the system.
+
+**Changes Made**:
+1. **Schema (shared/schema.ts)**:
+   - Removed `users` table entirely
+   - Added authentication fields to `subaccounts`: `passwordHash`, `googleId`, `role`, `lastLoginAt`
+   - Subaccounts now have: CRM data (locationId, ghlCompanyId) + Auth data (email, password) + Settings (openaiApiKey, calendarId)
+
+2. **Backend**:
+   - **storage.ts**: Removed all User-related methods (getUserByEmail, createUser, etc.), kept only Subaccount methods
+   - **auth.ts**: Passport.js now authenticates against `subaccounts` table directly
+   - **routes.ts**: ~80+ changes to use subaccounts instead of users in all endpoints
+
+3. **Frontend**:
+   - **UserContext.tsx**: Changed type from `User` to `Subaccount`
+   - **AdminPanel.tsx**: Eliminated "Users" tab, unified into "Subcuentas" tab with role/email/billing controls
+   - **AdminSidebar.tsx**: Removed "Usuarios" navigation link
+
+4. **Hierarchy**: 
+   - OLD: Companies → Users → Subaccounts → WhatsApp Instances
+   - NEW: Companies → Subaccounts (with auth) → WhatsApp Instances
+
+**Impact**: Simplified architecture, eliminated confusion between users and subaccounts, improved data consistency.
 
 ### Company Delete Functionality ✅ COMPLETE
 **New Feature**: Safe company deletion with confirmation dialog and dependency warnings.
