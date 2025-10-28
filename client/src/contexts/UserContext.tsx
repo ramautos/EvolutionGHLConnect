@@ -1,9 +1,9 @@
 import { createContext, useContext, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import type { Subaccount } from "@shared/schema";
 
 interface UserContextType {
-  user: User | null;
+  user: Subaccount | null;
   isLoading: boolean;
   refetch: () => Promise<any>;
 }
@@ -11,7 +11,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { data: user, isLoading, refetch } = useQuery<User | null>({
+  const { data: user, isLoading, refetch } = useQuery<Subaccount | null>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: Infinity,

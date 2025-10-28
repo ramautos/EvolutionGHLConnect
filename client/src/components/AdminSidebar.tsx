@@ -35,11 +35,6 @@ const menuItems = [
     url: "/admin/companies",
   },
   {
-    title: "Usuarios",
-    icon: Users,
-    url: "/admin/users",
-  },
-  {
     title: "Subcuentas",
     icon: Building,
     url: "/admin/subaccounts",

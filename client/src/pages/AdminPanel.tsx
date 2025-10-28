@@ -30,33 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { User } from "@shared/schema";
-
-interface Subaccount {
-  id: string;
-  userId: string;
-  locationId: string;
-  companyId: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  city: string | null;
-  state: string | null;
-  openaiApiKey: string | null;
-  billingEnabled: boolean;
-  manuallyActivated: boolean;
-}
-
-interface WhatsappInstance {
-  id: string;
-  userId: string;
-  subaccountId: string;
-  locationId: string;
-  evolutionInstanceName: string;
-  customName: string | null;
-  phoneNumber: string | null;
-  status: string;
-}
+import type { Subaccount, WhatsappInstance } from "@shared/schema";
 
 interface WebhookConfig {
   id: string;
@@ -73,13 +47,8 @@ export default function AdminPanel() {
 
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookActive, setWebhookActive] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [subaccountToDelete, setSubaccountToDelete] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-    enabled: user?.role === "admin",
-  });
 
   const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/admin/subaccounts"],
@@ -128,24 +97,24 @@ export default function AdminPanel() {
     },
   });
 
-  const deleteUserMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+  const deleteSubaccountMutation = useMutation({
+    mutationFn: async (subaccountId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/subaccounts/${subaccountId}`);
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Usuario eliminado",
-        description: "El usuario ha sido eliminado exitosamente",
+        title: "Subcuenta eliminada",
+        description: "La subcuenta ha sido eliminada exitosamente",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/subaccounts"] });
       setDeleteDialogOpen(false);
-      setUserToDelete(null);
+      setSubaccountToDelete(null);
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo eliminar el usuario",
+        description: error.message || "No se pudo eliminar la subcuenta",
         variant: "destructive",
       });
     },
@@ -197,14 +166,14 @@ export default function AdminPanel() {
     },
   });
 
-  const handleDeleteUser = (userId: string) => {
-    setUserToDelete(userId);
+  const handleDeleteSubaccount = (subaccountId: string) => {
+    setSubaccountToDelete(subaccountId);
     setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteUser = () => {
-    if (userToDelete) {
-      deleteUserMutation.mutate(userToDelete);
+  const confirmDeleteSubaccount = () => {
+    if (subaccountToDelete) {
+      deleteSubaccountMutation.mutate(subaccountToDelete);
     }
   };
 
@@ -279,7 +248,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (usersLoading || subaccountsLoading || instancesLoading) {
+  if (subaccountsLoading || instancesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -305,20 +274,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Usuarios</CardTitle>
-              <UserIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {users.filter(u => u.role === "admin").length} administradores
-              </p>
-            </CardContent>
-          </Card>
-
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Subcuentas</CardTitle>
@@ -327,7 +283,7 @@ export default function AdminPanel() {
             <CardContent>
               <div className="text-2xl font-bold">{subaccounts.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {subaccounts.filter(s => s.openaiApiKey).length} con OpenAI configurado
+                {subaccounts.filter(s => s.role === "admin").length} administradores
               </p>
             </CardContent>
           </Card>
@@ -359,12 +315,8 @@ export default function AdminPanel() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="users" className="space-y-4">
+        <Tabs defaultValue="subaccounts" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="users" data-testid="tab-users">
-              <UserIcon className="w-4 h-4 mr-2" />
-              Usuarios
-            </TabsTrigger>
             <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">
               <Building2 className="w-4 h-4 mr-2" />
               Subcuentas
@@ -383,57 +335,6 @@ export default function AdminPanel() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Users Tab */}
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>Todos los Usuarios</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Teléfono</TableHead>
-                      <TableHead>Rol</TableHead>
-                      <TableHead>Subcuentas</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((u) => (
-                      <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
-                        <TableCell className="font-medium">{u.name}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>{u.phoneNumber || "—"}</TableCell>
-                        <TableCell>
-                          <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                            {u.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {subaccounts.filter(s => s.userId === u.id).length}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteUser(u.id)}
-                            disabled={u.id === user?.id}
-                            data-testid={`button-delete-user-${u.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* Subaccounts Tab */}
           <TabsContent value="subaccounts">
             <Card>
@@ -445,23 +346,29 @@ export default function AdminPanel() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nombre</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Location ID</TableHead>
-                      <TableHead>Usuario</TableHead>
+                      <TableHead>Rol</TableHead>
                       <TableHead>Instancias</TableHead>
                       <TableHead>Billing</TableHead>
                       <TableHead>Activada</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {subaccounts.map((s) => {
-                      const owner = users.find(u => u.id === s.userId);
                       const instanceCount = instances.filter(i => i.subaccountId === s.id).length;
                       
                       return (
                         <TableRow key={s.id} data-testid={`row-subaccount-${s.id}`}>
                           <TableCell className="font-medium">{s.name}</TableCell>
+                          <TableCell>{s.email}</TableCell>
                           <TableCell className="font-mono text-xs">{s.locationId}</TableCell>
-                          <TableCell>{owner?.name || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant={s.role === "admin" ? "default" : "secondary"}>
+                              {s.role}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{instanceCount}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -497,6 +404,17 @@ export default function AdminPanel() {
                               </span>
                             </div>
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteSubaccount(s.id)}
+                              disabled={s.id === user?.id}
+                              data-testid={`button-delete-subaccount-${s.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -519,7 +437,7 @@ export default function AdminPanel() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Instance Name</TableHead>
                       <TableHead>Subcuenta</TableHead>
-                      <TableHead>Usuario</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Número</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
@@ -527,7 +445,6 @@ export default function AdminPanel() {
                   <TableBody>
                     {instances.map((inst) => {
                       const subaccount = subaccounts.find(s => s.id === inst.subaccountId);
-                      const owner = users.find(u => u.id === inst.userId);
                       
                       return (
                         <TableRow key={inst.id} data-testid={`row-instance-${inst.id}`}>
@@ -538,7 +455,7 @@ export default function AdminPanel() {
                             {inst.evolutionInstanceName}
                           </TableCell>
                           <TableCell>{subaccount?.name || "—"}</TableCell>
-                          <TableCell>{owner?.name || "—"}</TableCell>
+                          <TableCell>{subaccount?.email || "—"}</TableCell>
                           <TableCell>{inst.phoneNumber || "—"}</TableCell>
                           <TableCell>{getStatusBadge(inst.status)}</TableCell>
                         </TableRow>
@@ -968,18 +885,18 @@ export default function AdminPanel() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el usuario
-              y todos sus datos asociados (subcuentas, instancias de WhatsApp, etc.).
+              Esta acción no se puede deshacer. Se eliminará permanentemente la subcuenta
+              y todos sus datos asociados (instancias de WhatsApp, suscripciones, etc.).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteUser}
+              onClick={confirmDeleteSubaccount}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              {deleteUserMutation.isPending ? (
+              {deleteSubaccountMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Eliminando...
