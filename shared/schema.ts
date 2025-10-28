@@ -40,9 +40,9 @@ export const subaccounts = pgTable("subaccounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   companyId: varchar("company_id").references(() => companies.id, { onDelete: "cascade" }),
   
-  // GoHighLevel Integration
-  locationId: text("location_id").notNull().unique(),
-  ghlCompanyId: text("ghl_company_id").notNull(),
+  // GoHighLevel Integration (opcionales para registro manual)
+  locationId: text("location_id").unique(),
+  ghlCompanyId: text("ghl_company_id"),
   
   // Información básica
   name: text("name").notNull(),
@@ -191,9 +191,6 @@ export const registerSubaccountSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  locationId: z.string().min(1, "Location ID es requerido"),
-  ghlCompanyId: z.string().min(1, "Company ID es requerido"),
-  companyId: z.string().uuid().optional(),
 });
 
 export const loginSubaccountSchema = z.object({

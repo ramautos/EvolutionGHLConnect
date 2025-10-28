@@ -41,10 +41,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // RUTAS DE AUTENTICACIÓN
   // ============================================
 
-  // Registro con email/password
+  // Registro con email/password (manual o Google OAuth)
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = registerSubaccountSchema.parse(req.body);
+      // Schema inline para evitar problemas de cache en imports
+      const registerSchema = z.object({
+        email: z.string().email("Email inválido"),
+        password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+        name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+      });
+      
+      const validatedData = registerSchema.parse(req.body);
       
       // Verificar si el email ya existe
       const existingUser = await storage.getSubaccountByEmail(validatedData.email);
@@ -65,6 +72,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true,
         locationId: `LOCAL_${Date.now()}`,
         ghlCompanyId: "LOCAL_AUTH",
+        billingEnabled: true,
+        manuallyActivated: true,
       });
 
       // Auto-login después de registro

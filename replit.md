@@ -54,6 +54,33 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 28, 2025)
 
+### Schema Update: Optional GoHighLevel Fields ✅ COMPLETE (Latest)
+**Date**: October 28, 2025 (Session 3)
+
+Fixed registration flow by making GoHighLevel integration fields optional:
+
+1. **Schema Changes**:
+   - Modified `subaccounts` table: `locationId` and `ghlCompanyId` are now optional (removed `.notNull()`)
+   - Updated database schema with `npm run db:push --force`
+   - These fields are only required for GHL OAuth flow, not for manual registration
+
+2. **Registration Improvements**:
+   - Manual registration now works: creates users with `locationId: LOCAL_{timestamp}` and `ghlCompanyId: LOCAL_AUTH`
+   - Both email/password and Google OAuth registration tested and working in development
+   - Added `billingEnabled: true` and `manuallyActivated: true` defaults for new registrations
+
+3. **Deployment Status**:
+   - ✅ Development environment: Fully functional
+   - ⚠️ Production environment: Needs deployment of updated code
+   - Database schema copied to production, but code deployment pending
+
+4. **Technical Details**:
+   - Removed TypeScript module cache issues with forced tsx restart
+   - Validated both registration endpoints work correctly in local environment
+   - Production URL (whatsapp.cloude.es) still running old code requiring these fields
+
+## Recent Changes (October 28, 2025)
+
 ### Security & UX Improvements ✅ COMPLETE (Latest)
 **Date**: October 28, 2025 (Session 2)
 
