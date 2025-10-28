@@ -100,14 +100,20 @@ export function setupPassport(app: Express) {
   // GOOGLE OAUTH STRATEGY
   // ============================================
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    // Detectar URL del callback basándose en el dominio de Replit
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.REPL_SLUG;
+    const callbackURL = isProduction
+      ? "https://whatsapp.cloude.es/api/auth/google/callback"
+      : "http://localhost:5000/api/auth/google/callback";
+    
+    console.log(`Google OAuth callback URL configurado: ${callbackURL}`);
+    
     passport.use(
       new GoogleStrategy(
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: process.env.NODE_ENV === "production"
-            ? "https://whatsapp.cloude.es/api/auth/google/callback"
-            : "http://localhost:5000/api/auth/google/callback",
+          callbackURL,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
