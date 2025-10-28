@@ -1,16 +1,21 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import type { Subaccount } from "@shared/schema";
 
 interface UserContextType {
   user: Subaccount | null;
   isLoading: boolean;
   refetch: () => Promise<any>;
+  logout: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  
   const { data: user, isLoading, refetch } = useQuery<Subaccount | null>({
     queryKey: ["/api/auth/me"],
     retry: false,
@@ -37,8 +42,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      queryClient.clear();
+      setLocation("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      queryClient.clear();
+      setLocation("/login");
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user: user || null, isLoading, refetch }}>
+    <UserContext.Provider value={{ user: user || null, isLoading, refetch, logout }}>
       {children}
     </UserContext.Provider>
   );
