@@ -764,6 +764,17 @@ ${ghlErrorDetails}
   app.delete("/api/admin/companies/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params;
+      const user = req.user as any;
+      
+      // Prevenir que el admin elimine su propia empresa (causaría error 502)
+      if (user.companyId === id) {
+        res.status(403).json({ 
+          error: "No puedes eliminar tu propia empresa",
+          message: "No puedes eliminar la empresa a la que perteneces. Esto causaría que pierdas acceso al sistema."
+        });
+        return;
+      }
+      
       const deleted = await storage.deleteCompany(id);
       
       if (!deleted) {
