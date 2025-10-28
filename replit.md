@@ -54,7 +54,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 28, 2025)
 
-### Schema Update: Optional GoHighLevel Fields ✅ COMPLETE (Latest)
+### Bug Fixes: Google OAuth & Phone Registration ✅ COMPLETE (Latest)
+**Date**: October 28, 2025 (Session 4)
+
+Fixed two critical bugs affecting user registration and profile updates:
+
+1. **Google OAuth Bug Fix** ✅
+   - **Issue**: New users created via Google OAuth were missing `billingEnabled` and `manuallyActivated` fields
+   - **Solution**: Updated `server/auth.ts` to include billing fields when creating Google OAuth users
+   - **Fields Added**: `billingEnabled: true`, `manuallyActivated: true`
+   - **Impact**: Google OAuth users now have proper billing configuration on registration
+
+2. **Phone Number Registration Bug Fix** ✅
+   - **Issue**: Frontend-backend field name mismatch - frontend sent `phoneNumber`, backend expected `phone`
+   - **Root Cause**: Database schema uses `phone` field, but frontend components used `phoneNumber`
+   - **Files Fixed**:
+     * `client/src/components/PhoneRegistrationDialog.tsx` - Changed request body to use `phone`
+     * `client/src/pages/Dashboard.tsx` - Changed `user?.phoneNumber` to `user?.phone`
+     * `client/src/pages/Profile.tsx` - Changed all references from `phoneNumber` to `phone`
+   - **Testing**: End-to-end test confirmed phone registration works correctly, saves to DB with "+" prefix
+
+3. **Verification**:
+   - ✅ Created test user via Google OAuth flow (simulated) - all fields present
+   - ✅ Tested phone registration with playwright - number saves as '+18094973031'
+   - ✅ Database queries confirm both fixes working correctly
+
+## Recent Changes (October 28, 2025)
+
+### Schema Update: Optional GoHighLevel Fields ✅ COMPLETE
 **Date**: October 28, 2025 (Session 3)
 
 Fixed registration flow by making GoHighLevel integration fields optional:
