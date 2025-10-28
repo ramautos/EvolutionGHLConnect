@@ -128,8 +128,21 @@ export function setupPassport(app: Express) {
               }
 
               if (!subaccount && email) {
-                // Crear nueva subcuenta (sin companyId por defecto)
+                // Obtener o crear empresa por defecto para desarrollo
+                // Intentar obtener la empresa test-company-001 primero
+                let defaultCompany = await storage.getCompany("test-company-001");
+                if (!defaultCompany) {
+                  // Si no existe, crear empresa por defecto
+                  defaultCompany = await storage.createCompany({
+                    name: "Default Company",
+                    email: "default@company.com",
+                    isActive: true,
+                  });
+                }
+
+                // Crear nueva subcuenta con companyId asignado
                 subaccount = await storage.createSubaccount({
+                  companyId: defaultCompany.id,
                   email,
                   name: profile.displayName || email.split('@')[0],
                   googleId: profile.id,
