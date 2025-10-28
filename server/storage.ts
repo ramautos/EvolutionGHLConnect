@@ -169,7 +169,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         totalCompanies: drizzleSql<number>`COUNT(DISTINCT ${companies.id})`,
         activeCompanies: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${companies.isActive} = true THEN ${companies.id} END)`,
-        totalSubaccounts: drizzleSql<number>`COUNT(DISTINCT ${subaccounts.id})`,
+        totalSubaccounts: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${subaccounts.isActive} = true THEN ${subaccounts.id} END)`,
         totalInstances: drizzleSql<number>`COUNT(DISTINCT ${whatsappInstances.id})`,
         connectedInstances: drizzleSql<number>`COUNT(DISTINCT CASE WHEN ${whatsappInstances.status} = 'connected' THEN ${whatsappInstances.id} END)`,
       })
