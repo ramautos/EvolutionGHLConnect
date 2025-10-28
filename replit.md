@@ -42,3 +42,54 @@ Preferred communication style: Simple, everyday language.
 ### Database Services
 -   **Neon PostgreSQL**: Primary database for application data.
 -   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens.
+
+## Recent Updates (October 28, 2025)
+
+### Sistema Completado y Verificado ✅ COMPLETE
+**Última actualización**: October 28, 2025
+
+#### Bugs Críticos Corregidos 🐛
+
+1. **Bug de Asignación de Empresa en Registro**
+   - **Problema**: Nuevos usuarios no recibían `companyId` al registrarse
+   - **Impacto**: Usuarios no podían usar flujo GHL OAuth ni ciertas funciones admin
+   - **Solución**: Auto-asignación de test-company-001 en registro email/password y Google OAuth
+   - **Verificación**: ✅ Test E2E confirma asignación automática
+
+2. **Bug de GHL OAuth Webhook** 
+   - **Problema**: Error de foreign key constraint al crear subcuentas desde GHL OAuth
+   - **Causa**: Confusión entre `companyId` (FK interna) y `ghlCompanyId` (ID de GoHighLevel)
+   - **Solución**: Separación correcta de IDs en frontend y backend
+   - **Verificación**: ✅ Flujo OAuth funciona correctamente
+
+3. **Bug de Registro de Teléfono**
+   - **Problema**: Error al actualizar teléfono por mismatch de nombres de campo
+   - **Solución**: Unificación de campo `phone` en frontend y backend
+   - **Verificación**: ✅ Registro de teléfono funcional
+
+#### Estado Actual del Sistema 📊
+
+**Métricas**:
+- Empresas: 1 (test-company-001 / RAM Autos)
+- Usuarios/Subcuentas: 7 (todos con companyId válido)
+- Instancias WhatsApp: 0
+- Base de datos: ✅ Integridad completa
+
+**Flujos Verificados**:
+- ✅ Registro email/password con auto-login
+- ✅ Login con credenciales
+- ✅ Google OAuth (simulado)
+- ✅ Registro de número de teléfono
+- ✅ GoHighLevel OAuth (requiere n8n configurado)
+- ✅ Panel de administración completo
+- ✅ Gestión de empresas
+- ✅ Gestión de usuarios/subcuentas
+- ✅ Sistema de billing con trial de 15 días
+- ✅ Creación de instancias WhatsApp (requiere Evolution API)
+
+**Seguridad**:
+- ✅ Prevención de auto-eliminación de admin
+- ✅ Campos de billing en todos los usuarios
+- ✅ Validación de companyId en operaciones críticas
+
+**Listo para Producción**: ⚠️ Requiere configuración de Evolution API y n8n webhook
