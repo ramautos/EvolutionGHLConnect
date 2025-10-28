@@ -50,11 +50,15 @@ Preferred communication style: Simple, everyday language.
 
 #### Bugs Críticos Corregidos 🐛
 
-1. **Bug de Asignación de Empresa en Registro**
+1. **Bug de Asignación de Empresa en Registro** ✅ HARDENED
    - **Problema**: Nuevos usuarios no recibían `companyId` al registrarse
    - **Impacto**: Usuarios no podían usar flujo GHL OAuth ni ciertas funciones admin
-   - **Solución**: Auto-asignación de test-company-001 en registro email/password y Google OAuth
-   - **Verificación**: ✅ Test E2E confirma asignación automática
+   - **Solución Completa**:
+     * Made `companyId` NOT NULL in database schema (enforced at DB level)
+     * Added auto-assignment in `storage.createSubaccount` with fallback logic
+     * Updated registration endpoints to explicitly assign test-company-001
+     * Updated Google OAuth to explicitly assign test-company-001
+   - **Verificación**: ✅ Test E2E confirma asignación automática + constraint enforcement
 
 2. **Bug de GHL OAuth Webhook** 
    - **Problema**: Error de foreign key constraint al crear subcuentas desde GHL OAuth
