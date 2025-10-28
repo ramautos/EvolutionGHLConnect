@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, User as UserIcon, Building2, Activity, MessageSquare, LogOut, Trash2 } from "lucide-react";
+import { Loader2, Building2, Activity, MessageSquare, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -144,30 +144,6 @@ export default function AdminPanel() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Sesión cerrada",
-          description: "Has cerrado sesión exitosamente",
-        });
-        window.location.href = "/login";
-      } else {
-        throw new Error("Error al cerrar sesión");
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Hubo un error al cerrar sesión",
-        variant: "destructive",
-      });
-    }
-  };
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -227,28 +203,22 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
-            <p className="text-muted-foreground mt-1">
-              {companyIdFilter ? 'Filtrando por empresa seleccionada' : 'Gestiona usuarios, subcuentas e instancias del sistema'}
-            </p>
-            {companyIdFilter && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setLocation(location.split('?')[0])}
-                className="mt-2"
-                data-testid="button-clear-filter"
-              >
-                Ver todas las subcuentas
-              </Button>
-            )}
-          </div>
-          <Button variant="destructive" onClick={handleLogout} data-testid="button-logout">
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
+          <p className="text-muted-foreground mt-1">
+            {companyIdFilter ? 'Filtrando por empresa seleccionada' : 'Gestiona usuarios, subcuentas e instancias del sistema'}
+          </p>
+          {companyIdFilter && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setLocation(location.split('?')[0])}
+              className="mt-2"
+              data-testid="button-clear-filter"
+            >
+              Ver todas las subcuentas
+            </Button>
+          )}
         </div>
 
         {/* Stats Cards */}
