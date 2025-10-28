@@ -31,7 +31,7 @@ export default function Hero() {
                 size="lg" 
                 className="text-base px-8"
                 data-testid="button-get-started"
-                onClick={() => setLocation("/onboarding")}
+                onClick={() => setLocation("/register")}
               >
                 Comenzar Ahora
               </Button>

@@ -37,10 +37,10 @@ export default function Landing() {
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" data-testid="button-nav-login" onClick={() => setLocation("/dashboard")}>
+              <Button variant="ghost" size="sm" data-testid="button-nav-login" onClick={() => setLocation("/login")}>
                 Iniciar Sesión
               </Button>
-              <Button size="sm" data-testid="button-nav-signup" onClick={() => setLocation("/onboarding")}>
+              <Button size="sm" data-testid="button-nav-signup" onClick={() => setLocation("/register")}>
                 Comenzar Gratis
               </Button>
             </div>
@@ -68,7 +68,7 @@ export default function Landing() {
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Únete a más de 2,000 empresas que ya están usando nuestra plataforma
             </p>
-            <Button size="lg" className="px-8" data-testid="button-final-cta" onClick={() => setLocation("/onboarding")}>
+            <Button size="lg" className="px-8" data-testid="button-final-cta" onClick={() => setLocation("/register")}>
               Comenzar Ahora - Es Gratis
             </Button>
           </div>
