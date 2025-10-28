@@ -42,7 +42,7 @@ interface WebhookConfig {
 
 export default function AdminPanel() {
   const { user } = useUser();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -50,15 +50,31 @@ export default function AdminPanel() {
   const [subaccountToDelete, setSubaccountToDelete] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
+  // Get companyId from URL query params
+  const searchParams = new URLSearchParams(window.location.search);
+  const companyIdFilter = searchParams.get('companyId');
+
+  const { data: allSubaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/admin/subaccounts"],
     enabled: user?.role === "admin",
   });
 
-  const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
+  const { data: allInstances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/admin/instances"],
     enabled: user?.role === "admin",
   });
+
+  // Filter data by companyId if provided
+  const subaccounts = companyIdFilter 
+    ? allSubaccounts.filter(s => s.companyId === companyIdFilter)
+    : allSubaccounts;
+    
+  const instances = companyIdFilter
+    ? allInstances.filter(i => {
+        const subaccount = allSubaccounts.find(s => s.id === i.subaccountId);
+        return subaccount?.companyId === companyIdFilter;
+      })
+    : allInstances;
 
   const { data: webhookConfig, isLoading: webhookConfigLoading } = useQuery<WebhookConfig>({
     queryKey: ["/api/admin/webhook-config"],
@@ -261,11 +277,22 @@ export default function AdminPanel() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
             <p className="text-muted-foreground mt-1">
-              Gestiona usuarios, subcuentas e instancias del sistema
+              {companyIdFilter ? 'Filtrando por empresa seleccionada' : 'Gestiona usuarios, subcuentas e instancias del sistema'}
             </p>
+            {companyIdFilter && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setLocation(location.split('?')[0])}
+                className="mt-2"
+                data-testid="button-clear-filter"
+              >
+                Ver todas las subcuentas
+              </Button>
+            )}
           </div>
           <Button variant="destructive" onClick={handleLogout} data-testid="button-logout">
             <LogOut className="w-4 h-4 mr-2" />

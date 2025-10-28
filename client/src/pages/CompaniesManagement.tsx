@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,7 @@ type EditCompanyForm = z.infer<typeof editCompanySchema>;
 
 export default function CompaniesManagement() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -398,7 +400,11 @@ export default function CompaniesManagement() {
 
                                   {/* Stats */}
                                   <div className="grid grid-cols-3 gap-4">
-                                    <Card>
+                                    <Card 
+                                      className="hover-elevate active-elevate-2 cursor-pointer transition-all"
+                                      onClick={() => setLocation(`/admin/companies/${company.id}`)}
+                                      data-testid={`card-company-users-${company.id}`}
+                                    >
                                       <CardContent className="p-4">
                                         <div className="flex items-center gap-2">
                                           <Users className="h-4 w-4 text-muted-foreground" />
@@ -409,7 +415,11 @@ export default function CompaniesManagement() {
                                         </div>
                                       </CardContent>
                                     </Card>
-                                    <Card>
+                                    <Card 
+                                      className="hover-elevate active-elevate-2 cursor-pointer transition-all"
+                                      onClick={() => setLocation(`/admin/subaccounts?companyId=${company.id}`)}
+                                      data-testid={`card-company-subaccounts-${company.id}`}
+                                    >
                                       <CardContent className="p-4">
                                         <div className="flex items-center gap-2">
                                           <Building className="h-4 w-4 text-muted-foreground" />
@@ -420,7 +430,11 @@ export default function CompaniesManagement() {
                                         </div>
                                       </CardContent>
                                     </Card>
-                                    <Card>
+                                    <Card 
+                                      className="hover-elevate active-elevate-2 cursor-pointer transition-all"
+                                      onClick={() => setLocation(`/admin/instances?companyId=${company.id}`)}
+                                      data-testid={`card-company-instances-${company.id}`}
+                                    >
                                       <CardContent className="p-4">
                                         <div className="flex items-center gap-2">
                                           <Building2 className="h-4 w-4 text-muted-foreground" />
