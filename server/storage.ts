@@ -1,4 +1,4 @@
-import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig } from "@shared/schema";
+import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql as drizzleSql, count, sum, isNotNull } from "drizzle-orm";
 
@@ -64,6 +64,13 @@ export interface IStorage {
   getWebhookConfig(): Promise<WebhookConfig | undefined>;
   createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig>;
   updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined>;
+  
+  // ============================================
+  // SYSTEM CONFIG OPERATIONS (Admin-only)
+  // ============================================
+  getSystemConfig(): Promise<SystemConfig | undefined>;
+  createSystemConfig(config: InsertSystemConfig): Promise<SystemConfig>;
+  updateSystemConfig(id: string, updates: UpdateSystemConfig): Promise<SystemConfig | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -497,6 +504,32 @@ export class DatabaseStorage implements IStorage {
       .update(webhookConfig)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(webhookConfig.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // ============================================
+  // SYSTEM CONFIG OPERATIONS (Admin-only)
+  // ============================================
+
+  async getSystemConfig(): Promise<SystemConfig | undefined> {
+    const [config] = await db.select().from(systemConfig).limit(1);
+    return config || undefined;
+  }
+
+  async createSystemConfig(config: InsertSystemConfig): Promise<SystemConfig> {
+    const [newConfig] = await db
+      .insert(systemConfig)
+      .values(config)
+      .returning();
+    return newConfig;
+  }
+
+  async updateSystemConfig(id: string, updates: UpdateSystemConfig): Promise<SystemConfig | undefined> {
+    const [updated] = await db
+      .update(systemConfig)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(systemConfig.id, id))
       .returning();
     return updated || undefined;
   }

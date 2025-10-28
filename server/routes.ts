@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -695,6 +695,72 @@ ${ghlErrorDetails}
       } else {
         console.error("Error updating webhook config:", error);
         res.status(500).json({ error: "Failed to update webhook configuration" });
+      }
+    }
+  });
+
+  // ============================================
+  // SYSTEM CONFIG ROUTES (Admin-only)
+  // ============================================
+
+  // Obtener configuración del sistema (solo admin)
+  app.get("/api/admin/system-config", isAdmin, async (req, res) => {
+    try {
+      let config = await storage.getSystemConfig();
+      
+      // Si no existe, crear una configuración por defecto
+      if (!config) {
+        config = await storage.createSystemConfig({
+          systemName: "WhatsApp Platform",
+          trialDays: "15",
+          trialEnabled: true,
+          maintenanceMode: false,
+        });
+      }
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error getting system config:", error);
+      res.status(500).json({ error: "Failed to get system configuration" });
+    }
+  });
+
+  // Actualizar configuración del sistema (solo admin)
+  app.patch("/api/admin/system-config", isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateSystemConfigSchema.parse(req.body);
+      
+      let config = await storage.getSystemConfig();
+      
+      if (!config) {
+        // Si no existe, crear una nueva con los valores proporcionados
+        config = await storage.createSystemConfig({
+          systemName: validatedData.systemName || "WhatsApp Platform",
+          evolutionApiUrl: validatedData.evolutionApiUrl,
+          evolutionApiKey: validatedData.evolutionApiKey,
+          systemEmail: validatedData.systemEmail,
+          supportEmail: validatedData.supportEmail,
+          trialDays: validatedData.trialDays || "15",
+          trialEnabled: validatedData.trialEnabled ?? true,
+          maintenanceMode: validatedData.maintenanceMode ?? false,
+          maintenanceMessage: validatedData.maintenanceMessage,
+        });
+      } else {
+        // Actualizar existente
+        config = await storage.updateSystemConfig(config.id, validatedData);
+        if (!config) {
+          res.status(500).json({ error: "Failed to update system config" });
+          return;
+        }
+      }
+      
+      res.json(config);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        console.error("Error updating system config:", error);
+        res.status(500).json({ error: "Failed to update system configuration" });
       }
     }
   });

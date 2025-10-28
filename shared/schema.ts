@@ -155,6 +155,34 @@ export const webhookConfig = pgTable("webhook_config", {
 });
 
 // ============================================
+// SYSTEM CONFIG TABLE - Configuración general del sistema (admin-only)
+// ============================================
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Evolution API Configuration
+  evolutionApiUrl: text("evolution_api_url"),
+  evolutionApiKey: text("evolution_api_key"),
+  
+  // System Settings
+  systemName: text("system_name").notNull().default("WhatsApp Platform"),
+  systemEmail: text("system_email"),
+  supportEmail: text("support_email"),
+  
+  // Trial Configuration
+  trialDays: text("trial_days").notNull().default("15"),
+  trialEnabled: boolean("trial_enabled").notNull().default(true),
+  
+  // Maintenance Mode
+  maintenanceMode: boolean("maintenance_mode").notNull().default(false),
+  maintenanceMessage: text("maintenance_message"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// ============================================
 // ZOD SCHEMAS - Validación
 // ============================================
 
@@ -320,6 +348,29 @@ export const updateWebhookConfigSchema = z.object({
 export type WebhookConfig = typeof webhookConfig.$inferSelect;
 export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
 export type UpdateWebhookConfig = z.infer<typeof updateWebhookConfigSchema>;
+
+// System Config
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateSystemConfigSchema = z.object({
+  evolutionApiUrl: z.string().url("URL de Evolution API inválida").optional(),
+  evolutionApiKey: z.string().min(1, "API Key es requerida").optional(),
+  systemName: z.string().min(1, "Nombre del sistema es requerido").optional(),
+  systemEmail: z.string().email("Email inválido").optional(),
+  supportEmail: z.string().email("Email de soporte inválido").optional(),
+  trialDays: z.string().optional(),
+  trialEnabled: z.boolean().optional(),
+  maintenanceMode: z.boolean().optional(),
+  maintenanceMessage: z.string().optional(),
+});
+
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+export type UpdateSystemConfig = z.infer<typeof updateSystemConfigSchema>;
 
 // Schema para enviar mensajes de WhatsApp
 export const sendWhatsappMessageSchema = z.object({
