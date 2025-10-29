@@ -52,7 +52,12 @@ app.use((req, res, next) => {
 (async () => {
   try {
     // Verify critical environment variables
-    const requiredEnvVars = ['DATABASE_URL', 'SESSION_SECRET'];
+    const requiredEnvVars = [
+      'DATABASE_URL', 
+      'SESSION_SECRET',
+      'ADMIN_INITIAL_EMAIL',
+      'ADMIN_INITIAL_PASSWORD'
+    ];
     const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingEnvVars.length > 0) {
@@ -65,13 +70,10 @@ app.use((req, res, next) => {
     console.log('🚀 Starting server initialization...');
 
     // Ejecutar bootstrap automáticamente si es necesario
-    try {
-      const { runBootstrap } = await import('./bootstrap');
-      await runBootstrap();
-    } catch (bootstrapError) {
-      console.error('⚠️  Bootstrap warning:', bootstrapError);
-      console.log('   Server will continue starting...');
-    }
+    // Si falla, el servidor NO debe arrancar (no capturamos el error)
+    const { runBootstrap } = await import('./bootstrap');
+    await runBootstrap();
+    console.log('✅ Database initialization complete');
 
     const server = await registerRoutes(app);
     console.log('✅ Routes registered successfully');

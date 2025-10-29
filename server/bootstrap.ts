@@ -2,6 +2,8 @@ import { db } from "./db";
 import { companies, subaccounts, subscriptions, systemConfig } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { pathToFileURL } from "url";
+import path from "path";
 
 /**
  * Bootstrap script para inicializar la base de datos de producción
@@ -22,22 +24,23 @@ export async function runBootstrap(): Promise<boolean> {
   console.log("🚀 Starting database bootstrap...");
   console.log("📊 Current database:", process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'unknown');
 
-  // Validar variables de entorno
-  const adminEmail = process.env.ADMIN_INITIAL_EMAIL;
-  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD;
-
-  if (!adminEmail || !adminPassword) {
-    console.warn("⚠️  Warning: ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD not configured");
-    console.warn("   Admin account will not be created automatically");
-    return false;
-  }
-
-  // Verificar si ya está inicializada
+  // Verificar si ya está inicializada PRIMERO
   const existingConfig = await db.query.systemConfig.findFirst();
   
   if (existingConfig?.isInitialized) {
     console.log("✅ Database already initialized. Skipping bootstrap.");
     return false;
+  }
+
+  // Solo ahora validar credenciales (porque necesitamos inicializar)
+  const adminEmail = process.env.ADMIN_INITIAL_EMAIL;
+  const adminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      "ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD are required to initialize the database. " +
+      "Please configure these secrets before starting the server."
+    );
   }
 
   console.log("🔧 Database not initialized. Starting bootstrap process...");
@@ -170,7 +173,9 @@ async function runAsScript() {
 
 // Solo ejecutar si es llamado directamente (no importado)
 // En ES modules usamos import.meta.url para detectar si es el módulo principal
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+// Resolvemos a ruta absoluta para que funcione con tsx
+const scriptPath = path.resolve(process.argv[1]);
+const isMainModule = import.meta.url === pathToFileURL(scriptPath).href;
 if (isMainModule) {
   runAsScript();
 }
