@@ -196,23 +196,24 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
 
 /**
  * CLI entry point - solo se ejecuta cuando se llama directamente desde la línea de comandos
+ * DISABLED: Se ejecuta automáticamente desde server.listen() callback
+ * Si necesitas ejecutar manualmente: npx tsx server/bootstrap.ts
  */
-async function runAsScript() {
-  try {
-    const wasBootstrapped = await runBootstrap();
-    process.exit(wasBootstrapped ? 0 : 0);
-  } catch (error) {
-    console.error("❌ Bootstrap failed:");
-    console.error(error);
-    process.exit(1);
-  }
-}
+// async function runAsScript() {
+//   try {
+//     const wasBootstrapped = await runBootstrap();
+//     process.exit(wasBootstrapped ? 0 : 0);
+//   } catch (error) {
+//     console.error("❌ Bootstrap failed:");
+//     console.error(error);
+//     process.exit(1);
+//   }
+// }
 
-// Solo ejecutar si es llamado directamente (no importado)
-// En ES modules usamos import.meta.url para detectar si es el módulo principal
-// Resolvemos a ruta absoluta para que funcione con tsx
-const scriptPath = path.resolve(process.argv[1]);
-const isMainModule = import.meta.url === pathToFileURL(scriptPath).href;
-if (isMainModule) {
-  runAsScript();
-}
+// DISABLED: Auto-ejecución bloqueaba el inicio del servidor en producción
+// El bootstrap ahora se ejecuta dentro del callback de server.listen()
+// const scriptPath = path.resolve(process.argv[1]);
+// const isMainModule = import.meta.url === pathToFileURL(scriptPath).href;
+// if (isMainModule) {
+//   runAsScript();
+// }

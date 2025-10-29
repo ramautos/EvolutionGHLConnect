@@ -1,0 +1,57 @@
+2025-10-29T07:49:24Z info: Deployment: cea0a325-9c4f-4359-a47c-919e742fd3cc
+2025-10-29T07:49:24Z info: Build: 44ab2749-f188-4108-bd58-37d8694b43e6
+2025-10-29T07:49:24Z info: Connecting to builder
+2025-10-29T07:49:24Z info: Builder connected
+2025-10-29T07:49:25Z info: Installing packages
+2025-10-29T07:49:25Z info: Starting Build
+
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+
+vite v5.4.20 building for production...
+
+transforming...
+
+Browserslist: browsers data (caniuse-lite) is 12 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+✓ 2626 modules transformed.
+
+rendering chunks...
+
+computing gzip size...
+
+../dist/public/index.html                                                     1.01 kB │ gzip:   0.55 kB
+
+../dist/public/assets/Business_testimonial_photo_2_53184f24-BMk6qmby.png  1,269.66 kB
+../dist/public/assets/Business_testimonial_photo_1_28a369d4-DuC7yfYC.png  1,339.97 kB
+
+../dist/public/assets/index-QBGRnMbC.css                                    132.90 kB │ gzip:  39.28 kB
+../dist/public/assets/index-BMKvUmpX.js                                     757.61 kB │ gzip: 222.23 kB
+
+✓ built in 9.20s
+
+
+  dist/index.js  130.0kb
+
+⚡ Done in 177ms
+
+2025-10-29T07:49:39Z info: Pushing pid1 binary layer...
+2025-10-29T07:49:40Z info: Pushing hosting layer...
+2025-10-29T07:49:40Z info: Created hosting layer
+2025-10-29T07:49:40Z info: Created pid1 binary layer
+2025-10-29T07:50:02Z info: Created Repl layer
+2025-10-29T07:50:04Z info: Pushed image manifest
+2025-10-29T07:50:05Z info: Pushed soci index manifest
+2025-10-29T07:50:09Z info: Creating Autoscale service
+> NODE_ENV=production node dist/index.js
+🌐 Attempting to listen on 0.0.0.0:5000...
+starting up user application
+npm notice
+📊 Current database: ep-raspy-pond-af1n9a71.c-2.us-west-2.aws.neon.tech/neondb
+2025-10-29T07:51:04Z error: The deployment is failing health checks. This can happen if the application isn't responding, responds with an error, or doesn't respond in time. Health checks are sent to the / endpoint by default and must respond as soon as possible. Make sure that the / endpoint is implemented and returns a 200 status code in a timely manner. Avoid doing expensive or long running operations on the / endpoint, prefer deferring them to a different route. Check the logs for more information.
