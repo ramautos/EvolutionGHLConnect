@@ -120,17 +120,21 @@ app.use((req, res, next) => {
       console.log(`✅ Server successfully started!`);
       log(`serving on port ${port}`);
       
-      // Run bootstrap AFTER server is listening and responding to health checks
-      try {
-        console.log('🔄 Running database bootstrap in background...');
-        const { runBootstrap } = await import('./bootstrap');
-        await runBootstrap();
-        console.log('✅ Database initialization complete');
-      } catch (bootstrapError) {
-        console.error('❌ Bootstrap failed:', bootstrapError);
-        console.error('⚠️  Server is running but database may not be initialized properly');
-        // Don't exit - server is already serving requests
-      }
+      // Run bootstrap in background without blocking (fire-and-forget)
+      // This ensures health checks can respond immediately
+      import('./bootstrap')
+        .then(({ runBootstrap }) => {
+          console.log('🔄 Running database bootstrap in background...');
+          return runBootstrap();
+        })
+        .then(() => {
+          console.log('✅ Database initialization complete');
+        })
+        .catch((bootstrapError) => {
+          console.error('❌ Bootstrap failed:', bootstrapError);
+          console.error('⚠️  Server is running but database may not be initialized properly');
+          // Don't exit - server is already serving requests
+        });
     });
 
     server.on('error', (error: any) => {

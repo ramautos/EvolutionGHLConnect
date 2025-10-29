@@ -15,23 +15,57 @@ import path from "path";
  * - DATABASE_URL: URL de la base de datos (ya configurada por Replit)
  */
 
+// Lazy loading: Cache en memoria para evitar queries repetidas
+let isInitializedCache: boolean | null = null;
+let bootstrapPromise: Promise<boolean> | null = null;
+
 /**
  * Ejecuta el proceso de inicialización de la base de datos
  * Retorna true si se ejecutó el bootstrap, false si ya estaba inicializada
  * Lanza error si algo sale mal
  */
 export async function runBootstrap(): Promise<boolean> {
-  console.log("🚀 Starting database bootstrap...");
-  console.log("📊 Current database:", process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'unknown');
+  // Si ya hay un bootstrap corriendo, esperar a que termine
+  if (bootstrapPromise) {
+    console.log("⏳ Bootstrap already running, waiting for completion...");
+    return bootstrapPromise;
+  }
 
-  // Verificar si ya está inicializada PRIMERO
-  const existingConfig = await db.query.systemConfig.findFirst();
-  
-  if (existingConfig?.isInitialized) {
-    console.log("✅ Database already initialized. Skipping bootstrap.");
+  // Si ya verificamos y está inicializada, retornar inmediatamente
+  if (isInitializedCache === true) {
+    console.log("✅ Database already initialized (cached). Skipping bootstrap.");
     return false;
   }
 
+  // Crear promesa de bootstrap para evitar ejecuciones múltiples
+  bootstrapPromise = (async () => {
+    try {
+      console.log("🚀 Starting database bootstrap...");
+      console.log("📊 Current database:", process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'unknown');
+
+      // Verificar si ya está inicializada PRIMERO
+      const existingConfig = await db.query.systemConfig.findFirst();
+      
+      if (existingConfig?.isInitialized) {
+        console.log("✅ Database already initialized. Skipping bootstrap.");
+        isInitializedCache = true; // Cachear resultado
+        return false;
+      }
+
+      return await performBootstrap(existingConfig);
+    } finally {
+      // Limpiar promesa para permitir reintentos en caso de error
+      bootstrapPromise = null;
+    }
+  })();
+
+  return bootstrapPromise;
+}
+
+/**
+ * Ejecuta el bootstrap real (separado para mejor estructura)
+ */
+async function performBootstrap(existingConfig: any): Promise<boolean> {
   // Solo ahora validar credenciales (porque necesitamos inicializar)
   const adminEmail = process.env.ADMIN_INITIAL_EMAIL;
   const adminPassword = process.env.ADMIN_INITIAL_PASSWORD;
@@ -153,6 +187,9 @@ export async function runBootstrap(): Promise<boolean> {
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n✨ You can now login with the admin credentials");
   console.log("   To reset the admin password, run this script again with a new ADMIN_INITIAL_PASSWORD");
+  
+  // Cachear el estado para evitar queries futuras
+  isInitializedCache = true;
   
   return true;
 }
