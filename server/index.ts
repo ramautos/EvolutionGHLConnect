@@ -138,47 +138,53 @@ app.use((req, res, next) => {
     // It is the only port that is not firewalled.
     const port = parseInt(process.env.PORT || '5000', 10);
     console.log(`🌐 Attempting to listen on 0.0.0.0:${port}...`);
-    
-    server.on('error', (error: any) => {
-      console.error('❌ Server error:', error);
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${port} is already in use`);
-      }
-      process.exit(1);
+
+    // Wrap server.listen in a Promise to keep the async IIFE alive
+    await new Promise<void>((resolve, reject) => {
+      server.on('error', (error: any) => {
+        console.error('❌ Server error during listen:', error);
+        reject(error);
+      });
+
+      server.listen({
+        port,
+        host: "0.0.0.0",
+      }, () => {
+        console.log(`✅ Server successfully started!`);
+        log(`serving on port ${port}`);
+        
+        // Keep process alive explicitly
+        // The HTTP server SHOULD keep the process alive, but this adds redundancy
+        setInterval(() => {
+          // This interval keeps the event loop active to prevent premature exit
+          // Even if empty, it ensures the process stays alive
+        }, 60000);
+        
+        console.log('🎯 Server is ready and will run indefinitely');
+        
+        // Run bootstrap in background without blocking (fire-and-forget)
+        // This ensures health checks can respond immediately
+        import('./bootstrap')
+          .then(({ runBootstrap }) => {
+            console.log('🔄 Running database bootstrap in background...');
+            return runBootstrap();
+          })
+          .then(() => {
+            console.log('✅ Database initialization complete');
+          })
+          .catch((bootstrapError) => {
+            console.error('❌ Bootstrap failed:', bootstrapError);
+            console.error('⚠️  Server is running but database may not be initialized properly');
+            // Don't exit - server is already serving requests
+          });
+        
+        // DON'T resolve the promise - this keeps the async IIFE alive indefinitely
+        // The process will only exit on SIGTERM/SIGINT or uncaught errors
+      });
     });
 
-    server.listen({
-      port,
-      host: "0.0.0.0",
-    }, () => {
-      console.log(`✅ Server successfully started!`);
-      log(`serving on port ${port}`);
-      
-      // Keep process alive explicitly
-      // The HTTP server SHOULD keep the process alive, but this adds redundancy
-      setInterval(() => {
-        // This interval keeps the event loop active to prevent premature exit
-        // Even if empty, it ensures the process stays alive
-      }, 60000);
-      
-      console.log('🎯 Server is ready and will run indefinitely');
-      
-      // Run bootstrap in background without blocking (fire-and-forget)
-      // This ensures health checks can respond immediately
-      import('./bootstrap')
-        .then(({ runBootstrap }) => {
-          console.log('🔄 Running database bootstrap in background...');
-          return runBootstrap();
-        })
-        .then(() => {
-          console.log('✅ Database initialization complete');
-        })
-        .catch((bootstrapError) => {
-          console.error('❌ Bootstrap failed:', bootstrapError);
-          console.error('⚠️  Server is running but database may not be initialized properly');
-          // Don't exit - server is already serving requests
-        });
-    });
+    // This line should never be reached because the Promise above never resolves
+    console.log('⚠️  WARNING: Server listen promise resolved unexpectedly');
 
   } catch (error) {
     console.error('❌ Failed to start server:');
