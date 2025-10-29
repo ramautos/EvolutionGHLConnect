@@ -7,8 +7,15 @@ const app = express();
 // Trust proxy for secure cookies behind Cloudflare/reverse proxy
 app.set('trust proxy', 1);
 
-// Health check endpoint - MUST be first to respond immediately
-app.get('/', (_req, res) => {
+// Health check endpoint at / - smart routing to avoid intercepting SPA traffic
+// Uses Express content negotiation to distinguish health checks from browser requests
+app.get('/', (req, res, next) => {
+  // If client accepts HTML (browser/crawler), pass to Vite/static files
+  if (req.accepts('html')) {
+    return next();
+  }
+  
+  // Otherwise, it's a health check probe - respond immediately with JSON
   res.status(200).json({ 
     status: 'ok',
     timestamp: new Date().toISOString()
