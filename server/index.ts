@@ -52,12 +52,9 @@ app.use((req, res, next) => {
 (async () => {
   try {
     // Verify critical environment variables
-    const requiredEnvVars = [
-      'DATABASE_URL', 
-      'SESSION_SECRET',
-      'ADMIN_INITIAL_EMAIL',
-      'ADMIN_INITIAL_PASSWORD'
-    ];
+    // Note: ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD are only required
+    // for first-time database initialization, so they're validated in bootstrap.ts
+    const requiredEnvVars = ['DATABASE_URL', 'SESSION_SECRET'];
     const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingEnvVars.length > 0) {
