@@ -68,6 +68,31 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    // Add process lifecycle logging
+    process.on('beforeExit', (code) => {
+      console.log('⚠️  Process beforeExit event fired with code:', code);
+    });
+
+    process.on('exit', (code) => {
+      console.log('⚠️  Process exit event fired with code:', code);
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('⚠️  SIGTERM received');
+    });
+
+    process.on('SIGINT', () => {
+      console.log('⚠️  SIGINT received');
+    });
+
+    process.on('uncaughtException', (error) => {
+      console.error('❌ Uncaught Exception:', error);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    });
+
     // Verify critical environment variables
     // Note: ADMIN_INITIAL_EMAIL and ADMIN_INITIAL_PASSWORD are only required
     // for first-time database initialization, so they're validated in bootstrap.ts
@@ -114,13 +139,29 @@ app.use((req, res, next) => {
     const port = parseInt(process.env.PORT || '5000', 10);
     console.log(`🌐 Attempting to listen on 0.0.0.0:${port}...`);
     
+    server.on('error', (error: any) => {
+      console.error('❌ Server error:', error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use`);
+      }
+      process.exit(1);
+    });
+
     server.listen({
       port,
       host: "0.0.0.0",
-      reusePort: true,
-    }, async () => {
+    }, () => {
       console.log(`✅ Server successfully started!`);
       log(`serving on port ${port}`);
+      
+      // Keep process alive explicitly
+      // The HTTP server SHOULD keep the process alive, but this adds redundancy
+      setInterval(() => {
+        // This interval keeps the event loop active to prevent premature exit
+        // Even if empty, it ensures the process stays alive
+      }, 60000);
+      
+      console.log('🎯 Server is ready and will run indefinitely');
       
       // Run bootstrap in background without blocking (fire-and-forget)
       // This ensures health checks can respond immediately
@@ -137,14 +178,6 @@ app.use((req, res, next) => {
           console.error('⚠️  Server is running but database may not be initialized properly');
           // Don't exit - server is already serving requests
         });
-    });
-
-    server.on('error', (error: any) => {
-      console.error('❌ Server error:', error);
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${port} is already in use`);
-      }
-      process.exit(1);
     });
 
   } catch (error) {

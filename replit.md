@@ -47,6 +47,10 @@ For the initial deployment to production, configure the following required envir
 - **Health Check**: Smart routing at `/` responds in <1ms (no blocking operations, no database queries)
   - Health check probes (Accept: application/json) → JSON response
   - Browsers/crawlers (Accept: text/html) → React app
+- **Process Lifecycle Management**: Server runs indefinitely with multiple safeguards
+  - HTTP server listens on 0.0.0.0 (required for Autoscale)
+  - setInterval keeps event loop active (redundant safety mechanism)
+  - Comprehensive process event logging (beforeExit, exit, SIGTERM, SIGINT, uncaughtException, unhandledRejection)
 - **Non-Blocking Startup**: Server starts immediately, bootstrap runs in background
   - Fire-and-forget pattern ensures health checks pass within timeout
   - Autoscale compatible (frequent restarts don't trigger unnecessary bootstraps)
