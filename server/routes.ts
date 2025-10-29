@@ -670,10 +670,16 @@ ${ghlErrorDetails}
       try {
         console.log(`📱 Creating WhatsApp instance for ${subaccount.name}...`);
         
+        // Obtener instancias existentes para generar nombre único
+        const existingInstances = await storage.getWhatsappInstancesByLocationId(validatedData.locationId);
+        const instanceNumber = existingInstances.length + 1;
+        const evolutionName = `${validatedData.locationId}_${instanceNumber}`;
+        
         const instance = await storage.createWhatsappInstance({
           subaccountId: subaccount.id,
           locationId: validatedData.locationId,
           customName: validatedData.locationName || `WhatsApp ${validatedData.name}`,
+          evolutionInstanceName: evolutionName,
         });
         
         instanceCreated = true;
