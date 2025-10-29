@@ -180,6 +180,9 @@ export const systemConfig = pgTable("system_config", {
   maintenanceMode: boolean("maintenance_mode").notNull().default(false),
   maintenanceMessage: text("maintenance_message"),
   
+  // Bootstrap Flag
+  isInitialized: boolean("is_initialized").notNull().default(false),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
