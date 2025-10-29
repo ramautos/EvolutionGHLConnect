@@ -64,6 +64,15 @@ app.use((req, res, next) => {
     console.log('✅ Environment variables verified');
     console.log('🚀 Starting server initialization...');
 
+    // Ejecutar bootstrap automáticamente si es necesario
+    try {
+      const { runBootstrap } = await import('./bootstrap');
+      await runBootstrap();
+    } catch (bootstrapError) {
+      console.error('⚠️  Bootstrap warning:', bootstrapError);
+      console.log('   Server will continue starting...');
+    }
+
     const server = await registerRoutes(app);
     console.log('✅ Routes registered successfully');
 
