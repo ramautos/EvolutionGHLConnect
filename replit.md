@@ -43,14 +43,23 @@ For the initial deployment to production, configure the following required envir
 3. `ADMIN_INITIAL_EMAIL` - Email for the initial admin account (required on first boot only)
 4. `ADMIN_INITIAL_PASSWORD` - Password for the initial admin account (required on first boot only)
 
-**Automatic Bootstrap Process**:
-- On first server startup, the system automatically:
+**Production-Ready Bootstrap System**:
+- **Health Check**: Smart routing at `/` responds in <1ms (no blocking operations, no database queries)
+  - Health check probes (Accept: application/json) → JSON response
+  - Browsers/crawlers (Accept: text/html) → React app
+- **Non-Blocking Startup**: Server starts immediately, bootstrap runs in background
+  - Fire-and-forget pattern ensures health checks pass within timeout
+  - Autoscale compatible (frequent restarts don't trigger unnecessary bootstraps)
+- **Lazy Loading + Cache**: In-memory cache prevents repeated database queries
+  - First startup checks `systemConfig.isInitialized` flag
+  - Subsequent restarts use cached result (instant skip)
+  - Concurrent bootstrap protection (single execution guarantee)
+- **Automatic Bootstrap Process** (first time only):
   1. Creates default company
-  2. Creates admin user with provided credentials
+  2. Creates admin user with provided credentials (bcrypt hashed)
   3. Activates 15-day trial subscription
   4. Marks database as initialized
-- Subsequent deployments do not require admin credentials
-- Server fails fast if bootstrap fails to ensure database integrity
+- **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
 
 ### Webhook Integration
 The n8n webhook at `/api/webhooks/register-subaccount` automatically creates:
