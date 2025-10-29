@@ -663,6 +663,28 @@ ${ghlErrorDetails}
 
       console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
 
+      // 5. Crear instancia de WhatsApp automáticamente
+      let instanceCreated = false;
+      let instanceId = null;
+      
+      try {
+        console.log(`📱 Creating WhatsApp instance for ${subaccount.name}...`);
+        
+        const instance = await storage.createWhatsappInstance({
+          subaccountId: subaccount.id,
+          locationId: validatedData.locationId,
+          customName: validatedData.locationName || `WhatsApp ${validatedData.name}`,
+        });
+        
+        instanceCreated = true;
+        instanceId = instance.id;
+        console.log(`✅ WhatsApp instance created: ${instance.evolutionInstanceName}`);
+      } catch (error) {
+        console.error(`⚠️ Failed to create WhatsApp instance automatically:`, error);
+        // No fallar el webhook si la creación de instancia falla
+        // El usuario puede crear la instancia manualmente desde el dashboard
+      }
+
       res.json({
         success: true,
         message: "Subaccount created successfully",
@@ -673,6 +695,13 @@ ${ghlErrorDetails}
           locationId: subaccount.locationId,
           companyId: company.id,
           companyName: company.name,
+        },
+        instance: instanceCreated ? {
+          id: instanceId,
+          created: true,
+        } : {
+          created: false,
+          message: "Instance will be created when user first logs in",
         }
       });
     } catch (error: any) {
