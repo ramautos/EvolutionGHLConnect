@@ -565,7 +565,24 @@ ${ghlErrorDetails}
   // Webhook para registrar subcuenta desde n8n después de OAuth
   app.post("/api/webhooks/register-subaccount", async (req, res) => {
     try {
-      console.log("🔵 Webhook register-subaccount received:", req.body);
+      console.log("🔵 Webhook register-subaccount received:", JSON.stringify(req.body, null, 2));
+
+      // El webhook puede venir de dos fuentes:
+      // 1. Directamente desde n8n con campos transformados (email, name, locationId, etc.)
+      // 2. Desde la base de datos GHL (email_cliente, nombre_cliente, locationid, etc.)
+      
+      // Normalizar los datos para aceptar ambos formatos
+      const normalizedData = {
+        email: req.body.email || req.body.email_cliente,
+        name: req.body.name || req.body.nombre_cliente,
+        locationId: req.body.locationId || req.body.locationid,
+        ghlCompanyId: req.body.ghlCompanyId || req.body.companyid,
+        companyName: req.body.companyName || req.body.cuenta_principal || undefined,
+        locationName: req.body.locationName || req.body.subcuenta || undefined,
+        phone: req.body.phone || req.body.telefono_cliente || undefined,
+      };
+
+      console.log("📋 Normalized webhook data:", JSON.stringify(normalizedData, null, 2));
 
       const webhookSchema = z.object({
         email: z.string().email("Email inválido"),
@@ -577,7 +594,7 @@ ${ghlErrorDetails}
         phone: z.string().optional(),
       });
 
-      const validatedData = webhookSchema.parse(req.body);
+      const validatedData = webhookSchema.parse(normalizedData);
 
       // 1. Buscar o crear la empresa (con manejo de race conditions)
       let company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
