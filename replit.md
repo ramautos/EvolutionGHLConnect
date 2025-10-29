@@ -30,6 +30,34 @@ Preferred communication style: Simple, everyday language.
 ### Database Architecture
 -   **Replit PostgreSQL (Neon)**: Primary application data storage (`companies`, `subaccounts`, `whatsappInstances`, `subscriptions`, `sessions`, `system_config`). The `subaccounts` table unifies CRM locations and authenticated users.
 -   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens (`ghl_clientes`).
+-   **Automatic Database Initialization**: Server automatically runs bootstrap on first startup to create default company, admin user, and system configuration using `ADMIN_INITIAL_EMAIL` and `ADMIN_INITIAL_PASSWORD` environment variables.
+
+## Deployment & Configuration
+
+### First-Time Deployment
+For the initial deployment to production, configure the following required environment secrets:
+
+**Required Secrets**:
+1. `DATABASE_URL` - Automatically configured by Replit PostgreSQL
+2. `SESSION_SECRET` - Secure random string for session encryption
+3. `ADMIN_INITIAL_EMAIL` - Email for the initial admin account (required on first boot only)
+4. `ADMIN_INITIAL_PASSWORD` - Password for the initial admin account (required on first boot only)
+
+**Automatic Bootstrap Process**:
+- On first server startup, the system automatically:
+  1. Creates default company
+  2. Creates admin user with provided credentials
+  3. Activates 15-day trial subscription
+  4. Marks database as initialized
+- Subsequent deployments do not require admin credentials
+- Server fails fast if bootstrap fails to ensure database integrity
+
+### Webhook Integration
+The n8n webhook at `/api/webhooks/register-subaccount` automatically creates:
+- Company (if new `companyid`)
+- Subaccount with user credentials
+- WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
+- 15-day trial subscription
 
 ## External Dependencies
 
