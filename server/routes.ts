@@ -550,6 +550,110 @@ ${ghlErrorDetails}
   });
 
   // ============================================
+  // WEBHOOK PARA REGISTRO DE SUBCUENTAS (N8N)
+  // ============================================
+  
+  // Webhook para registrar subcuenta desde n8n después de OAuth
+  app.post("/api/webhooks/register-subaccount", async (req, res) => {
+    try {
+      console.log("🔵 Webhook register-subaccount received:", req.body);
+
+      const webhookSchema = z.object({
+        email: z.string().email("Email inválido"),
+        name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+        locationId: z.string().min(1, "Location ID es requerido"),
+        ghlCompanyId: z.string().min(1, "Company ID es requerido"),
+        companyName: z.string().optional(),
+        locationName: z.string().optional(),
+        phone: z.string().optional(),
+      });
+
+      const validatedData = webhookSchema.parse(req.body);
+
+      // 1. Buscar o crear la empresa
+      let company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+      
+      if (!company) {
+        console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
+        company = await storage.createCompany({
+          name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
+          email: validatedData.email,
+          ghlCompanyId: validatedData.ghlCompanyId,
+          isActive: true,
+        });
+      }
+
+      // 2. Verificar si la subcuenta ya existe por locationId
+      let subaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
+
+      if (subaccount) {
+        console.log(`✅ Subaccount already exists for location ${validatedData.locationId}`);
+        res.json({ 
+          success: true, 
+          message: "Subaccount already exists",
+          subaccount: {
+            id: subaccount.id,
+            email: subaccount.email,
+            name: subaccount.name,
+            locationId: subaccount.locationId,
+          }
+        });
+        return;
+      }
+
+      // 3. Crear la subcuenta
+      console.log(`📝 Creating new subaccount for location ${validatedData.locationId}`);
+      subaccount = await storage.createSubaccount({
+        email: validatedData.email,
+        name: validatedData.name,
+        phone: validatedData.phone || null,
+        locationId: validatedData.locationId,
+        ghlCompanyId: validatedData.ghlCompanyId,
+        companyId: company.id,
+        role: "user",
+        isActive: true,
+        billingEnabled: true,
+        manuallyActivated: false,
+        passwordHash: null, // No password - OAuth only
+        googleId: null,
+      });
+
+      // 4. Crear suscripción con trial de 15 días
+      await storage.createSubscription(subaccount.id, 15);
+
+      console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
+
+      res.json({
+        success: true,
+        message: "Subaccount created successfully",
+        subaccount: {
+          id: subaccount.id,
+          email: subaccount.email,
+          name: subaccount.name,
+          locationId: subaccount.locationId,
+          companyId: company.id,
+          companyName: company.name,
+        }
+      });
+    } catch (error: any) {
+      console.error("❌ Error in register-subaccount webhook:", error);
+      
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          error: "Invalid webhook data", 
+          details: error.errors 
+        });
+        return;
+      }
+
+      res.status(500).json({ 
+        error: "Failed to register subaccount",
+        message: error.message 
+      });
+    }
+  });
+
+  // ============================================
   // RUTAS DE ADMIN
   // ============================================
 

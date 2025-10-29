@@ -24,6 +24,9 @@ export const companies = pgTable("companies", {
   address: text("address"),
   notes: text("notes"),
   
+  // GoHighLevel Integration
+  ghlCompanyId: text("ghl_company_id").unique(),
+  
   // Stripe integration (a nivel de empresa para facturación consolidada)
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
