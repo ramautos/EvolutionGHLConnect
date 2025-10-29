@@ -579,17 +579,30 @@ ${ghlErrorDetails}
 
       const validatedData = webhookSchema.parse(req.body);
 
-      // 1. Buscar o crear la empresa
+      // 1. Buscar o crear la empresa (con manejo de race conditions)
       let company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
       
       if (!company) {
         console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
-        company = await storage.createCompany({
-          name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
-          email: validatedData.email,
-          ghlCompanyId: validatedData.ghlCompanyId,
-          isActive: true,
-        });
+        try {
+          company = await storage.createCompany({
+            name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
+            email: validatedData.email,
+            ghlCompanyId: validatedData.ghlCompanyId,
+            isActive: true,
+          });
+        } catch (error: any) {
+          // Handle race condition: another request may have created the company
+          if (error.message?.includes("unique constraint") || error.code === "23505") {
+            console.log(`⚠️ Company already created by concurrent request, re-querying...`);
+            company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+            if (!company) {
+              throw new Error("Failed to create or find company after race condition");
+            }
+          } else {
+            throw error;
+          }
+        }
       }
 
       // 2. Verificar si la subcuenta ya existe por locationId
@@ -610,8 +623,9 @@ ${ghlErrorDetails}
         return;
       }
 
-      // 3. Crear la subcuenta
+      // 3. Crear la subcuenta (OAuth-only, no password)
       console.log(`📝 Creating new subaccount for location ${validatedData.locationId}`);
+      
       subaccount = await storage.createSubaccount({
         email: validatedData.email,
         name: validatedData.name,
@@ -623,7 +637,7 @@ ${ghlErrorDetails}
         isActive: true,
         billingEnabled: true,
         manuallyActivated: false,
-        passwordHash: null, // No password - OAuth only
+        passwordHash: null, // OAuth-only authentication
         googleId: null,
       });
 

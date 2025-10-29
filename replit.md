@@ -148,3 +148,57 @@ Preferred communication style: Simple, everyday language.
 - ✅ E2E test confirma save/load de configuración
 - ✅ PATCH /api/admin/system-config funciona correctamente
 - ✅ Cambios persisten después de reload
+
+#### Webhook Integration con Company Display ✅ IMPLEMENTED
+**Fecha**: October 29, 2025
+
+**Implementación**:
+- Creado endpoint `POST /api/webhooks/register-subaccount` para recibir registros desde n8n
+- Agregado campo `ghlCompanyId` a tabla `companies` (unique constraint)
+- Implementado método `getCompanyByGhlId()` en storage layer
+- Modificado `/api/auth/me` para incluir `companyName` del usuario
+- Dashboard header ahora muestra nombre de empresa sobre título de plataforma
+
+**Funcionalidades**:
+1. **Webhook Endpoint**: Recibe datos de GHL OAuth desde n8n y crea empresa + subcuenta
+2. **Company Management**: Busca o crea empresa por `ghlCompanyId` con manejo de race conditions
+3. **Subaccount Creation**: Crea subcuenta OAuth-only (passwordHash = null) con trial de 15 días
+4. **Company Display**: Nombre de empresa visible en header del dashboard
+
+**Seguridad**:
+- ✅ Webhook crea cuentas OAuth-only (sin contraseña) para producción
+- ✅ Manejo de race conditions en creación concurrente de empresas
+- ✅ Validación Zod de todos los campos del webhook
+- ✅ Protección contra vulnerabilidad de contraseña fija
+
+**Database Schema**:
+```sql
+ALTER TABLE companies ADD COLUMN ghl_company_id TEXT UNIQUE;
+```
+
+**Webhook Request Schema**:
+```json
+{
+  "ghlCompanyId": "string",    // Required - GHL company ID
+  "companyName": "string",     // Optional - Company name
+  "locationId": "string",      // Required - GHL location ID
+  "locationName": "string",    // Optional - Location name
+  "email": "string",           // Required - User email
+  "name": "string",            // Required - User name
+  "phone": "string"            // Optional - Phone number
+}
+```
+
+**API Response Enhancement**:
+- `GET /api/auth/me` ahora incluye campo `companyName` (string | null)
+
+**Frontend Display**:
+- Dashboard header muestra nombre de empresa con `data-testid="text-company-name"`
+- Ubicado encima del título "WhatsApp AI Platform"
+- Solo visible si usuario tiene empresa asignada
+
+**Tests**:
+- ✅ Webhook crea empresa y subcuenta correctamente
+- ✅ Race condition handling funciona para empresas duplicadas
+- ✅ Company name aparece en dashboard header
+- ✅ OAuth-only authentication verificado (sin contraseña)
