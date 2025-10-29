@@ -175,18 +175,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Obtener usuario actual
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     if (!req.isAuthenticated() || !req.user) {
       res.status(401).json({ error: "No autenticado" });
       return;
     }
     
     const user = req.user as any;
+    
+    // Obtener información de la empresa
+    let companyName = null;
+    if (user.companyId) {
+      const company = await storage.getCompany(user.companyId);
+      companyName = company?.name || null;
+    }
+    
     // No enviar datos sensibles al cliente, pero indicar si tiene contraseña
     const { passwordHash: _, googleId: __, ...userWithoutSensitive } = user;
     const userResponse = {
       ...userWithoutSensitive,
       hasPassword: !!user.passwordHash, // Indicar si tiene contraseña local
+      companyName, // Agregar nombre de la empresa
     };
     res.json(userResponse);
   });

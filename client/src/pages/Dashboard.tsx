@@ -116,8 +116,10 @@ function DashboardContent() {
               <MessageSquare className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
+              {(user as any)?.companyName && (
+                <p className="text-xs text-muted-foreground" data-testid="text-company-name">{(user as any).companyName}</p>
+              )}
               <h1 className="text-lg font-bold">WhatsApp AI Platform</h1>
-              <p className="text-xs text-muted-foreground">Dashboard</p>
             </div>
           </div>
 
