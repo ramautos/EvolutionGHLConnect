@@ -7,6 +7,14 @@ const app = express();
 // Trust proxy for secure cookies behind Cloudflare/reverse proxy
 app.set('trust proxy', 1);
 
+// Health check endpoint - MUST be first to respond immediately
+app.get('/', (_req, res) => {
+  res.status(200).json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString()
+  });
+});
+
 declare module 'http' {
   interface IncomingMessage {
     rawBody: unknown
@@ -66,12 +74,6 @@ app.use((req, res, next) => {
     console.log('✅ Environment variables verified');
     console.log('🚀 Starting server initialization...');
 
-    // Ejecutar bootstrap automáticamente si es necesario
-    // Si falla, el servidor NO debe arrancar (no capturamos el error)
-    const { runBootstrap } = await import('./bootstrap');
-    await runBootstrap();
-    console.log('✅ Database initialization complete');
-
     const server = await registerRoutes(app);
     console.log('✅ Routes registered successfully');
 
@@ -107,9 +109,21 @@ app.use((req, res, next) => {
       port,
       host: "0.0.0.0",
       reusePort: true,
-    }, () => {
+    }, async () => {
       console.log(`✅ Server successfully started!`);
       log(`serving on port ${port}`);
+      
+      // Run bootstrap AFTER server is listening and responding to health checks
+      try {
+        console.log('🔄 Running database bootstrap in background...');
+        const { runBootstrap } = await import('./bootstrap');
+        await runBootstrap();
+        console.log('✅ Database initialization complete');
+      } catch (bootstrapError) {
+        console.error('❌ Bootstrap failed:', bootstrapError);
+        console.error('⚠️  Server is running but database may not be initialized properly');
+        // Don't exit - server is already serving requests
+      }
     });
 
     server.on('error', (error: any) => {
