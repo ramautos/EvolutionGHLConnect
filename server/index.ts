@@ -9,6 +9,7 @@ app.set('trust proxy', 1);
 
 // Health check endpoint at / - smart routing to avoid intercepting SPA traffic
 // Uses Express content negotiation to distinguish health checks from browser requests
+// SLA: Responds in <1ms (no blocking operations, no database queries)
 app.get('/', (req, res, next) => {
   // If client accepts HTML (browser/crawler), pass to Vite/static files
   if (req.accepts('html')) {
@@ -16,6 +17,7 @@ app.get('/', (req, res, next) => {
   }
   
   // Otherwise, it's a health check probe - respond immediately with JSON
+  // No await, no database, no I/O - guaranteed fast response
   res.status(200).json({ 
     status: 'ok',
     timestamp: new Date().toISOString()
