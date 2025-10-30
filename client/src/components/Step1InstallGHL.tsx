@@ -1,8 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, ExternalLink, CheckCircle2 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 
 export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
+  const { user } = useUser();
+  
   const handleInstallClick = () => {
     // Construir la URL de OAuth de GoHighLevel
     // PLAN B: Usar n8n como intermediario OAuth
@@ -38,6 +41,12 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
       redirect_uri: redirectUri,
       client_id: clientId,
       scope: scopes,
+      // Pasar el email del usuario en el state parameter (OAuth permite esto)
+      state: encodeURIComponent(JSON.stringify({ 
+        user_email: user?.email || "",
+        user_id: user?.id || "",
+        company_id: user?.companyId || ""
+      })),
     });
 
     const authUrl = `${baseUrl}?${params.toString()}`;

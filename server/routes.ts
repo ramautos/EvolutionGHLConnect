@@ -745,6 +745,10 @@ ${ghlErrorDetails}
         companyName: req.body.companyName || req.body.cuenta_principal || undefined,
         locationName: req.body.locationName || req.body.subcuenta || undefined,
         phone: req.body.phone || req.body.telefono_cliente || undefined,
+        // NUEVO: Información del usuario que instaló la subcuenta (del state parameter de OAuth)
+        ownerEmail: req.body.user_email || undefined,
+        ownerId: req.body.user_id || undefined,
+        ownerCompanyId: req.body.company_id || undefined,
       };
 
       console.log("📋 Normalized webhook data:", JSON.stringify(normalizedData, null, 2));
@@ -757,35 +761,54 @@ ${ghlErrorDetails}
         companyName: z.string().optional(),
         locationName: z.string().optional(),
         phone: z.string().optional(),
+        ownerEmail: z.string().optional(),
+        ownerId: z.string().optional(),
+        ownerCompanyId: z.string().optional(),
       });
 
       const validatedData = webhookSchema.parse(normalizedData);
 
-      // 1. Buscar o crear la empresa (con manejo de race conditions)
-      let company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+      // 1. Determinar la empresa a la que pertenece esta subcuenta
+      let company;
       
+      // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta
+      if (validatedData.ownerCompanyId) {
+        console.log(`🔍 Finding owner's company: ${validatedData.ownerCompanyId}`);
+        company = await storage.getCompany(validatedData.ownerCompanyId);
+        if (company) {
+          console.log(`✅ Using owner's company: ${company.name} (${company.id})`);
+        }
+      }
+      
+      // PRIORIDAD 2: Si no hay owner, buscar por ghlCompanyId (legacy flow)
       if (!company) {
-        console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
-        try {
-          company = await storage.createCompany({
-            name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
-            email: validatedData.email,
-            ghlCompanyId: validatedData.ghlCompanyId,
-            isActive: true,
-          });
-        } catch (error: any) {
-          // Handle race condition: another request may have created the company
-          if (error.message?.includes("unique constraint") || error.code === "23505") {
-            console.log(`⚠️ Company already created by concurrent request, re-querying...`);
-            company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
-            if (!company) {
-              throw new Error("Failed to create or find company after race condition");
+        company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+        
+        if (!company) {
+          console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
+          try {
+            company = await storage.createCompany({
+              name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
+              email: validatedData.email,
+              ghlCompanyId: validatedData.ghlCompanyId,
+              isActive: true,
+            });
+          } catch (error: any) {
+            // Handle race condition: another request may have created the company
+            if (error.message?.includes("unique constraint") || error.code === "23505") {
+              console.log(`⚠️ Company already created by concurrent request, re-querying...`);
+              company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+              if (!company) {
+                throw new Error("Failed to create or find company after race condition");
+              }
+            } else {
+              throw error;
             }
-          } else {
-            throw error;
           }
         }
       }
+      
+      console.log(`📊 Final company selected: ${company.name} (${company.id})`);
 
       // 2. Verificar si la subcuenta ya existe por locationId
       let subaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
@@ -844,8 +867,8 @@ ${ghlErrorDetails}
         const instance = await storage.createWhatsappInstance({
           subaccountId: subaccount.id,
           locationId: validatedData.locationId,
-          customName: validatedData.locationName || `WhatsApp ${validatedData.name}`,
           evolutionInstanceName: evolutionName,
+          status: "created",
         });
         
         instanceCreated = true;
