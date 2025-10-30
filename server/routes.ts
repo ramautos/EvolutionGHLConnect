@@ -558,6 +558,50 @@ ${ghlErrorDetails}
     }
   });
 
+  // Obtener datos completos del cliente desde la base de datos GHL
+  app.get("/api/ghl/client-data", async (req, res) => {
+    try {
+      const { company_id, location_id } = req.query;
+
+      if (!company_id || !location_id) {
+        res.status(400).json({ error: "company_id and location_id are required" });
+        return;
+      }
+
+      console.log(`🔍 Fetching client data for company_id=${company_id}, location_id=${location_id}`);
+
+      // Buscar el cliente en la base de datos GHL externa
+      const cliente = await ghlStorage.getClienteByLocationId(location_id as string);
+
+      if (!cliente) {
+        res.status(404).json({ error: "Client not found in GHL database" });
+        return;
+      }
+
+      // Verificar que pertenece a la compañía correcta
+      if (cliente.companyid !== company_id) {
+        res.status(403).json({ error: "Client does not belong to this company" });
+        return;
+      }
+
+      // Retornar toda la información del cliente
+      res.json({
+        email: cliente.email_cliente,
+        name: cliente.nombre_cliente,
+        phone: cliente.telefono_cliente,
+        locationId: cliente.locationid,
+        locationName: cliente.subcuenta,
+        ghlCompanyId: cliente.companyid,
+        companyName: cliente.cuenta_principal,
+        userId: cliente.userid,
+        isActive: cliente.isactive,
+      });
+    } catch (error) {
+      console.error("Error fetching client data:", error);
+      res.status(500).json({ error: "Failed to fetch client data" });
+    }
+  });
+
   // ============================================
   // WEBHOOK PARA REGISTRO DE SUBCUENTAS (N8N)
   // ============================================
