@@ -586,13 +586,13 @@ ${ghlErrorDetails}
 
       // Retornar toda la información del cliente
       res.json({
-        email: cliente.email_cliente,
-        name: cliente.nombre_cliente,
-        phone: cliente.telefono_cliente,
+        email: cliente.emailCliente,
+        name: cliente.nombreCliente,
+        phone: cliente.telefonoCliente,
         locationId: cliente.locationid,
         locationName: cliente.subcuenta,
         ghlCompanyId: cliente.companyid,
-        companyName: cliente.cuenta_principal,
+        companyName: cliente.cuentaPrincipal,
         userId: cliente.userid,
         isActive: cliente.isactive,
       });

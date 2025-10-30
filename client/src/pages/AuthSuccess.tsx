@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useUser } from "@/contexts/UserContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
@@ -8,23 +7,42 @@ import confetti from "canvas-confetti";
 
 export default function AuthSuccess() {
   const [, setLocation] = useLocation();
-  const { user } = useUser();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState("Procesando autenticación...");
+  const [message, setMessage] = useState("Obteniendo información del cliente...");
 
-  // Mutation para crear subcuenta
+  // Mutation para crear subcuenta directamente desde la base de datos GHL
   const createSubaccountMutation = useMutation({
-    mutationFn: async ({ ghlCompanyId, locationId }: { ghlCompanyId: string; locationId: string }) => {
-      const res = await apiRequest("POST", "/api/subaccounts/from-ghl", {
-        companyId: user?.companyId,
-        ghlCompanyId,
-        locationId,
+    mutationFn: async ({ companyId, locationId }: { companyId: string; locationId: string }) => {
+      // 1. Obtener los datos completos del cliente desde la base de datos GHL
+      setMessage("Consultando datos del cliente...");
+      const clientDataRes = await fetch(`/api/ghl/client-data?company_id=${companyId}&location_id=${locationId}`);
+      
+      if (!clientDataRes.ok) {
+        const error = await clientDataRes.json();
+        throw new Error(error.error || "No se pudo obtener la información del cliente");
+      }
+      
+      const clientData = await clientDataRes.json();
+      console.log("📋 Client data received:", clientData);
+
+      // 2. Crear la subcuenta con todos los datos
+      setMessage("Creando subcuenta...");
+      const res = await apiRequest("POST", "/api/webhooks/register-subaccount", {
+        email: clientData.email,
+        name: clientData.name,
+        phone: clientData.phone,
+        locationId: clientData.locationId,
+        locationName: clientData.locationName,
+        ghlCompanyId: clientData.ghlCompanyId,
+        companyName: clientData.companyName,
       });
+      
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("✅ Subaccount created:", data);
       setStatus("success");
-      setMessage("¡Subcuenta agregada exitosamente!");
+      setMessage("¡Subcuenta creada exitosamente!");
       
       // Disparar confeti
       confetti({
@@ -33,66 +51,43 @@ export default function AuthSuccess() {
         origin: { y: 0.6 },
       });
 
-      // Marcar como exitoso en localStorage para que el modal lo detecte
-      localStorage.setItem("ghl_oauth_success", "true");
-
-      // Redirigir al dashboard después de 2 segundos
+      // Redirigir a la página de subcuentas después de 2 segundos
       setTimeout(() => {
-        setLocation("/dashboard");
+        setLocation("/subaccounts");
       }, 2000);
     },
     onError: (error: any) => {
+      console.error("❌ Error creating subaccount:", error);
       setStatus("error");
       setMessage(error.message || "Hubo un error al crear la subcuenta");
       
-      // Redirigir al dashboard después de 3 segundos
+      // Redirigir después de 3 segundos
       setTimeout(() => {
-        setLocation("/dashboard");
+        setLocation("/subaccounts");
       }, 3000);
     },
   });
 
   useEffect(() => {
-    // Esperar a que el usuario esté cargado
-    if (!user) {
-      setMessage("Esperando autenticación...");
-      return;
-    }
-
     // Obtener parámetros de la URL
     const params = new URLSearchParams(window.location.search);
-    const ghlCompanyId = params.get("company_id");
+    const companyId = params.get("company_id");
     const locationId = params.get("location_id");
 
-    console.log("✅ OAuth exitoso - Datos recibidos de n8n:", { ghlCompanyId, locationId, userCompanyId: user.companyId });
+    console.log("🔵 AuthSuccess received params:", { companyId, locationId });
 
-    if (!ghlCompanyId || !locationId) {
+    if (!companyId || !locationId) {
       setStatus("error");
-      setMessage("Faltan parámetros de autenticación");
+      setMessage("Faltan parámetros de autenticación (company_id o location_id)");
       setTimeout(() => {
-        setLocation("/dashboard");
+        setLocation("/subaccounts");
       }, 2000);
       return;
     }
 
-    if (!user.companyId) {
-      setStatus("error");
-      setMessage("Tu usuario no tiene una empresa asignada. Contacta al administrador.");
-      setTimeout(() => {
-        setLocation("/dashboard");
-      }, 3000);
-      return;
-    }
-
-    // Guardar en localStorage para referencia
-    localStorage.setItem("ghl_company_id", ghlCompanyId);
-    localStorage.setItem("ghl_location_id", locationId);
-    console.log("💾 IDs guardados en localStorage:", { ghlCompanyId, locationId });
-
-    // Crear subcuenta
-    setMessage("Creando subcuenta...");
-    createSubaccountMutation.mutate({ ghlCompanyId, locationId });
-  }, [user, setLocation]);
+    // Crear subcuenta automáticamente
+    createSubaccountMutation.mutate({ companyId, locationId });
+  }, [setLocation]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
