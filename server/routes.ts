@@ -63,21 +63,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Hash de la contraseña
       const passwordHash = await hashPassword(validatedData.password);
 
-      // Obtener o crear empresa por defecto para desarrollo
-      // Intentar obtener la empresa test-company-001 primero
-      let defaultCompany = await storage.getCompany("test-company-001");
-      if (!defaultCompany) {
-        // Si no existe, crear empresa por defecto
-        defaultCompany = await storage.createCompany({
-          name: "Default Company",
-          email: "default@company.com",
-          isActive: true,
-        });
-      }
+      // Crear empresa nueva para este usuario
+      const newCompany = await storage.createCompany({
+        name: validatedData.name,
+        email: validatedData.email,
+        isActive: true,
+      });
 
-      // Crear usuario
+      // Crear subcuenta asociada a la nueva empresa
       const user = await storage.createSubaccount({
-        companyId: defaultCompany.id,
+        companyId: newCompany.id,
         email: validatedData.email,
         name: validatedData.name,
         passwordHash,

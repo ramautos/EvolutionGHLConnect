@@ -128,21 +128,16 @@ export function setupPassport(app: Express) {
               }
 
               if (!subaccount && email) {
-                // Obtener o crear empresa por defecto para desarrollo
-                // Intentar obtener la empresa test-company-001 primero
-                let defaultCompany = await storage.getCompany("test-company-001");
-                if (!defaultCompany) {
-                  // Si no existe, crear empresa por defecto
-                  defaultCompany = await storage.createCompany({
-                    name: "Default Company",
-                    email: "default@company.com",
-                    isActive: true,
-                  });
-                }
+                // Crear empresa nueva para este usuario
+                const newCompany = await storage.createCompany({
+                  name: profile.displayName || email.split('@')[0],
+                  email: email,
+                  isActive: true,
+                });
 
-                // Crear nueva subcuenta con companyId asignado
+                // Crear nueva subcuenta asociada a la nueva empresa
                 subaccount = await storage.createSubaccount({
-                  companyId: defaultCompany.id,
+                  companyId: newCompany.id,
                   email,
                   name: profile.displayName || email.split('@')[0],
                   googleId: profile.id,
