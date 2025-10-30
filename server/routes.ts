@@ -692,6 +692,7 @@ ${ghlErrorDetails}
         name: validatedData.name,
         phone: validatedData.phone || null,
         locationId: validatedData.locationId,
+        locationName: validatedData.locationName || null,
         ghlCompanyId: validatedData.ghlCompanyId,
         companyId: company.id,
         role: "user",

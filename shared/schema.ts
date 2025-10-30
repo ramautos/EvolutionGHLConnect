@@ -45,6 +45,7 @@ export const subaccounts = pgTable("subaccounts", {
   
   // GoHighLevel Integration (opcionales para registro manual)
   locationId: text("location_id").unique(),
+  locationName: text("location_name"), // Nombre de la subcuenta en GoHighLevel
   ghlCompanyId: text("ghl_company_id"),
   
   // Información básica
