@@ -41,7 +41,7 @@ export const companies = pgTable("companies", {
 // ============================================
 export const subaccounts = pgTable("subaccounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  companyId: varchar("company_id").references(() => companies.id, { onDelete: "cascade" }),
   
   // GoHighLevel Integration (opcionales para registro manual)
   locationId: text("location_id").unique(),
