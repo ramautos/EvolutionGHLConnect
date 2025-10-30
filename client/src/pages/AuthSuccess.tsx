@@ -29,9 +29,9 @@ export default function AuthSuccess() {
         origin: { y: 0.6 },
       });
 
-      // Redirigir a subcuentas después de 3 segundos
+      // Redirigir al dashboard después de 3 segundos
       setTimeout(() => {
-        setLocation("/subaccounts");
+        setLocation("/dashboard");
       }, 3000);
     }, 1000);
   }, [setLocation]);
