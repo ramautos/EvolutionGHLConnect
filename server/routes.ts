@@ -558,20 +558,29 @@ ${ghlErrorDetails}
     }
   });
 
-  // Obtener datos completos del cliente desde la base de datos GHL
-  app.get("/api/ghl/client-data", async (req, res) => {
+  // REMOVED: /api/ghl/client-data endpoint (security vulnerability - exposed PII without auth)
+  // Functionality moved to server-side webhook endpoint /api/webhooks/create-from-oauth
+
+  // ============================================
+  // WEBHOOK PARA REGISTRO DE SUBCUENTAS (N8N)
+  // ============================================
+
+  // Webhook SEGURO para crear subcuenta desde OAuth flow (server-side only)
+  app.post("/api/webhooks/create-from-oauth", async (req, res) => {
     try {
-      const { company_id, location_id } = req.query;
+      console.log("🔵 Webhook create-from-oauth received:", JSON.stringify(req.body, null, 2));
+
+      const { company_id, location_id } = req.body;
 
       if (!company_id || !location_id) {
         res.status(400).json({ error: "company_id and location_id are required" });
         return;
       }
 
-      console.log(`🔍 Fetching client data for company_id=${company_id}, location_id=${location_id}`);
+      console.log(`🔍 Fetching client data from GHL DB for company_id=${company_id}, location_id=${location_id}`);
 
-      // Buscar el cliente en la base de datos GHL externa
-      const cliente = await ghlStorage.getClienteByLocationId(location_id as string);
+      // 1. Buscar el cliente en la base de datos GHL externa (server-side only)
+      const cliente = await ghlStorage.getClienteByLocationId(location_id);
 
       if (!cliente) {
         res.status(404).json({ error: "Client not found in GHL database" });
@@ -584,8 +593,8 @@ ${ghlErrorDetails}
         return;
       }
 
-      // Retornar toda la información del cliente
-      res.json({
+      // 2. Preparar datos completos del cliente
+      const clientData = {
         email: cliente.emailCliente,
         name: cliente.nombreCliente,
         phone: cliente.telefonoCliente,
@@ -593,18 +602,130 @@ ${ghlErrorDetails}
         locationName: cliente.subcuenta,
         ghlCompanyId: cliente.companyid,
         companyName: cliente.cuentaPrincipal,
-        userId: cliente.userid,
-        isActive: cliente.isactive,
+      };
+
+      console.log("📋 Client data retrieved:", JSON.stringify(clientData, null, 2));
+
+      // 3. Validar datos
+      const webhookSchema = z.object({
+        email: z.string().email("Email inválido"),
+        name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+        locationId: z.string().min(1, "Location ID es requerido"),
+        ghlCompanyId: z.string().min(1, "Company ID es requerido"),
+        companyName: z.string().nullable(),
+        locationName: z.string().nullable(),
+        phone: z.string().nullable(),
+      });
+
+      const validatedData = webhookSchema.parse(clientData);
+
+      // 4. Buscar o crear la empresa
+      let company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+      
+      if (!company) {
+        console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
+        try {
+          company = await storage.createCompany({
+            name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
+            email: validatedData.email,
+            ghlCompanyId: validatedData.ghlCompanyId,
+            isActive: true,
+          });
+        } catch (error: any) {
+          if (error.message?.includes("unique constraint") || error.code === "23505") {
+            console.log(`⚠️ Company already created by concurrent request, re-querying...`);
+            company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
+            if (!company) {
+              throw new Error("Failed to create or find company after race condition");
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      // 5. Verificar si la subcuenta ya existe
+      let subaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
+
+      if (subaccount) {
+        console.log(`✅ Subaccount already exists for location ${validatedData.locationId}`);
+        res.json({ 
+          success: true, 
+          message: "Subaccount already exists",
+          subaccount: {
+            id: subaccount.id,
+            email: subaccount.email,
+            name: subaccount.name,
+            locationId: subaccount.locationId,
+            locationName: subaccount.locationName,
+          }
+        });
+        return;
+      }
+
+      // 6. Crear la subcuenta
+      console.log(`📝 Creating new subaccount for location ${validatedData.locationId}`);
+      
+      subaccount = await storage.createSubaccount({
+        email: validatedData.email,
+        name: validatedData.name,
+        phone: validatedData.phone || null,
+        locationId: validatedData.locationId,
+        locationName: validatedData.locationName || null,
+        ghlCompanyId: validatedData.ghlCompanyId,
+        companyId: company.id,
+        role: "user",
+        isActive: true,
+        billingEnabled: true,
+        manuallyActivated: false,
+        passwordHash: null,
+        googleId: null,
+      });
+
+      // 7. Crear suscripción con trial
+      await storage.createSubscription(subaccount.id, 15);
+
+      // 8. Crear instancia de WhatsApp
+      const existingInstances = await storage.getWhatsappInstancesByLocationId(validatedData.locationId);
+      const instanceNumber = existingInstances.length + 1;
+      const instanceName = `${validatedData.locationId}_${instanceNumber}`;
+
+      const whatsappInstance = await storage.createWhatsappInstance({
+        subaccountId: subaccount.id,
+        locationId: validatedData.locationId,
+        evolutionInstanceName: instanceName,
+        status: "created",
+      });
+
+      console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
+      console.log(`✅ WhatsApp instance created: ${instanceName}`);
+
+      res.json({
+        success: true,
+        message: "Subaccount created successfully",
+        subaccount: {
+          id: subaccount.id,
+          email: subaccount.email,
+          name: subaccount.name,
+          locationId: subaccount.locationId,
+          locationName: subaccount.locationName,
+        },
+        whatsappInstance: {
+          id: whatsappInstance.id,
+          instanceName: instanceName,
+          status: whatsappInstance.status,
+        }
       });
     } catch (error) {
-      console.error("Error fetching client data:", error);
-      res.status(500).json({ error: "Failed to fetch client data" });
+      if (error instanceof z.ZodError) {
+        console.error("Validation error:", error.errors);
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        console.error("Error creating subaccount from OAuth:", error);
+        res.status(500).json({ error: "Failed to create subaccount" });
+      }
     }
   });
-
-  // ============================================
-  // WEBHOOK PARA REGISTRO DE SUBCUENTAS (N8N)
-  // ============================================
   
   // Webhook para registrar subcuenta desde n8n después de OAuth
   app.post("/api/webhooks/register-subaccount", async (req, res) => {

@@ -66,9 +66,33 @@ For the initial deployment to production, configure the following required envir
 - **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
 
 ### Webhook Integration
-The n8n webhook at `/api/webhooks/register-subaccount` automatically creates:
+Two integration flows exist for creating subaccounts from GoHighLevel:
+
+#### Flow 1: Direct Webhook (Legacy)
+The n8n webhook at `/api/webhooks/register-subaccount` accepts JSON payload with complete client data:
+```json
+{
+  "email": "client@example.com",
+  "name": "Client Name",
+  "phone": "+1234567890",
+  "locationId": "ghl_location_id",
+  "locationName": "Subaccount Name",
+  "ghlCompanyId": "ghl_company_id",
+  "companyName": "Company Name"
+}
+```
+
+#### Flow 2: OAuth Webhook (Current - Secure)
+n8n calls `/api/webhooks/create-from-oauth` with `company_id` and `location_id` after OAuth completion:
+1. Backend fetches complete client data from GHL external database (server-side only)
+2. Validates and creates company (if needed)
+3. Creates subaccount with all client information
+4. Creates WhatsApp instance and trial subscription
+5. n8n redirects user to `/auth/success?company_id=X&location_id=Y` (for UI feedback only)
+
+Both flows automatically create:
 - Company (if new `companyid`)
-- Subaccount with user credentials
+- Subaccount with complete client information (name, email, phone, locationName)
 - WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
 - 15-day trial subscription
 
