@@ -799,46 +799,23 @@ ${ghlErrorDetails}
       }
 
       // 2. Determinar la empresa a la que pertenece esta subcuenta
-      let company;
+      let companyId: string | null = null;
       
       // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta (OAuth validado)
       if (ownerCompanyId) {
         console.log(`🔍 Finding owner's company: ${ownerCompanyId}`);
-        company = await storage.getCompany(ownerCompanyId);
+        const company = await storage.getCompany(ownerCompanyId);
         if (company) {
           console.log(`✅ Using owner's company: ${company.name} (${company.id})`);
+          companyId = company.id;
         }
       }
       
-      // PRIORIDAD 2: Si no hay owner validado, buscar por ghlCompanyId (legacy flow)
-      if (!company) {
-        company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
-        
-        if (!company) {
-          console.log(`📝 Creating new company: ${validatedData.companyName || validatedData.ghlCompanyId}`);
-          try {
-            company = await storage.createCompany({
-              name: validatedData.companyName || `Company ${validatedData.ghlCompanyId}`,
-              email: validatedData.email,
-              ghlCompanyId: validatedData.ghlCompanyId,
-              isActive: true,
-            });
-          } catch (error: any) {
-            // Handle race condition: another request may have created the company
-            if (error.message?.includes("unique constraint") || error.code === "23505") {
-              console.log(`⚠️ Company already created by concurrent request, re-querying...`);
-              company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
-              if (!company) {
-                throw new Error("Failed to create or find company after race condition");
-              }
-            } else {
-              throw error;
-            }
-          }
-        }
+      // PRIORIDAD 2: Si no hay owner validado, dejar companyId como NULL
+      // La subcuenta será "claimed" posteriormente por un usuario autenticado
+      if (!companyId) {
+        console.log(`⚠️ No owner validated - subaccount will be created without company (pending claim)`);
       }
-      
-      console.log(`📊 Final company selected: ${company.name} (${company.id})`);
 
       // 2. Verificar si la subcuenta ya existe por locationId
       let subaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
@@ -858,7 +835,7 @@ ${ghlErrorDetails}
         return;
       }
 
-      // 3. Crear la subcuenta (OAuth-only, no password)
+      // 3. Crear la subcuenta (pendiente de claim si no hay companyId)
       console.log(`📝 Creating new subaccount for location ${validatedData.locationId}`);
       
       subaccount = await storage.createSubaccount({
@@ -868,7 +845,7 @@ ${ghlErrorDetails}
         locationId: validatedData.locationId,
         locationName: validatedData.locationName || null,
         ghlCompanyId: validatedData.ghlCompanyId,
-        companyId: company.id,
+        companyId: companyId, // Puede ser NULL si no hay owner validado
         role: "user",
         isActive: true,
         billingEnabled: true,
@@ -917,21 +894,21 @@ ${ghlErrorDetails}
 
       res.json({
         success: true,
-        message: "Subaccount created successfully",
+        message: companyId ? "Subaccount created successfully" : "Subaccount created - pending claim",
         subaccount: {
           id: subaccount.id,
           email: subaccount.email,
           name: subaccount.name,
           locationId: subaccount.locationId,
-          companyId: company.id,
-          companyName: company.name,
+          companyId: companyId,
+          requiresClaim: !companyId,
         },
         instance: instanceCreated ? {
           id: instanceId,
           created: true,
         } : {
           created: false,
-          message: "Instance will be created when user first logs in",
+          message: companyId ? "Instance will be created when user first logs in" : "Instance will be created after claim",
         }
       });
     } catch (error: any) {
