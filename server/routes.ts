@@ -799,7 +799,7 @@ ${ghlErrorDetails}
       }
 
       // 2. Determinar la empresa a la que pertenece esta subcuenta
-      let companyId: string | null = null;
+      let companyId: string = 'PENDING_CLAIM';
       
       // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta (OAuth validado)
       if (ownerCompanyId) {
@@ -811,10 +811,10 @@ ${ghlErrorDetails}
         }
       }
       
-      // PRIORIDAD 2: Si no hay owner validado, dejar companyId como NULL
+      // PRIORIDAD 2: Si no hay owner validado, usar PENDING_CLAIM
       // La subcuenta será "claimed" posteriormente por un usuario autenticado
-      if (!companyId) {
-        console.log(`⚠️ No owner validated - subaccount will be created without company (pending claim)`);
+      if (companyId === 'PENDING_CLAIM') {
+        console.log(`⚠️ No owner validated - subaccount will be assigned to PENDING_CLAIM company (pending claim)`);
       }
 
       // 2. Verificar si la subcuenta ya existe por locationId
@@ -1624,8 +1624,8 @@ ${ghlErrorDetails}
         return;
       }
 
-      // Si la subcuenta ya tiene otro companyId, verificar ventana de tiempo
-      if (subaccount.companyId !== null) {
+      // Si la subcuenta ya tiene otro companyId (que no sea PENDING_CLAIM), rechazar
+      if (subaccount.companyId !== null && subaccount.companyId !== 'PENDING_CLAIM') {
         console.log(`❌ Subaccount already claimed by another company: ${subaccount.companyId}`);
         res.status(400).json({ error: "This subaccount has already been claimed by another company" });
         return;
