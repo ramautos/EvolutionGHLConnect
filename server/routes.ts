@@ -1606,6 +1606,24 @@ ${ghlErrorDetails}
         return;
       }
 
+      // Si la subcuenta ya pertenece a esta company, no hacer nada
+      if (subaccount.companyId === user.companyId) {
+        console.log(`✅ Subaccount already belongs to this user's company`);
+        res.json({ 
+          success: true,
+          message: "Subaccount already belongs to your company",
+          subaccount 
+        });
+        return;
+      }
+
+      // Si la subcuenta ya tiene otro companyId, verificar ventana de tiempo
+      if (subaccount.companyId !== null) {
+        console.log(`❌ Subaccount already claimed by another company: ${subaccount.companyId}`);
+        res.status(400).json({ error: "This subaccount has already been claimed by another company" });
+        return;
+      }
+
       // Verificar que la subcuenta fue creada recientemente (últimos 10 minutos)
       const now = new Date();
       const createdAt = new Date(subaccount.createdAt!);
@@ -1615,17 +1633,6 @@ ${ghlErrorDetails}
       if (minutesDiff > 10) {
         console.log(`❌ Subaccount too old to claim (created ${minutesDiff.toFixed(1)} minutes ago)`);
         res.status(400).json({ error: "This subaccount cannot be claimed. It was created more than 10 minutes ago." });
-        return;
-      }
-
-      // Si la subcuenta ya pertenece a esta company, no hacer nada
-      if (subaccount.companyId === user.companyId) {
-        console.log(`✅ Subaccount already belongs to this user's company`);
-        res.json({ 
-          success: true,
-          message: "Subaccount already belongs to your company",
-          subaccount 
-        });
         return;
       }
 
