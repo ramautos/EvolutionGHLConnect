@@ -65,11 +65,33 @@ For the initial deployment to production, configure the following required envir
   4. Marks database as initialized
 - **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
 
-### Webhook Integration
-Two integration flows exist for creating subaccounts from GoHighLevel:
+### Webhook Integration with OAuth State Validation
 
-#### Flow 1: Direct Webhook (Legacy)
-The n8n webhook at `/api/webhooks/register-subaccount` accepts JSON payload with complete client data:
+#### OAuth State Validation System (Current - Production)
+Secure OAuth flow with database-backed state validation ensures subaccounts are created under the correct user's company:
+
+**Flow Overview:**
+1. **State Generation** (`POST /api/ghl/generate-oauth-state`):
+   - User clicks "Connect with GoHighLevel" button
+   - Backend generates unique 64-char state token with 10-minute expiration
+   - State stored in `oauth_states` table with `userId`, `companyId`, `userEmail`
+   - Frontend receives state and redirects to GoHighLevel OAuth
+
+2. **OAuth Callback to N8N**:
+   - GoHighLevel redirects to n8n with: `code`, `state`, `locationId`, `companyId`
+   - N8N extracts state from query parameters
+
+3. **Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
+   - N8N sends webhook with client data + `state` parameter
+   - Backend validates state:
+     - Checks existence in database
+     - Verifies not expired (10 min TTL)
+     - Confirms single-use (not previously used)
+     - Marks state as used
+   - Recovers `companyId` from validated state
+   - Creates subaccount under correct company
+
+**Required Webhook Payload:**
 ```json
 {
   "email": "client@example.com",
@@ -78,23 +100,18 @@ The n8n webhook at `/api/webhooks/register-subaccount` accepts JSON payload with
   "locationId": "ghl_location_id",
   "locationName": "Subaccount Name",
   "ghlCompanyId": "ghl_company_id",
-  "companyName": "Company Name"
+  "companyName": "Company Name",
+  "state": "7f3a2b1c4d5e6f..." // CRITICAL: State from OAuth callback
 }
 ```
 
-#### Flow 2: OAuth Webhook (Current - Secure)
-n8n calls `/api/webhooks/create-from-oauth` with `company_id` and `location_id` after OAuth completion:
-1. Backend fetches complete client data from GHL external database (server-side only)
-2. Validates and creates company (if needed)
-3. Creates subaccount with all client information
-4. Creates WhatsApp instance and trial subscription
-5. n8n redirects user to `/auth/success?company_id=X&location_id=Y` (for UI feedback only)
-
-Both flows automatically create:
-- Company (if new `companyid`)
-- Subaccount with complete client information (name, email, phone, locationName)
+**Automatic Creation:**
+- Subaccount under validated user's company
 - WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
 - 15-day trial subscription
+
+**Legacy Fallback:**
+If no valid state provided, system falls back to `ghlCompanyId` lookup (creates new company if not found).
 
 ## External Dependencies
 

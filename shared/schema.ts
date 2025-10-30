@@ -190,6 +190,20 @@ export const systemConfig = pgTable("system_config", {
 });
 
 // ============================================
+// OAUTH STATES TABLE - Validación de OAuth flow
+// ============================================
+export const oauthStates = pgTable("oauth_states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  state: text("state").notNull().unique(),
+  userId: varchar("user_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
+  companyId: varchar("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  userEmail: text("user_email").notNull(),
+  used: boolean("used").notNull().default(false),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
 // ZOD SCHEMAS - Validación
 // ============================================
 
@@ -378,6 +392,15 @@ export const updateSystemConfigSchema = z.object({
 export type SystemConfig = typeof systemConfig.$inferSelect;
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
 export type UpdateSystemConfig = z.infer<typeof updateSystemConfigSchema>;
+
+// OAuth States
+export const insertOAuthStateSchema = createInsertSchema(oauthStates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type OAuthState = typeof oauthStates.$inferSelect;
+export type InsertOAuthState = z.infer<typeof insertOAuthStateSchema>;
 
 // Schema para enviar mensajes de WhatsApp
 export const sendWhatsappMessageSchema = z.object({

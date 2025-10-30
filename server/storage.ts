@@ -1,4 +1,4 @@
-import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig } from "@shared/schema";
+import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql as drizzleSql, count, sum, isNotNull } from "drizzle-orm";
 
@@ -72,6 +72,14 @@ export interface IStorage {
   getSystemConfig(): Promise<SystemConfig | undefined>;
   createSystemConfig(config: InsertSystemConfig): Promise<SystemConfig>;
   updateSystemConfig(id: string, updates: UpdateSystemConfig): Promise<SystemConfig | undefined>;
+  
+  // ============================================
+  // OAUTH STATE OPERATIONS
+  // ============================================
+  createOAuthState(state: InsertOAuthState): Promise<OAuthState>;
+  getOAuthState(state: string): Promise<OAuthState | undefined>;
+  markOAuthStateAsUsed(state: string): Promise<void>;
+  cleanupExpiredOAuthStates(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -556,6 +564,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(systemConfig.id, id))
       .returning();
     return updated || undefined;
+  }
+
+  // ============================================
+  // OAUTH STATE OPERATIONS
+  // ============================================
+
+  async createOAuthState(state: InsertOAuthState): Promise<OAuthState> {
+    const [newState] = await db
+      .insert(oauthStates)
+      .values(state)
+      .returning();
+    return newState;
+  }
+
+  async getOAuthState(state: string): Promise<OAuthState | undefined> {
+    const [oauthState] = await db
+      .select()
+      .from(oauthStates)
+      .where(eq(oauthStates.state, state));
+    return oauthState || undefined;
+  }
+
+  async markOAuthStateAsUsed(state: string): Promise<void> {
+    await db
+      .update(oauthStates)
+      .set({ used: true })
+      .where(eq(oauthStates.state, state));
+  }
+
+  async cleanupExpiredOAuthStates(): Promise<void> {
+    await db
+      .delete(oauthStates)
+      .where(drizzleSql`${oauthStates.expiresAt} < NOW()`);
   }
 }
 

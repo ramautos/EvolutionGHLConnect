@@ -745,10 +745,8 @@ ${ghlErrorDetails}
         companyName: req.body.companyName || req.body.cuenta_principal || undefined,
         locationName: req.body.locationName || req.body.subcuenta || undefined,
         phone: req.body.phone || req.body.telefono_cliente || undefined,
-        // NUEVO: Información del usuario que instaló la subcuenta (del state parameter de OAuth)
-        ownerEmail: req.body.user_email || undefined,
-        ownerId: req.body.user_id || undefined,
-        ownerCompanyId: req.body.company_id || undefined,
+        // OAuth state parameter para validación
+        state: req.body.state || undefined,
       };
 
       console.log("📋 Normalized webhook data:", JSON.stringify(normalizedData, null, 2));
@@ -761,26 +759,63 @@ ${ghlErrorDetails}
         companyName: z.string().optional(),
         locationName: z.string().optional(),
         phone: z.string().optional(),
-        ownerEmail: z.string().optional(),
-        ownerId: z.string().optional(),
-        ownerCompanyId: z.string().optional(),
+        state: z.string().optional(),
       });
 
       const validatedData = webhookSchema.parse(normalizedData);
 
-      // 1. Determinar la empresa a la que pertenece esta subcuenta
+      // 1. Validar OAuth state y obtener información del usuario
+      let ownerCompanyId: string | undefined;
+      let ownerUserId: string | undefined;
+      let ownerEmail: string | undefined;
+
+      if (validatedData.state) {
+        console.log(`🔐 Validating OAuth state: ${validatedData.state}`);
+        
+        const oauthState = await storage.getOAuthState(validatedData.state);
+        
+        if (!oauthState) {
+          console.error(`❌ Invalid OAuth state: ${validatedData.state}`);
+          res.status(400).json({ error: "Invalid or expired OAuth state" });
+          return;
+        }
+
+        if (oauthState.used) {
+          console.error(`❌ OAuth state already used: ${validatedData.state}`);
+          res.status(400).json({ error: "OAuth state has already been used" });
+          return;
+        }
+
+        if (new Date() > new Date(oauthState.expiresAt)) {
+          console.error(`❌ OAuth state expired: ${validatedData.state}`);
+          res.status(400).json({ error: "OAuth state has expired" });
+          return;
+        }
+
+        // Marcar state como usado
+        await storage.markOAuthStateAsUsed(validatedData.state);
+
+        // Recuperar información del usuario que inició el OAuth
+        ownerCompanyId = oauthState.companyId;
+        ownerUserId = oauthState.userId;
+        ownerEmail = oauthState.userEmail;
+
+        console.log(`✅ OAuth state validated for user: ${ownerEmail} (company: ${ownerCompanyId})`);
+      }
+
+      // 2. Determinar la empresa a la que pertenece esta subcuenta
       let company;
       
-      // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta
-      if (validatedData.ownerCompanyId) {
-        console.log(`🔍 Finding owner's company: ${validatedData.ownerCompanyId}`);
-        company = await storage.getCompany(validatedData.ownerCompanyId);
+      // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta (OAuth validado)
+      if (ownerCompanyId) {
+        console.log(`🔍 Finding owner's company: ${ownerCompanyId}`);
+        company = await storage.getCompany(ownerCompanyId);
         if (company) {
           console.log(`✅ Using owner's company: ${company.name} (${company.id})`);
         }
       }
       
-      // PRIORIDAD 2: Si no hay owner, buscar por ghlCompanyId (legacy flow)
+      // PRIORIDAD 2: Si no hay owner validado, buscar por ghlCompanyId (legacy flow)
       if (!company) {
         company = await storage.getCompanyByGhlId(validatedData.ghlCompanyId);
         
@@ -1433,6 +1468,44 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error getting invoices:", error);
       res.status(500).json({ error: "Failed to get invoices" });
+    }
+  });
+
+  // ============================================
+  // OAUTH STATE GENERATION (Para validación de OAuth flow)
+  // ============================================
+
+  app.post("/api/ghl/generate-oauth-state", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (!user || !user.id || !user.companyId) {
+        res.status(401).json({ error: "User not authenticated or missing company" });
+        return;
+      }
+
+      // Generar state único y seguro
+      const crypto = await import('crypto');
+      const state = crypto.randomBytes(32).toString('hex');
+      
+      // Guardar state en base de datos con expiración de 10 minutos
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+      
+      await storage.createOAuthState({
+        state,
+        userId: user.id,
+        companyId: user.companyId,
+        userEmail: user.email,
+        used: false,
+        expiresAt,
+      });
+
+      console.log(`✅ OAuth state generated for user ${user.email}: ${state}`);
+      
+      res.json({ state });
+    } catch (error) {
+      console.error("Error generating OAuth state:", error);
+      res.status(500).json({ error: "Failed to generate OAuth state" });
     }
   });
 
