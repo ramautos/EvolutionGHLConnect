@@ -94,26 +94,8 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
     console.log("   ✓ System configuration created");
   }
 
-  // 2. Crear empresa predeterminada si no existe
-  console.log("🏢 Creating default company...");
-  let defaultCompany = await db.query.companies.findFirst({
-    where: eq(companies.email, adminEmail),
-  });
-
-  if (!defaultCompany) {
-    const [newCompany] = await db.insert(companies).values({
-      name: "Default Company",
-      email: adminEmail,
-      isActive: true,
-    }).returning();
-    defaultCompany = newCompany;
-    console.log(`   ✓ Default company created: ${defaultCompany.name} (ID: ${defaultCompany.id})`);
-  } else {
-    console.log(`   ✓ Default company already exists: ${defaultCompany.name} (ID: ${defaultCompany.id})`);
-  }
-
-  // 3. Crear o actualizar usuario administrador
-  console.log("👤 Creating/updating admin user...");
+  // 2. Crear o actualizar usuario administrador del sistema (SIN empresa)
+  console.log("👤 Creating/updating system administrator...");
   let adminUser = await db.query.subaccounts.findFirst({
     where: eq(subaccounts.email, adminEmail),
   });
@@ -122,53 +104,35 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
 
   if (!adminUser) {
     const [newAdmin] = await db.insert(subaccounts).values({
-      companyId: defaultCompany.id,
+      companyId: null, // System admin NO tiene empresa
       name: "System Administrator",
       email: adminEmail,
       passwordHash,
-      role: "admin",
+      role: "system_admin", // Rol especial para admin del sistema
       isActive: true,
       billingEnabled: false,
       manuallyActivated: true,
+      locationId: "SYSTEM_ADMIN", // Identificador especial
     }).returning();
     adminUser = newAdmin;
-    console.log(`   ✓ Admin user created: ${adminUser.email} (ID: ${adminUser.id})`);
+    console.log(`   ✓ System admin created: ${adminUser.email} (ID: ${adminUser.id})`);
   } else {
-    // Actualizar contraseña y asegurar que es admin
+    // Actualizar contraseña y asegurar que es system_admin
     await db.update(subaccounts)
       .set({
         passwordHash,
-        role: "admin",
+        role: "system_admin",
         isActive: true,
-        companyId: defaultCompany.id,
+        companyId: null, // Asegurar que NO tiene empresa
       })
       .where(eq(subaccounts.id, adminUser.id));
-    console.log(`   ✓ Admin user updated: ${adminUser.email} (ID: ${adminUser.id})`);
+    console.log(`   ✓ System admin updated: ${adminUser.email} (ID: ${adminUser.id})`);
   }
 
-  // 4. Crear suscripción para el admin si no existe
-  console.log("💳 Ensuring admin subscription...");
-  const existingSubscription = await db.query.subscriptions.findFirst({
-    where: eq(subscriptions.subaccountId, adminUser.id),
-  });
+  // 3. NO crear suscripción para system_admin (no la necesita)
+  console.log("   ℹ️  System admin doesn't need subscription (manages all companies)");
 
-  if (!existingSubscription) {
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 15);
-
-    await db.insert(subscriptions).values({
-      subaccountId: adminUser.id,
-      plan: "none",
-      status: "active",
-      trialEndsAt: trialEndDate,
-      inTrial: true,
-    });
-    console.log("   ✓ Admin subscription created with 15-day trial");
-  } else {
-    console.log("   ✓ Admin subscription already exists");
-  }
-
-  // 5. Marcar como inicializada
+  // 4. Marcar como inicializada
   console.log("✅ Marking database as initialized...");
   await db.update(systemConfig)
     .set({
@@ -180,9 +144,9 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
   console.log("\n🎉 Bootstrap completed successfully!");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("📋 Summary:");
-  console.log(`   Company: ${defaultCompany.name}`);
-  console.log(`   Admin Email: ${adminUser.email}`);
-  console.log(`   Admin Role: ${adminUser.role}`);
+  console.log(`   System Admin Email: ${adminUser.email}`);
+  console.log(`   System Admin Role: ${adminUser.role}`);
+  console.log(`   Company: N/A (system admin has no company)`);
   console.log(`   Database: ${process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'unknown'}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n✨ You can now login with the admin credentials");

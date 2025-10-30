@@ -1,6 +1,6 @@
 import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql as drizzleSql, count, sum, isNotNull } from "drizzle-orm";
+import { eq, and, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
 
 export interface IStorage {
   // ============================================
@@ -245,14 +245,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {
-    return await db.select().from(subaccounts).where(eq(subaccounts.isActive, true));
+    // Filtrar system_admins de la lista pública de subcuentas
+    return await db
+      .select()
+      .from(subaccounts)
+      .where(and(
+        eq(subaccounts.isActive, true),
+        not(eq(subaccounts.role, "system_admin")) // Excluir system_admins
+      ));
   }
 
   async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {
-    // Asegurar que siempre hay un companyId asignado
+    // Para system_admins y subcuentas pendientes de claim, permitir companyId = NULL
+    const isSystemAdmin = insertSubaccount.role === "system_admin";
+    const isPendingClaim = insertSubaccount.companyId === null && !isSystemAdmin;
+    
+    // Solo asignar companyId por defecto si NO es system_admin y NO está pendiente de claim
     let companyId = insertSubaccount.companyId;
     
-    if (!companyId) {
+    if (!companyId && !isSystemAdmin && insertSubaccount.companyId !== null) {
       // Intentar obtener la empresa por defecto (test-company-001)
       let defaultCompany = await this.getCompany('test-company-001');
       

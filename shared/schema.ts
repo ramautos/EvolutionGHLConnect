@@ -59,7 +59,7 @@ export const subaccounts = pgTable("subaccounts", {
   // Autenticación (fusionado desde users)
   passwordHash: text("password_hash"),
   googleId: text("google_id"),
-  role: text("role").notNull().default("user"), // "user" o "admin"
+  role: text("role").notNull().default("user"), // "user", "admin", or "system_admin"
   lastLoginAt: timestamp("last_login_at"),
   
   // Configuración de CRM

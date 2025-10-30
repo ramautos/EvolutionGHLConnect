@@ -1591,6 +1591,13 @@ ${ghlErrorDetails}
         return;
       }
 
+      // Rechazar si el usuario es system_admin
+      if (user.role === "system_admin") {
+        console.log(`❌ System admin cannot claim subaccounts: ${user.email}`);
+        res.status(403).json({ error: "System administrators cannot claim subaccounts" });
+        return;
+      }
+
       if (!user || !user.companyId) {
         res.status(401).json({ error: "User not authenticated or missing company" });
         return;

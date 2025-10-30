@@ -201,8 +201,32 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
   res.status(401).json({ message: "No autorizado. Por favor inicia sesión." });
 };
 
+// Helper: verificar si es administrador del sistema
+export const isSystemAdmin = (user: any): boolean => {
+  return user && user.role === "system_admin";
+};
+
+// Helper: verificar si es administrador de empresa
+export const isCompanyAdmin = (user: any): boolean => {
+  return user && user.role === "admin" && user.companyId !== null;
+};
+
+// Helper: verificar si es cualquier tipo de administrador
+export const isAnyAdmin = (user: any): boolean => {
+  return user && (user.role === "admin" || user.role === "system_admin");
+};
+
+// Middleware: requiere ser administrador del sistema
+export const requireSystemAdmin: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated() && isSystemAdmin(req.user)) {
+    return next();
+  }
+  res.status(403).json({ message: "Acceso denegado. Se requieren permisos de administrador del sistema." });
+};
+
+// Middleware: requiere ser cualquier tipo de admin (para backward compatibility)
 export const isAdmin: RequestHandler = (req, res, next) => {
-  if (req.isAuthenticated() && (req.user as Subaccount)?.role === "admin") {
+  if (req.isAuthenticated() && isAnyAdmin(req.user)) {
     return next();
   }
   res.status(403).json({ message: "Acceso denegado. Se requieren permisos de administrador." });
