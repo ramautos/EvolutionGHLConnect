@@ -1,7 +1,12 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, json, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// ============================================
+// ENUMS
+// ============================================
+export const roleEnum = pgEnum("role", ["user", "admin", "system_admin"]);
 
 // ============================================
 // SESSIONS TABLE - Sesiones de Passport.js (connect-pg-simple)
@@ -59,7 +64,7 @@ export const subaccounts = pgTable("subaccounts", {
   // Autenticación (fusionado desde users)
   passwordHash: text("password_hash"),
   googleId: text("google_id"),
-  role: text("role").notNull().default("user"), // "user", "admin", or "system_admin"
+  role: roleEnum("role").notNull().default("user"),
   lastLoginAt: timestamp("last_login_at"),
   
   // Configuración de CRM
