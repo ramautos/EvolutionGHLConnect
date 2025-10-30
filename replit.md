@@ -65,31 +65,39 @@ For the initial deployment to production, configure the following required envir
   4. Marks database as initialized
 - **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
 
-### Webhook Integration with OAuth State Validation
+### Webhook Integration with Subaccount Claim System
 
-#### OAuth State Validation System (Current - Production)
-Secure OAuth flow with database-backed state validation ensures subaccounts are created under the correct user's company:
+#### Subaccount Claim System (Current - Production)
+Secure OAuth flow where subaccounts are "claimed" by the authenticated user after creation:
 
 **Flow Overview:**
-1. **State Generation** (`POST /api/ghl/generate-oauth-state`):
-   - User clicks "Connect with GoHighLevel" button
-   - Backend generates unique 64-char state token with 10-minute expiration
-   - State stored in `oauth_states` table with `userId`, `companyId`, `userEmail`
-   - Frontend receives state and redirects to GoHighLevel OAuth
+1. **User Initiates OAuth**:
+   - User clicks "Connect with GoHighLevel" button  
+   - Frontend redirects to GoHighLevel OAuth
 
 2. **OAuth Callback to N8N**:
-   - GoHighLevel redirects to n8n with: `code`, `state`, `locationId`, `companyId`
-   - N8N extracts state from query parameters
+   - GoHighLevel redirects to n8n with `code` (OAuth authorization code)
+   - N8N exchanges code for access token
+   - N8N fetches location data from GoHighLevel API
 
-3. **Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
-   - N8N sends webhook with client data + `state` parameter
-   - Backend validates state:
-     - Checks existence in database
-     - Verifies not expired (10 min TTL)
-     - Confirms single-use (not previously used)
-     - Marks state as used
-   - Recovers `companyId` from validated state
-   - Creates subaccount under correct company
+3. **N8N Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
+   - N8N sends webhook with complete client data
+   - Backend creates subaccount (initially without specific owner if no valid OAuth state)
+   - Creates 15-day trial subscription
+   - Does NOT create WhatsApp instance yet (pending claim)
+
+4. **N8N Redirects User**:
+   - N8N responds with HTTP 302 redirect
+   - Redirects to: `https://whatsapp.cloude.es/claim-subaccount?locationId={locationId}`
+
+5. **Subaccount Claim** (`POST /api/subaccounts/claim`):
+   - Frontend automatically calls claim endpoint with locationId
+   - Backend validates:
+     - User is authenticated
+     - Subaccount was created <10 minutes ago (prevents old subaccount hijacking)
+   - Associates subaccount with authenticated user's company
+   - Creates WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
+   - Redirects to dashboard
 
 **Required Webhook Payload:**
 ```json
@@ -100,18 +108,29 @@ Secure OAuth flow with database-backed state validation ensures subaccounts are 
   "locationId": "ghl_location_id",
   "locationName": "Subaccount Name",
   "ghlCompanyId": "ghl_company_id",
-  "companyName": "Company Name",
-  "state": "7f3a2b1c4d5e6f..." // CRITICAL: State from OAuth callback
+  "companyName": "Company Name"
 }
 ```
 
-**Automatic Creation:**
-- Subaccount under validated user's company
-- WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
-- 15-day trial subscription
+**N8N Redirect Configuration:**
+```javascript
+// Respond to Webhook node:
+{
+  "status": 302,
+  "headers": {
+    "Location": "https://whatsapp.cloude.es/claim-subaccount?locationId={{locationId}}"
+  }
+}
+```
 
-**Legacy Fallback:**
-If no valid state provided, system falls back to `ghlCompanyId` lookup (creates new company if not found).
+**Security Features:**
+- 10-minute claim window (prevents stale subaccount claims)
+- User must be authenticated
+- Subaccount automatically associated with authenticated user's company
+- One-time claim per subaccount
+
+**Legacy Support:**
+If OAuth state validation is provided, subaccount is immediately associated with correct company (no claim needed).
 
 ## External Dependencies
 

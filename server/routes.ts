@@ -694,7 +694,7 @@ ${ghlErrorDetails}
         subaccountId: subaccount.id,
         locationId: validatedData.locationId,
         evolutionInstanceName: instanceName,
-        status: "created",
+        customName: `WhatsApp ${validatedData.locationName || validatedData.name}`,
       });
 
       console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
@@ -887,32 +887,37 @@ ${ghlErrorDetails}
 
       console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
 
-      // 5. Crear instancia de WhatsApp automáticamente
+      // 5. Crear instancia de WhatsApp automáticamente (SOLO si hay owner validado)
       let instanceCreated = false;
       let instanceId = null;
       
-      try {
-        console.log(`📱 Creating WhatsApp instance for ${subaccount.name}...`);
-        
-        // Obtener instancias existentes para generar nombre único
-        const existingInstances = await storage.getWhatsappInstancesByLocationId(validatedData.locationId);
-        const instanceNumber = existingInstances.length + 1;
-        const evolutionName = `${validatedData.locationId}_${instanceNumber}`;
-        
-        const instance = await storage.createWhatsappInstance({
-          subaccountId: subaccount.id,
-          locationId: validatedData.locationId,
-          evolutionInstanceName: evolutionName,
-          status: "created",
-        });
-        
-        instanceCreated = true;
-        instanceId = instance.id;
-        console.log(`✅ WhatsApp instance created: ${instance.evolutionInstanceName}`);
-      } catch (error) {
-        console.error(`⚠️ Failed to create WhatsApp instance automatically:`, error);
-        // No fallar el webhook si la creación de instancia falla
-        // El usuario puede crear la instancia manualmente desde el dashboard
+      if (ownerCompanyId) {
+        // Solo crear instancia si sabemos quién es el owner
+        try {
+          console.log(`📱 Creating WhatsApp instance for ${subaccount.name}...`);
+          
+          // Obtener instancias existentes para generar nombre único
+          const existingInstances = await storage.getWhatsappInstancesByLocationId(validatedData.locationId);
+          const instanceNumber = existingInstances.length + 1;
+          const evolutionName = `${validatedData.locationId}_${instanceNumber}`;
+          
+          const instance = await storage.createWhatsappInstance({
+            subaccountId: subaccount.id,
+            locationId: validatedData.locationId,
+            evolutionInstanceName: evolutionName,
+            customName: `WhatsApp ${validatedData.locationName || validatedData.name}`,
+          });
+          
+          instanceCreated = true;
+          instanceId = instance.id;
+          console.log(`✅ WhatsApp instance created: ${instance.evolutionInstanceName}`);
+        } catch (error) {
+          console.error(`⚠️ Failed to create WhatsApp instance automatically:`, error);
+          // No fallar el webhook si la creación de instancia falla
+          // El usuario puede crear la instancia manualmente desde el dashboard
+        }
+      } else {
+        console.log(`⚠️ Subaccount created without owner - instance creation skipped. User must claim this subaccount.`);
       }
 
       res.json({
@@ -1600,6 +1605,102 @@ ${ghlErrorDetails}
     } catch (error: any) {
       console.error("❌ Error creating subaccount from GHL:", error);
       res.status(500).json({ error: error.message || "Failed to create subaccount from GHL" });
+    }
+  });
+
+  // Reclamar subcuenta (asociarla con el usuario logueado)
+  app.post("/api/subaccounts/claim", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { locationId } = req.body;
+
+      if (!locationId) {
+        res.status(400).json({ error: "Missing required field: locationId" });
+        return;
+      }
+
+      if (!user || !user.companyId) {
+        res.status(401).json({ error: "User not authenticated or missing company" });
+        return;
+      }
+
+      console.log(`🔍 User ${user.email} attempting to claim subaccount for location ${locationId}`);
+
+      // Buscar subcuenta por locationId
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta fue creada recientemente (últimos 10 minutos)
+      const now = new Date();
+      const createdAt = new Date(subaccount.createdAt!);
+      const timeDiff = now.getTime() - createdAt.getTime();
+      const minutesDiff = timeDiff / (1000 * 60);
+
+      if (minutesDiff > 10) {
+        console.log(`❌ Subaccount too old to claim (created ${minutesDiff.toFixed(1)} minutes ago)`);
+        res.status(400).json({ error: "This subaccount cannot be claimed. It was created more than 10 minutes ago." });
+        return;
+      }
+
+      // Si la subcuenta ya pertenece a esta company, no hacer nada
+      if (subaccount.companyId === user.companyId) {
+        console.log(`✅ Subaccount already belongs to this user's company`);
+        res.json({ 
+          success: true,
+          message: "Subaccount already belongs to your company",
+          subaccount 
+        });
+        return;
+      }
+
+      // Asociar subcuenta con la company del usuario
+      console.log(`🔄 Updating subaccount company from ${subaccount.companyId} to ${user.companyId}`);
+      const updated = await storage.updateSubaccount(subaccount.id, {
+        companyId: user.companyId,
+      });
+
+      if (!updated) {
+        res.status(500).json({ error: "Failed to claim subaccount" });
+        return;
+      }
+
+      console.log(`✅ Subaccount claimed successfully by ${user.email}`);
+
+      // Crear instancia de WhatsApp si no existe
+      const existingInstances = await storage.getWhatsappInstancesByLocationId(locationId);
+      
+      if (existingInstances.length === 0) {
+        console.log(`📱 Creating WhatsApp instance for claimed subaccount...`);
+        try {
+          const instanceNumber = 1;
+          const evolutionName = `${locationId}_${instanceNumber}`;
+          
+          await storage.createWhatsappInstance({
+            subaccountId: subaccount.id,
+            locationId: locationId,
+            evolutionInstanceName: evolutionName,
+            customName: `WhatsApp ${subaccount.name}`,
+          });
+          
+          console.log(`✅ WhatsApp instance created: ${evolutionName}`);
+        } catch (error) {
+          console.error(`⚠️ Failed to create WhatsApp instance:`, error);
+          // No fallar el claim si la creación de instancia falla
+        }
+      }
+
+      res.json({ 
+        success: true,
+        message: "Subaccount claimed successfully",
+        subaccount: updated 
+      });
+    } catch (error: any) {
+      console.error("❌ Error claiming subaccount:", error);
+      res.status(500).json({ error: error.message || "Failed to claim subaccount" });
     }
   });
 

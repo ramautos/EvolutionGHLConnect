@@ -24,6 +24,7 @@ import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
 import LocationsDashboard from "@/pages/LocationsDashboard";
 import AuthSuccess from "@/pages/AuthSuccess";
+import ClaimSubaccount from "@/pages/ClaimSubaccount";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +34,11 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/onboarding" component={Onboarding} />
+      <Route path="/claim-subaccount">
+        <ProtectedRoute>
+          <ClaimSubaccount />
+        </ProtectedRoute>
+      </Route>
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />

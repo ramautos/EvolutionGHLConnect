@@ -1,189 +1,218 @@
 # Configuración N8N para OAuth de GoHighLevel
 
-## ⚠️ IMPORTANTE: Sistema de Validación OAuth
+## 🎯 Sistema de Reclamación de Subcuentas
 
-El sistema ahora usa **validación de state en base de datos** para garantizar que las subcuentas se creen bajo la company correcta.
+El sistema usa un flujo de **reclamación** donde:
+1. n8n crea la subcuenta (sin asociarla a un usuario específico)
+2. n8n redirige al usuario de vuelta a la aplicación
+3. La aplicación asocia automáticamente la subcuenta con el usuario autenticado
 
-## Flujo OAuth Completo
+## 🔄 Flujo Completo
 
-### 1. Usuario Inicia OAuth (Frontend)
-Cuando `bono@bono.com` presiona "Conectar con GoHighLevel":
+### 1. Usuario Inicia OAuth
+Usuario (bono@bono.com) presiona "Conectar con GoHighLevel"
+- Frontend redirige a GoHighLevel OAuth
+- GoHighLevel muestra página de autorización
 
+### 2. GoHighLevel Callback a N8N
+GoHighLevel redirige a n8n con:
+- `code`: Código de autorización OAuth
+- URL: `https://ray.cloude.es/webhook/registrocuenta?code=abc123...`
+
+### 3. N8N Procesa el Callback
+N8N debe hacer **3 cosas en este orden**:
+
+#### A. Intercambiar code por access token
 ```javascript
-// Frontend llama al backend
-POST /api/ghl/generate-oauth-state
-
-// Backend genera state único y lo guarda en BD:
+// HTTP Request a GoHighLevel
+POST https://services.leadconnectorhq.com/oauth/token
 {
-  state: "abc123def456...", // Token único de 64 caracteres
-  userId: "user-uuid-123",
-  companyId: "company-uuid-456",
-  userEmail: "bono@bono.com",
-  used: false,
-  expiresAt: "2025-01-30T12:00:00Z" // 10 minutos de validez
+  "client_id": "your_client_id",
+  "client_secret": "your_client_secret",
+  "grant_type": "authorization_code",
+  "code": "{{$node['Webhook'].json.query.code}}",
+  "redirect_uri": "https://ray.cloude.es/webhook/registrocuenta"
 }
-
-// Frontend redirige a GoHighLevel con ese state
 ```
 
-### 2. GoHighLevel Redirige a N8N
-GoHighLevel envía a n8n:
-- `code`: Código de autorización
-- `state`: El token único generado (ej: "abc123def456...")
-- `locationId`: ID de la location de GHL
-- `companyId`: ID de la company de GHL
+#### B. Obtener datos de la location
+```javascript
+// HTTP Request a GoHighLevel API
+GET https://services.leadconnectorhq.com/locations/{{locationId}}
+Headers: {
+  "Authorization": "Bearer {{access_token}}",
+  "Version": "2021-07-28"
+}
+```
 
-### 3. N8N Envía Webhook al Backend
-**CRÍTICO**: N8N debe enviar el `state` parameter al webhook:
+#### C. Guardar en base de datos GHL (tu DB)
+Guardar: access_token, locationId, email, nombre, etc.
 
-```json
+#### D. Enviar webhook al backend de WhatsApp
+```javascript
+// HTTP Request
 POST https://whatsapp.cloude.es/api/webhooks/register-subaccount
+Content-Type: application/json
 
 {
-  "email": "{{email_cliente}}",
-  "name": "{{nombre_cliente}}",
-  "phone": "{{telefono_cliente}}",
-  "locationId": "{{locationid}}",
-  "locationName": "{{subcuenta}}",
-  "ghlCompanyId": "{{companyid}}",
-  "companyName": "{{cuenta_principal}}",
-  "state": "{{state}}"  // ← IMPORTANTE: Pasar el state parameter de GoHighLevel
+  "email": "{{$json.location.email}}",
+  "name": "{{$json.location.name}}",
+  "phone": "{{$json.location.phone}}",
+  "locationId": "{{$json.location.id}}",
+  "locationName": "{{$json.location.name}}",
+  "ghlCompanyId": "{{$json.location.companyId}}",
+  "companyName": "{{$json.company.name}}"
 }
 ```
 
-### 4. Backend Valida y Crea Subcuenta
-El backend:
-1. Busca el `state` en la base de datos
-2. Valida que no esté usado y no haya expirado
-3. Recupera el `companyId` del usuario que inició el OAuth
-4. Marca el `state` como usado
-5. Crea la subcuenta bajo la company correcta
+**IMPORTANTE**: No incluir el `state` parameter (GoHighLevel no lo devuelve)
 
-## Ejemplo Completo
-
-### Usuario logueado:
-- Email: bono@bono.com
-- User ID: abc-123
-- Company ID: company-456
-- Company Name: "Bono Corp"
-
-### Paso 1: Frontend genera state
-```
-POST /api/ghl/generate-oauth-state
-Response: { "state": "7f3a2b1c..." }
-```
-
-### Paso 2: OAuth a GoHighLevel
-```
-https://marketplace.leadconnectorhq.com/oauth/chooselocation?
-  response_type=code&
-  client_id=...&
-  redirect_uri=https://ray.cloude.es/webhook/registrocuenta&
-  state=7f3a2b1c...
-```
-
-### Paso 3: GoHighLevel → N8N
-```
-https://ray.cloude.es/webhook/registrocuenta?
-  code=auth_code_xyz&
-  state=7f3a2b1c...&
-  locationId=xyz-789&
-  companyId=ghl-comp-123
-```
-
-### Paso 4: N8N → Backend Webhook
-```json
-POST /api/webhooks/register-subaccount
-{
-  "email": "ray@ramautos.do",
-  "name": "Ram Mega Autos",
-  "locationId": "xyz-789",
-  "ghlCompanyId": "ghl-comp-123",
-  "state": "7f3a2b1c..."
-}
-```
-
-### Paso 5: Backend valida y crea
-```
-1. Busca state "7f3a2b1c..." en oauth_states table
-2. Encuentra: companyId = "company-456", userId = "abc-123"
-3. Marca state como usado
-4. Crea subaccount bajo company-456 (Bono Corp)
-```
-
-### Resultado en DB:
-```
-Company: company-456 (Bono Corp)
-  └── Subaccount: ram-mega-autos
-        - Email: ray@ramautos.do
-        - Name: Ram Mega Autos  
-        - Location ID: xyz-789
-        - Owner: bono@bono.com (via companyId: company-456)
-```
-
-## Configuración N8N
-
-### Extraer State del Query String
-En n8n, el `state` viene como query parameter de GoHighLevel. Debes extraerlo:
+#### E. Redirigir al usuario de vuelta
+**ESTE ES EL PASO CRÍTICO QUE FALTABA**
 
 ```javascript
-// En el nodo HTTP Request de n8n
-const state = $node["Webhook"].json.query.state;
-```
-
-### Enviar al Webhook
-Asegúrate de incluir el `state` en el body del webhook:
-
-```json
-{
-  "email": "{{ $json.email_cliente }}",
-  "name": "{{ $json.nombre_cliente }}",
-  "phone": "{{ $json.telefono_cliente }}",
-  "locationId": "{{ $json.locationid }}",
-  "locationName": "{{ $json.subcuenta }}",
-  "ghlCompanyId": "{{ $json.companyid }}",
-  "companyName": "{{ $json.cuenta_principal }}",
-  "state": "{{ $node['Webhook'].json.query.state }}"
+// Nodo "Respond to Webhook"
+Status Code: 302
+Headers: {
+  "Location": "https://whatsapp.cloude.es/claim-subaccount?locationId={{$json.location.id}}"
 }
 ```
 
-## Seguridad
+### 4. Usuario es Redirigido
+El navegador redirige automáticamente a:
+```
+https://whatsapp.cloude.es/claim-subaccount?locationId=jtEqGdhkoR6iePmZaCmd
+```
 
-1. **State Expiration**: Los states expiran en 10 minutos
-2. **Single Use**: Cada state solo puede usarse una vez
-3. **Database Validation**: No se puede falsificar el state
-4. **User Association**: El state está cryptográficamente vinculado al usuario
+### 5. Frontend Reclama la Subcuenta
+La página `/claim-subaccount`:
+1. Extrae el `locationId` de la URL
+2. Llama automáticamente a `POST /api/subaccounts/claim`
+3. Backend asocia la subcuenta con el usuario autenticado
+4. Crea la instancia de WhatsApp
+5. Redirige al dashboard
 
-## Endpoints Disponibles
+## 🛠️ Configuración en N8N
 
-### POST /api/ghl/generate-oauth-state (Autenticado)
-Genera un state único para el usuario logueado.
+### Nodos Necesarios:
 
-Response:
+1. **Webhook** (trigger)
+   - URL: `https://ray.cloude.es/webhook/registrocuenta`
+   - Method: GET
+   - Response: Immediate
+
+2. **Function** (extraer code de query)
+   ```javascript
+   return {
+     code: $node['Webhook'].json.query.code
+   };
+   ```
+
+3. **HTTP Request** (obtener access token)
+   - Method: POST
+   - URL: `https://services.leadconnectorhq.com/oauth/token`
+   - Body: Formulario con code, client_id, client_secret, etc.
+
+4. **HTTP Request** (obtener location data)
+   - Method: GET
+   - URL: `https://services.leadconnectorhq.com/locations/{{locationId}}`
+   - Headers: Authorization Bearer token
+
+5. **PostgreSQL** (guardar en tu BD GHL)
+   - Operation: Insert
+   - Tabla: `ghl_clientes`
+   - Datos: access_token, locationId, email, etc.
+
+6. **HTTP Request** (webhook a mi backend)
+   - Method: POST
+   - URL: `https://whatsapp.cloude.es/api/webhooks/register-subaccount`
+   - Body JSON con datos de la location
+
+7. **Respond to Webhook** (redirigir usuario)
+   - Response Code: 302
+   - Headers:
+     ```json
+     {
+       "Location": "https://whatsapp.cloude.es/claim-subaccount?locationId={{$json.location.id}}"
+     }
+     ```
+
+## 📊 Ejemplo Completo
+
+### Datos que recibe n8n de GoHighLevel:
 ```json
 {
-  "state": "7f3a2b1c4d5e6f..."
+  "query": {
+    "code": "a6a4fa71734606dcd51229395aa57415f5ca0d5b"
+  }
 }
 ```
 
-### POST /api/webhooks/register-subaccount (Público - validado por state)
-Crea subcuenta con validación de state.
+### Datos que n8n envía al webhook:
+```json
+{
+  "email": "RAY@RAMAUTOS.DO",
+  "name": "Ram Mega Autos",
+  "phone": "+18092878059",
+  "locationId": "jtEqGdhkoR6iePmZaCmd",
+  "locationName": "Ram Mega Autos",
+  "ghlCompanyId": "wW07eetYJ3JmgceImT5i",
+  "companyName": "Ram Mega Autos"
+}
+```
 
-Required fields:
-- `email`
-- `name`
-- `locationId`
-- `ghlCompanyId`
-- `state` (para validación OAuth)
+### URL de redirección final:
+```
+https://whatsapp.cloude.es/claim-subaccount?locationId=jtEqGdhkoR6iePmZaCmd
+```
 
-## Debugging
+## 🔒 Seguridad
 
-Si las subcuentas se crean en la company incorrecta, verifica en los logs:
+1. **Timeout de reclamación**: Solo se pueden reclamar subcuentas creadas hace menos de 10 minutos
+2. **Autenticación requerida**: El usuario debe estar logueado
+3. **Asociación automática**: La subcuenta se asocia con la company del usuario autenticado
+
+## ✅ Resultado Final
+
+```
+Company: Bono Corp (companyId: abc-123)
+  └── Subaccount: Ram Mega Autos
+        - Email: RAY@RAMAUTOS.DO
+        - Location ID: jtEqGdhkoR6iePmZaCmd
+        - Owner: bono@bono.com (reclamó la subcuenta)
+        - WhatsApp Instance: jtEqGdhkoR6iePmZaCmd_1
+```
+
+## 🐛 Debugging
+
+Si la subcuenta no se asocia correctamente, verifica en los logs:
 
 ```bash
-🔐 Validating OAuth state: 7f3a2b1c...
-✅ OAuth state validated for user: bono@bono.com (company: company-456)
-✅ Using owner's company: Bono Corp (company-456)
+# Backend logs
+🔍 User bono@bono.com attempting to claim subaccount for location jtEqGdhkoR6iePmZaCmd
+🔄 Updating subaccount company from xxx to abc-123
+✅ Subaccount claimed successfully by bono@bono.com
+📱 Creating WhatsApp instance for claimed subaccount...
+✅ WhatsApp instance created: jtEqGdhkoR6iePmZaCmd_1
 ```
 
-Si no ves estos logs, n8n no está enviando el `state` parameter.
+## ⚠️ Errores Comunes
+
+1. **"Subaccount not found"**: n8n no envió el webhook o el locationId es incorrecto
+2. **"Subaccount too old to claim"**: Pasaron más de 10 minutos entre la creación y el claim
+3. **Página se queda en loading**: n8n no está redirigiendo al usuario (falta el nodo "Respond to Webhook")
+
+## 📝 Endpoints Disponibles
+
+### POST /api/webhooks/register-subaccount (Público)
+Crea subcuenta desde n8n (sin owner, pendiente de reclamación)
+
+### POST /api/subaccounts/claim (Autenticado)
+Asocia subcuenta con el usuario logueado
+
+Payload:
+```json
+{
+  "locationId": "jtEqGdhkoR6iePmZaCmd"
+}
+```
