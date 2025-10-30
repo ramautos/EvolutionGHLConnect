@@ -1,11 +1,14 @@
 # Configuración N8N para OAuth de GoHighLevel
 
-## 🎯 Sistema de Reclamación de Subcuentas
+## 🎯 Sistema de Reclamación de Subcuentas (ACTUALIZADO)
+
+**IMPORTANTE**: El sistema ya NO crea empresas automáticamente basándose en `ghlCompanyId`.
 
 El sistema usa un flujo de **reclamación** donde:
-1. n8n crea la subcuenta (sin asociarla a un usuario específico)
+1. n8n crea la subcuenta SIN companyId (pendiente de claim)
 2. n8n redirige al usuario de vuelta a la aplicación
-3. La aplicación asocia automáticamente la subcuenta con el usuario autenticado
+3. La aplicación asocia la subcuenta con la **empresa del usuario autenticado**
+4. Se crea la instancia de WhatsApp después del claim
 
 ## 🔄 Flujo Completo
 
@@ -172,16 +175,36 @@ https://whatsapp.cloude.es/claim-subaccount?locationId=jtEqGdhkoR6iePmZaCmd
 2. **Autenticación requerida**: El usuario debe estar logueado
 3. **Asociación automática**: La subcuenta se asocia con la company del usuario autenticado
 
-## ✅ Resultado Final
+## ✅ Arquitectura Final
 
+**ANTES (Incorrecto)**:
 ```
-Company: Bono Corp (companyId: abc-123)
-  └── Subaccount: Ram Mega Autos
-        - Email: RAY@RAMAUTOS.DO
-        - Location ID: jtEqGdhkoR6iePmZaCmd
-        - Owner: bono@bono.com (reclamó la subcuenta)
-        - WhatsApp Instance: jtEqGdhkoR6iePmZaCmd_1
+❌ Default Company (default@company.com)
+  └── Subcuenta: Maria (maria@email.com) - registrada
+  
+❌ Company wW07... (RAY@RAMAUTOS.DO) - creada automáticamente
+  └── (Sin subcuentas)
+
+❌ Subcuenta: Ram Mega Autos - instalada desde GHL
+  - Asociada a empresa incorrecta
 ```
+
+**AHORA (Correcto)**:
+```
+✅ Empresa: maria@email.com (creada al registrarse)
+  ├── Subcuenta: Maria (usuario principal - LOCAL_xxx)
+  ├── Subcuenta: Ram Mega Autos (location1 - RECLAMADA)
+  │     └── 📱 Instancia: location1_1
+  └── Subcuenta: Otra Location (location2 - RECLAMADA)
+        └── 📱 Instancia: location2_1
+```
+
+**Flujo Correcto**:
+1. Usuario se registra → Se crea **su propia empresa**
+2. Usuario instala subcuenta GHL → Se crea subcuenta **SIN empresa** (companyId = NULL)
+3. N8N redirige a `/claim-subaccount?locationId=xxx`
+4. Frontend automáticamente reclama → Subcuenta se asocia a **empresa del usuario**
+5. Se crea instancia de WhatsApp
 
 ## 🐛 Debugging
 

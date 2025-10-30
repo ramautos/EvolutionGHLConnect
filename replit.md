@@ -68,34 +68,48 @@ For the initial deployment to production, configure the following required envir
 ### Webhook Integration with Subaccount Claim System
 
 #### Subaccount Claim System (Current - Production)
-Secure OAuth flow where subaccounts are "claimed" by the authenticated user after creation:
+Secure OAuth flow where subaccounts are "claimed" by the authenticated user after creation.
+
+**IMPORTANT ARCHITECTURAL CHANGE (2025-10-30)**:
+- System NO LONGER creates companies automatically based on `ghlCompanyId`
+- When user registers → Creates their OWN company
+- When GHL subcuenta is installed → Created with `companyId = NULL` (pending claim)
+- User claims subcuenta → Associates with their existing company
+- This ensures: **One company per user, multiple subaccounts per company**
 
 **Flow Overview:**
-1. **User Initiates OAuth**:
+1. **User Registers**:
+   - User creates account (email/password or Google OAuth)
+   - System creates NEW company with user's email
+   - Creates subaccount associated with that company
+
+2. **User Initiates GHL OAuth**:
    - User clicks "Connect with GoHighLevel" button  
    - Frontend redirects to GoHighLevel OAuth
 
-2. **OAuth Callback to N8N**:
+3. **OAuth Callback to N8N**:
    - GoHighLevel redirects to n8n with `code` (OAuth authorization code)
    - N8N exchanges code for access token
    - N8N fetches location data from GoHighLevel API
 
-3. **N8N Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
+4. **N8N Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
    - N8N sends webhook with complete client data
-   - Backend creates subaccount (initially without specific owner if no valid OAuth state)
+   - Backend creates subaccount with **companyId = NULL** (no owner yet)
    - Creates 15-day trial subscription
    - Does NOT create WhatsApp instance yet (pending claim)
+   - Does NOT create company automatically
 
-4. **N8N Redirects User**:
+5. **N8N Redirects User**:
    - N8N responds with HTTP 302 redirect
    - Redirects to: `https://whatsapp.cloude.es/claim-subaccount?locationId={locationId}`
 
-5. **Subaccount Claim** (`POST /api/subaccounts/claim`):
+6. **Subaccount Claim** (`POST /api/subaccounts/claim`):
    - Frontend automatically calls claim endpoint with locationId
    - Backend validates:
      - User is authenticated
+     - Subaccount has no company (companyId = NULL)
      - Subaccount was created <10 minutes ago (prevents old subaccount hijacking)
-   - Associates subaccount with authenticated user's company
+   - Associates subaccount with **authenticated user's company**
    - Creates WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
    - Redirects to dashboard
 
