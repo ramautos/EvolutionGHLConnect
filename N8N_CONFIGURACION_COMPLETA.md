@@ -16,7 +16,7 @@
 
 **Specify Body:** Using Fields Below
 
-### Body Parameters (7 campos):
+### Body Parameters (6 campos):
 
 | Name | Value (Expression) |
 |------|-------------------|
@@ -26,7 +26,8 @@
 | locationId | `{{ $json.location.id }}` |
 | ghlCompanyId | `{{ $json.location.companyId }}` |
 | locationName | `{{ $json.location.name }}` |
-| companyName | `{{ $json.company.name }}` |
+
+**⚠️ NO INCLUIR:** `companyName` - Este campo NO es necesario
 
 ---
 
@@ -41,8 +42,7 @@ curl -X POST https://whatsapp.cloude.es/api/webhooks/register-subaccount \
     "phone": "+1234567890",
     "locationId": "jtEqGdhkoR6iePmZaCmd",
     "ghlCompanyId": "ghl_company_123",
-    "locationName": "Mi Subcuenta GHL",
-    "companyName": "Mi Empresa GHL"
+    "locationName": "Mi Subcuenta GHL"
   }'
 ```
 
@@ -99,7 +99,7 @@ curl -X POST https://whatsapp.cloude.es/api/webhooks/register-subaccount \
    ↓
 6. [HTTP Request] - Enviar webhook al backend de WhatsApp
    POST https://whatsapp.cloude.es/api/webhooks/register-subaccount
-   Body: Los 7 campos mencionados arriba
+   Body: Los 6 campos mencionados arriba
    ↓
 7. [Respond to Webhook] - Redirigir al usuario
    302 → https://whatsapp.cloude.es/claim-subaccount?locationId={{ $json.location.id }}
@@ -161,8 +161,7 @@ curl -X POST https://whatsapp.cloude.es/api/webhooks/register-subaccount \
     "phone": "+18091234567",
     "locationId": "test_location_12345",
     "ghlCompanyId": "test_company_67890",
-    "locationName": "Test Location",
-    "companyName": "Test Company"
+    "locationName": "Test Location"
   }'
 ```
 
