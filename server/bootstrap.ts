@@ -94,7 +94,26 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
     console.log("   ✓ System configuration created");
   }
 
-  // 2. Crear o actualizar usuario administrador del sistema (SIN empresa)
+  // 2. Crear empresa especial para subcuentas pendientes de claim
+  console.log("🏢 Creating PENDING_CLAIM company for unclaimed subaccounts...");
+  let pendingCompany = await db.query.companies.findFirst({
+    where: eq(companies.id, "PENDING_CLAIM"),
+  });
+
+  if (!pendingCompany) {
+    const [newPendingCompany] = await db.insert(companies).values({
+      id: "PENDING_CLAIM",
+      name: "Pending Claim",
+      email: "pending@system.internal",
+      isActive: false, // Inactiva para evitar apariciones en listas
+    }).returning();
+    pendingCompany = newPendingCompany;
+    console.log(`   ✓ PENDING_CLAIM company created (ID: ${pendingCompany.id})`);
+  } else {
+    console.log(`   ✓ PENDING_CLAIM company already exists (ID: ${pendingCompany.id})`);
+  }
+
+  // 3. Crear o actualizar usuario administrador del sistema (SIN empresa)
   console.log("👤 Creating/updating system administrator...");
   let adminUser = await db.query.subaccounts.findFirst({
     where: eq(subaccounts.email, adminEmail),
@@ -129,10 +148,10 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
     console.log(`   ✓ System admin updated: ${adminUser.email} (ID: ${adminUser.id})`);
   }
 
-  // 3. NO crear suscripción para system_admin (no la necesita)
+  // 4. NO crear suscripción para system_admin (no la necesita)
   console.log("   ℹ️  System admin doesn't need subscription (manages all companies)");
 
-  // 4. Marcar como inicializada
+  // 5. Marcar como inicializada
   console.log("✅ Marking database as initialized...");
   await db.update(systemConfig)
     .set({
@@ -147,6 +166,7 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
   console.log(`   System Admin Email: ${adminUser.email}`);
   console.log(`   System Admin Role: ${adminUser.role}`);
   console.log(`   Company: N/A (system admin has no company)`);
+  console.log(`   PENDING_CLAIM Company: ${pendingCompany.id}`);
   console.log(`   Database: ${process.env.DATABASE_URL?.split('@')[1]?.split('?')[0] || 'unknown'}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n✨ You can now login with the admin credentials");

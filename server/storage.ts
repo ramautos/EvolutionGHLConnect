@@ -245,46 +245,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {
-    // Filtrar system_admins de la lista pública de subcuentas
+    // Filtrar system_admins y subcuentas pendientes de claim de la lista pública
     return await db
       .select()
       .from(subaccounts)
       .where(and(
         eq(subaccounts.isActive, true),
-        not(eq(subaccounts.role, "system_admin")) // Excluir system_admins
+        not(eq(subaccounts.role, "system_admin")), // Excluir system_admins
+        not(eq(subaccounts.companyId, "PENDING_CLAIM")) // Excluir pendientes de claim
       ));
   }
 
   async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {
-    // Para system_admins y subcuentas pendientes de claim, permitir companyId = NULL
     const isSystemAdmin = insertSubaccount.role === "system_admin";
-    const isPendingClaim = insertSubaccount.companyId === null && !isSystemAdmin;
     
-    // Solo asignar companyId por defecto si NO es system_admin y NO está pendiente de claim
+    // REGLA CRÍTICA: Solo system_admins pueden tener companyId = NULL
+    // Todos los demás DEBEN tener una empresa asignada
+    
     let companyId = insertSubaccount.companyId;
     
-    if (!companyId && !isSystemAdmin && insertSubaccount.companyId !== null) {
-      // Intentar obtener la empresa por defecto (test-company-001)
-      let defaultCompany = await this.getCompany('test-company-001');
-      
-      // Si no existe, buscar cualquier empresa activa
-      if (!defaultCompany) {
-        const allCompanies = await this.getCompanies();
-        const activeCompany = allCompanies.find(c => c.isActive);
-        
-        if (activeCompany) {
-          defaultCompany = activeCompany;
-        } else {
-          // Si no hay ninguna empresa, crear una por defecto
-          defaultCompany = await this.createCompany({
-            name: 'Default Company',
-            email: 'default@company.com',
-            isActive: true,
-          });
-        }
+    // Para system_admins: FORZAR companyId = null (sin empresa)
+    if (isSystemAdmin) {
+      companyId = null;
+    } 
+    // Para NO-system_admins: SIEMPRE asignar empresa
+    else {
+      // Si companyId es null o undefined, asignar empresa PENDING_CLAIM
+      if (!companyId) {
+        companyId = "PENDING_CLAIM";
       }
-      
-      companyId = defaultCompany.id;
+      // Si especificaron companyId, usarlo (validar que exista)
+      // Esto permite asignar empresas reales en registro normal
     }
     
     const [subaccount] = await db
