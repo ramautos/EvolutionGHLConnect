@@ -1,0 +1,634 @@
+<!-- ========================================
+     SECCIÓN DE PRICING - COPIAR Y PEGAR
+     ======================================== -->
+
+<!-- 1. PRIMERO: Agrega este CSS en tu <head> o en tu archivo de estilos -->
+<style>
+    /* Pricing Section Styles */
+    .pricing-wrapper {
+        padding: 80px 20px;
+        background: #F9FAFB;
+    }
+
+    .pricing-container {
+        max-width: 1280px;
+        margin: 0 auto;
+    }
+
+    .pricing-header {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+
+    .pricing-title {
+        font-size: 42px;
+        font-weight: 900;
+        margin-bottom: 16px;
+        color: #1F2937;
+    }
+
+    .pricing-gradient-text {
+        background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .pricing-subtitle {
+        font-size: 18px;
+        color: #6B7280;
+        max-width: 650px;
+        margin: 0 auto;
+        line-height: 1.7;
+    }
+
+    .pricing-toggle-section {
+        text-align: center;
+        margin-bottom: 50px;
+    }
+
+    .pricing-toggle-container {
+        display: inline-flex;
+        gap: 0;
+        background: white;
+        padding: 4px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .pricing-toggle-btn {
+        padding: 12px 32px;
+        background: transparent;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: #6B7280;
+        position: relative;
+        font-size: 15px;
+    }
+
+    .pricing-toggle-btn.active {
+        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .pricing-save-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #06B6D4;
+        color: white;
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .pricing-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 32px;
+        margin-top: 40px;
+    }
+
+    .pricing-card {
+        background: white;
+        border-radius: 24px;
+        padding: 40px 32px;
+        border: 2px solid #D1D5DB;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .pricing-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+        transform: scaleX(0);
+        transition: transform 0.4s;
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-12px);
+        box-shadow: 0 20px 40px rgba(139, 92, 246, 0.2);
+        border-color: #8B5CF6;
+    }
+
+    .pricing-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .pricing-card.featured {
+        background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+        color: white;
+        border-color: #8B5CF6;
+        transform: scale(1.05);
+        box-shadow: 0 20px 40px rgba(139, 92, 246, 0.2);
+    }
+
+    .pricing-card.featured:hover {
+        transform: scale(1.08) translateY(-12px);
+    }
+
+    .pricing-card.featured::before {
+        background: white;
+    }
+
+    .pricing-popular-badge {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(10px);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .pricing-plan-header {
+        margin-bottom: 24px;
+    }
+
+    .pricing-plan-name {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6B7280;
+        margin-bottom: 8px;
+    }
+
+    .pricing-card.featured .pricing-plan-name {
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .pricing-plan-title {
+        font-size: 28px;
+        font-weight: 900;
+        margin-bottom: 8px;
+    }
+
+    .pricing-plan-description {
+        font-size: 14px;
+        color: #6B7280;
+        line-height: 1.6;
+    }
+
+    .pricing-card.featured .pricing-plan-description {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .pricing-plan-price {
+        margin: 32px 0;
+        padding: 24px 0;
+        border-top: 1px solid #D1D5DB;
+        border-bottom: 1px solid #D1D5DB;
+    }
+
+    .pricing-card.featured .pricing-plan-price {
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .pricing-price-container {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        justify-content: center;
+    }
+
+    .pricing-currency {
+        font-size: 28px;
+        font-weight: 800;
+    }
+
+    .pricing-price {
+        font-size: 64px;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .pricing-period {
+        font-size: 18px;
+        color: #6B7280;
+        font-weight: 500;
+    }
+
+    .pricing-card.featured .pricing-period {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .pricing-savings-badge {
+        display: inline-block;
+        background: rgba(6, 182, 212, 0.15);
+        color: #06B6D4;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        margin-top: 12px;
+    }
+
+    .pricing-card.featured .pricing-savings-badge {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+
+    .pricing-features-list {
+        list-style: none;
+        margin: 32px 0;
+        padding: 0;
+    }
+
+    .pricing-features-list li {
+        padding: 12px 0;
+        display: flex;
+        align-items: start;
+        gap: 12px;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    .pricing-check-icon {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        background: #8B5CF6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 900;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    .pricing-card.featured .pricing-check-icon {
+        background: white;
+        color: #8B5CF6;
+    }
+
+    .pricing-plan-cta {
+        width: 100%;
+        padding: 16px 24px;
+        background: #1F2937;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 8px;
+    }
+
+    .pricing-plan-cta:hover {
+        background: #8B5CF6;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+    }
+
+    .pricing-card.featured .pricing-plan-cta {
+        background: white;
+        color: #8B5CF6;
+    }
+
+    .pricing-card.featured .pricing-plan-cta:hover {
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+    }
+
+    .pricing-addon-section {
+        margin-top: 50px;
+        text-align: center;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        border: 2px dashed #A78BFA;
+    }
+
+    .pricing-addon-title {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: #1F2937;
+    }
+
+    .pricing-addon-price {
+        font-size: 42px;
+        font-weight: 900;
+        color: #8B5CF6;
+        margin: 20px 0;
+    }
+
+    .pricing-addon-description {
+        font-size: 16px;
+        color: #6B7280;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    @media (max-width: 768px) {
+        .pricing-cards {
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        .pricing-card.featured {
+            transform: scale(1);
+        }
+
+        .pricing-card.featured:hover {
+            transform: translateY(-8px);
+        }
+
+        .pricing-title {
+            font-size: 32px;
+        }
+    }
+
+    @keyframes pricingFadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .pricing-card {
+        animation: pricingFadeInUp 0.6s ease-out forwards;
+    }
+
+    .pricing-card:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .pricing-card:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .pricing-card:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+</style>
+
+<!-- 2. SEGUNDO: Agrega este HTML donde quieras que aparezca la sección de pricing -->
+<section class="pricing-wrapper" id="precios">
+    <div class="pricing-container">
+        <div class="pricing-header">
+            <h2 class="pricing-title">
+                Planes <span class="pricing-gradient-text">Simples</span> y Transparentes
+            </h2>
+            <p class="pricing-subtitle">
+                Escoge el plan perfecto para tu negocio. Todos incluyen integración con OpenAI para transcripción de audio y ElevenLabs para envío de audio.
+            </p>
+        </div>
+
+        <div class="pricing-toggle-section">
+            <div class="pricing-toggle-container">
+                <button class="pricing-toggle-btn" onclick="togglePricingPlan('monthly')">
+                    Mensual
+                </button>
+                <button class="pricing-toggle-btn active" onclick="togglePricingPlan('annual')">
+                    Anual
+                    <span class="pricing-save-badge">Ahorra 20%</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="pricing-cards">
+            
+            <!-- Plan 1 Cuenta -->
+            <div class="pricing-card">
+                <div class="pricing-plan-header">
+                    <div class="pricing-plan-name">Starter</div>
+                    <div class="pricing-plan-title">1 Cuenta WhatsApp</div>
+                    <p class="pricing-plan-description">
+                        Ideal para emprendedores y pequeñas empresas
+                    </p>
+                </div>
+
+                <div class="pricing-plan-price">
+                    <div class="pricing-price-container">
+                        <span class="pricing-currency">$</span>
+                        <span class="pricing-price pricing-annual-price">8</span>
+                        <span class="pricing-period">USD / mes</span>
+                    </div>
+                    <div class="pricing-savings-badge pricing-annual-only">Ahorras $24 USD al año</div>
+                </div>
+
+                <ul class="pricing-features-list">
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>1 número de WhatsApp</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Mensajería ilimitada</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Generación de QR instantánea</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Webhooks seguros</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Integrado en panel GHL</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>OpenAI</strong> - Transcripción de audio</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>ElevenLabs</strong> - Envío de audio en chat</span>
+                    </li>
+                </ul>
+
+                <button class="pricing-plan-cta">Comenzar ahora</button>
+            </div>
+
+            <!-- Plan 3 Cuentas (Featured) -->
+            <div class="pricing-card featured">
+                <div class="pricing-popular-badge">🔥 MÁS POPULAR</div>
+                
+                <div class="pricing-plan-header">
+                    <div class="pricing-plan-name">Profesional</div>
+                    <div class="pricing-plan-title">3 Cuentas WhatsApp</div>
+                    <p class="pricing-plan-description">
+                        Perfecto para agencias y equipos de ventas
+                    </p>
+                </div>
+
+                <div class="pricing-plan-price">
+                    <div class="pricing-price-container">
+                        <span class="pricing-currency">$</span>
+                        <span class="pricing-price pricing-annual-price">15</span>
+                        <span class="pricing-period">USD / mes</span>
+                    </div>
+                    <div class="pricing-savings-badge pricing-annual-only">Ahorras $60 USD al año</div>
+                </div>
+
+                <ul class="pricing-features-list">
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>3 números de WhatsApp</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Mensajería ilimitada</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Generación de QR instantánea</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Webhooks seguros</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Multi-subcuentas GHL</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Analytics en tiempo real</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>OpenAI</strong> - Transcripción de audio</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>ElevenLabs</strong> - Envío de audio en chat</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Soporte prioritario</span>
+                    </li>
+                </ul>
+
+                <button class="pricing-plan-cta">Comenzar ahora</button>
+            </div>
+
+            <!-- Plan 5 Cuentas -->
+            <div class="pricing-card">
+                <div class="pricing-plan-header">
+                    <div class="pricing-plan-name">Business</div>
+                    <div class="pricing-plan-title">5 Cuentas WhatsApp</div>
+                    <p class="pricing-plan-description">
+                        Para empresas que necesitan escalar operaciones
+                    </p>
+                </div>
+
+                <div class="pricing-plan-price">
+                    <div class="pricing-price-container">
+                        <span class="pricing-currency">$</span>
+                        <span class="pricing-price pricing-annual-price">25</span>
+                        <span class="pricing-period">USD / mes</span>
+                    </div>
+                    <div class="pricing-savings-badge pricing-annual-only">Ahorras $60 USD al año</div>
+                </div>
+
+                <ul class="pricing-features-list">
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>5 números de WhatsApp</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Mensajería ilimitada</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Generación de QR instantánea</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Webhooks seguros avanzados</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Multi-subcuentas GHL ilimitadas</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Analytics avanzados + reportes</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>API personalizada</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>OpenAI</strong> - Transcripción de audio</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span><strong>ElevenLabs</strong> - Envío de audio en chat</span>
+                    </li>
+                    <li>
+                        <span class="pricing-check-icon">✓</span>
+                        <span>Soporte VIP 24/7</span>
+                    </li>
+                </ul>
+
+                <button class="pricing-plan-cta">Comenzar ahora</button>
+            </div>
+
+        </div>
+
+        <!-- Add-on Section -->
+        <div class="pricing-addon-section">
+            <div class="pricing-addon-title">💡 ¿Necesitas más cuentas?</div>
+            <div class="pricing-addon-price">$5 USD</div>
+            <div class="pricing-addon-description">
+                Agrega cuentas adicionales de WhatsApp a cualquier plan por solo $5 USD por cuenta adicional.
+                Sin límites, escala según tus necesidades.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. TERCERO: Agrega este JavaScript antes del cierre de </body> -->
+<script>
+    function togglePricingPlan(type) {
+        const buttons = document.querySelectorAll('.pricing-toggle-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+
+        const prices = document.querySelectorAll('.pricing-annual-price');
+        const monthlyPrices = [10, 20, 30];
+        const annualPrices = [8, 15, 25];
+
+        prices.forEach((price, index) => {
+            if (type === 'monthly') {
+                price.textContent = monthlyPrices[index];
+            } else {
+                price.textContent = annualPrices[index];
+            }
+        });
+
+        const savingsBadges = document.querySelectorAll('.pricing-annual-only');
+        savingsBadges.forEach(badge => {
+            badge.style.display = type === 'annual' ? 'inline-block' : 'none';
+        });
+    }
+</script>
