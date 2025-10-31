@@ -22,6 +22,7 @@ export interface IStorage {
   // ============================================
   getSubaccount(id: string): Promise<Subaccount | undefined>;
   getSubaccountByEmail(email: string): Promise<Subaccount | undefined>;
+  getSubaccountByEmailForAuth(email: string): Promise<Subaccount | undefined>;
   getSubaccountByGoogleId(googleId: string): Promise<Subaccount | undefined>;
   getSubaccountByLocationId(locationId: string): Promise<Subaccount | undefined>;
   getSubaccountsByCompany(companyId: string): Promise<Subaccount[]>;
@@ -276,6 +277,16 @@ export class DatabaseStorage implements IStorage {
           not(eq(subaccounts.role, "admin"))
         )
       );
+    return subaccount || undefined;
+  }
+
+  async getSubaccountByEmailForAuth(email: string): Promise<Subaccount | undefined> {
+    // Método ESPECIAL para autenticación (login)
+    // INCLUYE a system_admin y admin para que puedan iniciar sesión
+    const [subaccount] = await db
+      .select()
+      .from(subaccounts)
+      .where(eq(subaccounts.email, email));
     return subaccount || undefined;
   }
 

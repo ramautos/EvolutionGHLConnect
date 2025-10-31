@@ -65,7 +65,8 @@ export function setupPassport(app: Express) {
       },
       async (email, password, done) => {
         try {
-          const subaccount = await storage.getSubaccountByEmail(email);
+          // Usar método especial para autenticación que incluye admins
+          const subaccount = await storage.getSubaccountByEmailForAuth(email);
 
           if (!subaccount) {
             return done(null, false, { message: "Email o contraseña incorrectos" });
@@ -121,10 +122,10 @@ export function setupPassport(app: Express) {
             let subaccount = await storage.getSubaccountByGoogleId(profile.id);
 
             if (!subaccount) {
-              // Si no existe, buscar por email
+              // Si no existe, buscar por email (incluye admins para login)
               const email = profile.emails?.[0]?.value;
               if (email) {
-                subaccount = await storage.getSubaccountByEmail(email);
+                subaccount = await storage.getSubaccountByEmailForAuth(email);
               }
 
               if (!subaccount && email) {
