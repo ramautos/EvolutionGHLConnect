@@ -257,7 +257,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllSubaccounts(): Promise<Subaccount[]> {
     // Filtrar system_admins y subcuentas pendientes de claim de la lista pública
-    return await db
+    const results = await db
       .select()
       .from(subaccounts)
       .where(and(
@@ -265,6 +265,10 @@ export class DatabaseStorage implements IStorage {
         not(eq(subaccounts.role, "system_admin")), // Excluir system_admins
         not(eq(subaccounts.companyId, "PENDING_CLAIM")) // Excluir pendientes de claim
       ));
+
+    // Filtrar subcuentas locales (creadas en registro, no son ubicaciones de GHL)
+    // Se identifican por locationId que empieza con LOCAL_
+    return results.filter(sub => !sub.locationId.startsWith('LOCAL_'));
   }
 
   async createSubaccount(insertSubaccount: Partial<InsertSubaccount>): Promise<Subaccount> {

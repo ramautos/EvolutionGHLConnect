@@ -979,8 +979,8 @@ ${ghlErrorDetails}
     try {
       const subaccounts = await storage.getAllSubaccounts();
 
-      // Obtener información de todas las empresas
-      const companies = await storage.getCompanies();
+      // Obtener información de todas las empresas (filtradas, sin Default Company)
+      const companies = await storage.getCompaniesByStatus();
       const companiesMap = new Map(companies.map(c => [c.id, c]));
 
       // Agregar información del propietario a cada subcuenta
