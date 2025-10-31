@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  ArrowLeft, 
-  Building2, 
-  MessageSquare, 
-  Plus, 
-  QrCode, 
+import {
+  ArrowLeft,
+  Building2,
+  MessageSquare,
+  Plus,
+  QrCode,
   Trash2,
   CheckCircle2,
   XCircle,
@@ -24,7 +24,8 @@ import {
   RefreshCw,
   Key,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit2
 } from "lucide-react";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
@@ -183,10 +184,10 @@ export default function SubaccountDetails() {
       return await res.json();
     },
     onSuccess: (data) => {
-      const message = data.phoneNumber 
+      const message = data.phoneNumber
         ? `Sincronizada. Número: ${data.phoneNumber}`
         : data.message || "Instancia sincronizada";
-      
+
       toast({
         title: "Sincronización completada",
         description: message,
@@ -198,6 +199,34 @@ export default function SubaccountDetails() {
       toast({
         title: "Error de sincronización",
         description: error.message || "No se pudo sincronizar la instancia",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para actualizar nombre de instancia
+  const updateInstanceNameMutation = useMutation({
+    mutationFn: async ({ instanceId, newName }: { instanceId: string; newName: string }) => {
+      const res = await apiRequest("PATCH", `/api/instances/${instanceId}`, {
+        customName: newName,
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update instance name");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Nombre actualizado",
+        description: "El nombre de la instancia se actualizó exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el nombre",
         variant: "destructive",
       });
     },
@@ -278,6 +307,10 @@ export default function SubaccountDetails() {
 
   const handleSyncInstance = (instanceId: string) => {
     syncInstanceMutation.mutate(instanceId);
+  };
+
+  const handleUpdateInstanceName = (instanceId: string, newName: string) => {
+    updateInstanceNameMutation.mutate({ instanceId, newName });
   };
 
   const handleSaveCrmSettings = () => {
@@ -834,11 +867,32 @@ export default function SubaccountDetails() {
                   <Card key={instance.id} data-testid={`card-instance-${instance.id}`}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <CardTitle className="text-lg">{instance.customName}</CardTitle>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">{instance.customName}</CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-7 h-7"
+                              onClick={() => {
+                                const newName = prompt("Nuevo nombre para la instancia:", instance.customName || "");
+                                if (newName && newName.trim() && newName !== instance.customName) {
+                                  handleUpdateInstanceName(instance.id, newName.trim());
+                                }
+                              }}
+                              data-testid={`button-edit-name-${instance.id}`}
+                              title="Editar nombre"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                           <CardDescription className="font-mono text-xs">
                             {instance.evolutionInstanceName}
                           </CardDescription>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            <div><span className="font-medium">Empresa:</span> {subaccount.name}</div>
+                            <div><span className="font-medium">Location:</span> {instance.locationId}</div>
+                          </div>
                         </div>
                         <Badge variant={getStatusColor(instance.status)} className="gap-1">
                           {getStatusIcon(instance.status)}

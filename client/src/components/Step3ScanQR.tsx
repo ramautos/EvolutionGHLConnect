@@ -1,13 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScanLine, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { ScanLine, Smartphone, CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useMutation } from "@tanstack/react-query";
 import { useUser } from "@/contexts/UserContext";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { io, Socket } from "socket.io-client";
+import confetti from "canvas-confetti";
 
 export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) {
   const { user } = useUser();
@@ -18,6 +19,7 @@ export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) 
   const [phoneDetected, setPhoneDetected] = useState<string>();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [instanceId, setInstanceId] = useState<string>("");
+  const confettiIntervalRef = useRef<any>(null);
 
   const createInstanceMutation = useMutation({
     mutationFn: async () => {
@@ -77,9 +79,44 @@ export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) 
       if (data.instanceId === instanceId) {
         setPhoneDetected(data.phoneNumber);
         setIsScanning(false);
+
+        // Lanzar confeti celebratorio
+        const duration = 3000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        const randomInRange = (min: number, max: number) => {
+          return Math.random() * (max - min) + min;
+        };
+
+        const interval: any = setInterval(() => {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            clearInterval(interval);
+            confettiIntervalRef.current = null;
+            return;
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+          });
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+          });
+        }, 250);
+
+        confettiIntervalRef.current = interval;
+
         toast({
-          title: "¡Conectado!",
-          description: `WhatsApp conectado con el número ${data.phoneNumber}`,
+          title: "¡Felicidades!",
+          description: `WhatsApp conectado exitosamente con ${data.phoneNumber}`,
         });
       }
     });
@@ -88,6 +125,11 @@ export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) 
 
     return () => {
       newSocket.disconnect();
+      // Limpiar interval de confeti si el componente se desmonta
+      if (confettiIntervalRef.current) {
+        clearInterval(confettiIntervalRef.current);
+        confettiIntervalRef.current = null;
+      }
     };
   }, [instanceId, toast]);
 
@@ -155,15 +197,24 @@ export default function Step3ScanQR({ onComplete }: { onComplete: () => void }) 
             <div className="text-center">
               {phoneDetected ? (
                 <div className="space-y-4">
-                  <div className="w-24 h-24 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
-                    <CheckCircle2 className="w-12 h-12 text-green-500" />
+                  <div className="relative">
+                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center animate-pulse">
+                      <CheckCircle2 className="w-12 h-12 text-green-500" />
+                    </div>
+                    <Sparkles className="w-6 h-6 text-yellow-500 absolute top-0 right-1/4 animate-bounce" />
+                    <Sparkles className="w-5 h-5 text-yellow-400 absolute bottom-2 left-1/4 animate-bounce delay-150" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2">¡Conectado Exitosamente!</h3>
-                    <p className="text-muted-foreground mb-1">
-                      Tu WhatsApp ha sido vinculado correctamente
+                    <h3 className="text-2xl font-bold mb-2 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                      ¡Felicidades!
+                    </h3>
+                    <p className="text-base text-muted-foreground mb-2">
+                      WhatsApp conectado exitosamente
                     </p>
-                    <p className="text-sm font-medium text-primary">{phoneDetected}</p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <p className="text-sm font-semibold text-green-600">{phoneDetected}</p>
+                    </div>
                   </div>
                   <Button size="lg" className="w-full" onClick={onComplete} data-testid="button-finish">
                     Finalizar Configuración
