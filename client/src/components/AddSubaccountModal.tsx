@@ -16,15 +16,33 @@ interface AddSubaccountModalProps {
 }
 
 export default function AddSubaccountModal({ open, onClose }: AddSubaccountModalProps) {
-  const handleConnectGHL = () => {
-    // URL del OAuth de GoHighLevel
-    // Esta URL apunta al instalador de la app de GHL que redirige a n8n
-    const ghlInstallerUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://ray.cloude.es/webhook/registrocuenta&client_id=${
-      import.meta.env.VITE_GHL_CLIENT_ID || ""
-    }&scope=locations.readonly contacts.readonly`;
+  const handleConnectGHL = async () => {
+    try {
+      // 1. Generar OAuth state con el usuario actual
+      const response = await fetch('/api/ghl/generate-oauth-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Importante para enviar cookies de sesión
+      });
 
-    // Redirigir la página completa (más confiable que popup, especialmente en Replit)
-    window.location.href = ghlInstallerUrl;
+      if (!response.ok) {
+        throw new Error('Error al generar OAuth state');
+      }
+
+      const { state } = await response.json();
+      console.log('✅ OAuth state generado:', state);
+
+      // 2. Construir URL de GHL con el state
+      const ghlInstallerUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://ray.cloude.es/webhook/registrocuenta&client_id=${
+        import.meta.env.VITE_GHL_CLIENT_ID || ""
+      }&scope=locations.readonly contacts.readonly&state=${state}`;
+
+      // 3. Redirigir a GHL
+      window.location.href = ghlInstallerUrl;
+    } catch (error) {
+      console.error('Error al conectar con GHL:', error);
+      alert('Error al conectar con GoHighLevel. Por favor intenta de nuevo.');
+    }
   };
 
   return (
