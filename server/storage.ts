@@ -193,6 +193,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDashboardStats(): Promise<any> {
+    // Obtener estadísticas aplicando los mismos filtros que getCompaniesByStatus() y getAllSubaccounts()
+    // para mostrar solo datos de empresas y subcuentas reales (no del sistema)
     const [globalStats] = await db
       .select({
         totalCompanies: drizzleSql<number>`COUNT(DISTINCT ${companies.id})`,
@@ -203,7 +205,26 @@ export class DatabaseStorage implements IStorage {
       })
       .from(companies)
       .leftJoin(subaccounts, eq(subaccounts.companyId, companies.id))
-      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id));
+      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
+      .where(
+        and(
+          // Filtros de empresas: excluir empresas del sistema
+          not(eq(companies.name, 'Default Company')),
+          not(eq(companies.name, 'Pending Claim')),
+          not(eq(companies.id, 'PENDING_CLAIM')),
+          // Filtro de subcuentas: excluir roles de administración y pendientes
+          // (si no hay subcuenta, se permite la empresa)
+          drizzleSql`(
+            ${subaccounts.id} IS NULL OR (
+              ${subaccounts.role} != 'system_admin' AND
+              ${subaccounts.role} != 'admin' AND
+              ${subaccounts.companyId} != 'PENDING_CLAIM' AND
+              ${subaccounts.locationId} NOT LIKE 'LOCAL_%' AND
+              ${subaccounts.locationId} NOT LIKE 'GOOGLE_%'
+            )
+          )`
+        )
+      );
 
     return globalStats || {
       totalCompanies: 0,
