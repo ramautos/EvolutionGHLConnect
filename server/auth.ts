@@ -136,6 +136,8 @@ export function setupPassport(app: Express) {
                 });
 
                 // Crear nueva subcuenta asociada a la nueva empresa
+                // IMPORTANTE: Usar prefijo LOCAL_GOOGLE_ para que los filtros excluyan
+                // esta subcuenta de las listas públicas hasta que se instale una location real de GHL
                 subaccount = await storage.createSubaccount({
                   companyId: newCompany.id,
                   email,
@@ -143,7 +145,7 @@ export function setupPassport(app: Express) {
                   googleId: profile.id,
                   role: "user",
                   isActive: true,
-                  locationId: `GOOGLE_${profile.id}`,
+                  locationId: `LOCAL_GOOGLE_${profile.id}`,
                   ghlCompanyId: "GOOGLE_AUTH",
                   billingEnabled: true,
                   manuallyActivated: true,
