@@ -192,8 +192,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold mb-2">Email</h3>
-                  <p className="text-sm text-muted-foreground">soporte@whatsappai.com</p>
-                  <p className="text-sm text-muted-foreground">ventas@whatsappai.com</p>
+                  <p className="text-sm text-muted-foreground">soporte@cloude.es</p>
                 </div>
               </div>
             </Card>
@@ -205,7 +204,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-bold mb-2">Teléfono</h3>
-                  <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                  <p className="text-sm text-muted-foreground">+1 809-497-3030</p>
                   <p className="text-sm text-muted-foreground">Lun - Vie: 9AM - 6PM</p>
                 </div>
               </div>
@@ -219,11 +218,11 @@ export default function Contact() {
                 <div>
                   <h3 className="font-bold mb-2">Oficina</h3>
                   <p className="text-sm text-muted-foreground">
-                    123 Business Street
+                    Av. Ortega y Gasset no. 27
                     <br />
-                    Miami, FL 33101
+                    Santo Domingo
                     <br />
-                    Estados Unidos
+                    República Dominicana
                   </p>
                 </div>
               </div>
