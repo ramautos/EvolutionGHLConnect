@@ -164,7 +164,7 @@ app.use((req, res, next) => {
         
         // Ensure PENDING_CLAIM company is active (critical for webhooks)
         import('./db').then(({ db }) => {
-          return import('../shared/schema').then(({ companies }) => {
+          return import('../shared/schema').then(({ companies, oauthStates }) => {
             return import('drizzle-orm').then(({ sql }) => {
               console.log('🔧 Ensuring PENDING_CLAIM company is active...');
               return db.execute(sql`
@@ -173,8 +173,15 @@ app.use((req, res, next) => {
                 ON CONFLICT (id) DO UPDATE SET is_active = true, updated_at = NOW()
               `).then(() => {
                 console.log('✅ PENDING_CLAIM company is active');
+
+                // Limpiar TODOS los OAuth states al iniciar el servidor
+                // Esto permite reinstalaciones limpias sin errores de "state already used"
+                console.log('🗑️ Cleaning up OAuth states...');
+                return db.execute(sql`DELETE FROM ${oauthStates}`);
+              }).then((result: any) => {
+                console.log(`✅ OAuth states cleaned: ${result.rowCount || 0} states deleted`);
               }).catch((err: any) => {
-                console.error('❌ Failed to ensure PENDING_CLAIM:', err.message);
+                console.error('❌ Failed to ensure PENDING_CLAIM or clean OAuth states:', err.message);
               });
             });
           });
