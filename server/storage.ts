@@ -235,13 +235,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubaccountsByCompany(companyId: string): Promise<Subaccount[]> {
-    return await db
+    const results = await db
       .select()
       .from(subaccounts)
       .where(and(
         eq(subaccounts.companyId, companyId),
         eq(subaccounts.isActive, true)
       ));
+
+    // Filtrar subcuentas locales (creadas en registro, no son ubicaciones de GHL)
+    return results.filter(sub => !sub.locationId.startsWith('LOCAL_'));
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {

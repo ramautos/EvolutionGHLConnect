@@ -1504,6 +1504,40 @@ ${ghlErrorDetails}
     }
   });
 
+  // Obtener subcuentas del usuario (por companyId)
+  app.get("/api/subaccounts/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+
+      // Verificar que el usuario esté consultando sus propias subcuentas
+      // (a menos que sea admin)
+      if (user.role !== "admin" && user.id !== req.params.userId) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      // Obtener subcuentas por companyId del usuario
+      const subaccounts = await storage.getSubaccountsByCompany(user.companyId);
+
+      // Obtener información de la empresa propietaria
+      const company = await storage.getCompany(user.companyId);
+
+      // Agregar información del propietario a cada subcuenta
+      const subaccountsWithOwner = subaccounts.map(sub => ({
+        ...sub,
+        ownerCompany: company ? {
+          id: company.id,
+          name: company.name,
+        } : null
+      }));
+
+      res.json(subaccountsWithOwner);
+    } catch (error) {
+      console.error("Error getting user subaccounts:", error);
+      res.status(500).json({ error: "Failed to get subaccounts" });
+    }
+  });
+
   // Crear subcuenta desde GoHighLevel OAuth
   app.post("/api/subaccounts/from-ghl", isAuthenticated, async (req, res) => {
     try {
