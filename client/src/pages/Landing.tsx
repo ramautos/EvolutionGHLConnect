@@ -1,7 +1,7 @@
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
-import Testimonials from "@/components/Testimonials";
+import Contact from "@/components/Contact";
 import Pricing from "@/components/Pricing";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,8 @@ export default function Landing() {
               <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-pricing">
                 Precios
               </a>
-              <a href="#testimonials" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-testimonials">
-                Testimonios
+              <a href="#contact" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-contact">
+                Contacto
               </a>
             </div>
             
@@ -63,8 +63,8 @@ export default function Landing() {
         <div id="pricing">
           <Pricing />
         </div>
-        <div id="testimonials">
-          <Testimonials />
+        <div id="contact">
+          <Contact />
         </div>
         
         <section className="py-32 bg-gradient-to-br from-primary/10 via-chart-2/10 to-background">
