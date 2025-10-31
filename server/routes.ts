@@ -72,12 +72,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Crear subcuenta de administración (NO es una ubicación de GHL)
       // Esta subcuenta es solo para autenticación, no aparece en listas
+      // Se identifica por locationId que empieza con LOCAL_
       const user = await storage.createSubaccount({
         companyId: newCompany.id,
         email: validatedData.email,
         name: validatedData.name,
         passwordHash,
-        role: "company_owner", // Rol especial para diferenciar de subcuentas GHL
+        role: "user",
         isActive: true,
         locationId: `LOCAL_${Date.now()}`,
         ghlCompanyId: "LOCAL_AUTH",

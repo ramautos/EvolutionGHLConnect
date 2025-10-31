@@ -128,11 +128,18 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
       .groupBy(companies.id);
 
+    // Filtrar la empresa del admin (Default Company)
+    // Se identifica por tener el nombre "Default Company" o ser la empresa del system_admin
+    const filteredCompanies = companiesData.filter(company =>
+      company.name !== 'Default Company' &&
+      !company.email?.includes('ramautos.do')
+    );
+
     if (!status) {
-      return companiesData;
+      return filteredCompanies;
     }
 
-    return companiesData.filter(company => {
+    return filteredCompanies.filter(company => {
       if (status === 'trial') {
         return company.hasActiveTrial;
       } else if (status === 'expired') {
@@ -244,11 +251,8 @@ export class DatabaseStorage implements IStorage {
       ));
 
     // Filtrar subcuentas locales (creadas en registro, no son ubicaciones de GHL)
-    // También filtrar company_owners (cuentas de administración)
-    return results.filter(sub =>
-      !sub.locationId.startsWith('LOCAL_') &&
-      sub.role !== 'company_owner'
-    );
+    // Se identifican por locationId que empieza con LOCAL_
+    return results.filter(sub => !sub.locationId.startsWith('LOCAL_'));
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {
