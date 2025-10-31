@@ -60,23 +60,27 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-background to-chart-2/5 p-4">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px]" />
+      
+      <div className="w-full max-w-md space-y-8 relative z-10">
         {/* Logo y Header */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary">
-              <MessageSquare className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-chart-2">
+              <MessageSquare className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Iniciar Sesión</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-chart-2 to-primary bg-clip-text text-transparent">
+            Iniciar Sesión
+          </h1>
           <p className="mt-2 text-muted-foreground">
             Accede a tu cuenta de WhatsApp AI Platform
           </p>
         </div>
 
         {/* Formulario */}
-        <Card>
+        <Card className="border-2">
           <CardHeader>
             <CardTitle>Ingresa tus credenciales</CardTitle>
             <CardDescription>
