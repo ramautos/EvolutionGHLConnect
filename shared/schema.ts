@@ -116,8 +116,9 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }).unique(),
-  plan: text("plan").notNull().default("none"),
-  includedInstances: text("included_instances").notNull().default("0"),
+  plan: text("plan").notNull().default("trial"),
+  maxSubaccounts: text("max_subaccounts").notNull().default("1"),
+  includedInstances: text("included_instances").notNull().default("1"),
   extraSlots: text("extra_slots").notNull().default("0"),
   basePrice: text("base_price").notNull().default("0.00"),
   extraPrice: text("extra_price").notNull().default("0.00"),
@@ -126,6 +127,11 @@ export const subscriptions = pgTable("subscriptions", {
   // Trial period
   trialEndsAt: timestamp("trial_ends_at"),
   inTrial: boolean("in_trial").notNull().default(true),
+  
+  // Stripe integration
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeProductId: text("stripe_product_id"),
   
   currentPeriodStart: timestamp("current_period_start").defaultNow(),
   currentPeriodEnd: timestamp("current_period_end"),
@@ -338,12 +344,16 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 export const updateSubscriptionSchema = z.object({
-  plan: z.enum(["none", "basic_1_instance", "pro_5_instances"]).optional(),
+  plan: z.enum(["trial", "basic_1", "pro_5", "enterprise_10"]).optional(),
+  maxSubaccounts: z.string().optional(),
   includedInstances: z.string().optional(),
   extraSlots: z.string().optional(),
   basePrice: z.string().optional(),
   extraPrice: z.string().optional(),
   status: z.enum(["active", "expired", "cancelled"]).optional(),
+  stripeCustomerId: z.string().optional(),
+  stripeSubscriptionId: z.string().optional(),
+  stripeProductId: z.string().optional(),
 });
 
 export type Subscription = typeof subscriptions.$inferSelect;
