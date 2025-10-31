@@ -56,6 +56,15 @@ export default function SubaccountDetails() {
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
 
+  // DEBUG: Log para identificar el problema
+  console.log('🔍 SubaccountDetails Debug:', {
+    subaccountId,
+    userId: user?.id,
+    totalSubaccounts: subaccounts.length,
+    subaccountsIds: subaccounts.map(s => ({ id: s.id, name: s.name })),
+    foundSubaccount: subaccount ? { id: subaccount.id, name: subaccount.name } : null,
+  });
+
   // Inicializar API key y calendar ID cuando se carga la subcuenta
   useEffect(() => {
     if (subaccount?.openaiApiKey) {
