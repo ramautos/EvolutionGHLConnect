@@ -599,6 +599,38 @@ ${ghlErrorDetails}
         }
       }
 
+      // CREAR CUSTOM MENU LINK AUTOMÁTICAMENTE
+      // Esto agrega un enlace en la sidebar de GHL que abre el dashboard en iframe
+      const locationId = tokenResponse.locationId || installerDetails.location?.id;
+      if (locationId) {
+        try {
+          console.log("📎 Creando Custom Menu Link automáticamente para location:", locationId);
+
+          const appUrl = process.env.REPLIT_DEV_DOMAIN
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : "https://whatsapp.cloude.es";
+
+          const menuLinkCreated = await ghlApi.createCustomMenuLink(
+            locationId,
+            tokenResponse.access_token,
+            {
+              name: "WhatsApp Dashboard",
+              url: `${appUrl}/ghl-iframe?ssoKey={{ssoKey}}`,
+              // icon: `${appUrl}/logo.png`, // Opcional: puedes agregar un ícono
+            }
+          );
+
+          if (menuLinkCreated) {
+            console.log("✅ Custom Menu Link creado exitosamente");
+          } else {
+            console.warn("⚠️ No se pudo crear Custom Menu Link, pero continuamos el flujo");
+          }
+        } catch (menuLinkError) {
+          console.error("⚠️ Error creando Custom Menu Link:", menuLinkError);
+          // No bloqueamos el flujo si falla la creación del menu link
+        }
+      }
+
       // Redirigir al dashboard de locations con éxito, incluyendo companyId
       const companyId = tokenResponse.companyId || installerDetails.company.id;
       res.redirect(`/locations?ghl_installed=true&company_id=${companyId}`);
@@ -673,6 +705,62 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error getting location:", error);
       res.status(500).json({ error: "Failed to get location" });
+    }
+  });
+
+  // Descifrar SSO key de GoHighLevel (para autenticación en iframe)
+  app.post("/api/ghl/decrypt-sso", async (req, res) => {
+    try {
+      const { ssoKey } = req.body;
+
+      if (!ssoKey || typeof ssoKey !== "string") {
+        res.status(400).json({ error: "ssoKey es requerido" });
+        return;
+      }
+
+      console.log("🔐 Descifrando SSO key de GHL...");
+
+      const decrypted = await ghlApi.decryptSsoKey(ssoKey);
+
+      if (!decrypted) {
+        res.status(401).json({ error: "SSO key inválido o expirado" });
+        return;
+      }
+
+      // Verificar que el timestamp no sea muy antiguo (5 minutos máximo)
+      const now = Date.now();
+      const fiveMinutesAgo = now - (5 * 60 * 1000);
+
+      if (decrypted.timestamp < fiveMinutesAgo) {
+        console.warn("⚠️ SSO key expirado (más de 5 minutos)");
+        res.status(401).json({ error: "SSO key expirado" });
+        return;
+      }
+
+      // Buscar la subcuenta correspondiente a este locationId
+      const subaccount = await storage.getSubaccountByLocationId(decrypted.locationId);
+
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada para este location" });
+        return;
+      }
+
+      console.log(`✅ SSO autenticado para subcuenta: ${subaccount.email}`);
+
+      // Devolver datos del usuario autenticado
+      const { passwordHash: _, ...subaccountWithoutPassword } = subaccount;
+      res.json({
+        success: true,
+        user: subaccountWithoutPassword,
+        ghlData: {
+          locationId: decrypted.locationId,
+          userId: decrypted.userId,
+          companyId: decrypted.companyId,
+        },
+      });
+    } catch (error) {
+      console.error("Error descifrando SSO:", error);
+      res.status(500).json({ error: "Error al procesar SSO" });
     }
   });
 

@@ -1,4 +1,5 @@
 import { ghlStorage } from "./ghl-storage";
+import crypto from "crypto";
 
 const GHL_BASE_URL = "https://services.leadconnectorhq.com";
 const GHL_API_VERSION = "2021-07-28";
@@ -282,6 +283,98 @@ export class GhlApiService {
     );
 
     return tokenResponse.access_token;
+  }
+
+  /**
+   * Descifra un SSO key de GoHighLevel
+   * @param ssoKey - El SSO key encriptado recibido desde GHL
+   * @returns Los datos descifrados (locationId, userId, companyId, timestamp)
+   */
+  async decryptSsoKey(ssoKey: string): Promise<{
+    locationId: string;
+    userId: string;
+    companyId: string;
+    timestamp: number;
+  } | null> {
+    try {
+      const ssoSecret = process.env.GHL_APP_SSO_KEY;
+      if (!ssoSecret) {
+        console.error("GHL_APP_SSO_KEY no configurado");
+        return null;
+      }
+
+      // El SSO key viene en formato base64url, convertir a base64
+      const base64 = ssoKey.replace(/-/g, '+').replace(/_/g, '/');
+      const encryptedData = Buffer.from(base64, 'base64');
+
+      // GHL usa AES-256-CBC
+      // La clave SSO es la clave de descifrado
+      const key = crypto.createHash('sha256').update(ssoSecret).digest();
+
+      // El IV son los primeros 16 bytes
+      const iv = encryptedData.slice(0, 16);
+      const encrypted = encryptedData.slice(16);
+
+      // Descifrar
+      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      let decrypted = decipher.update(encrypted);
+      decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+      // Parsear JSON
+      const data = JSON.parse(decrypted.toString('utf8'));
+
+      console.log("✅ SSO Key descifrado exitosamente");
+      return data;
+    } catch (error) {
+      console.error("❌ Error descifrando SSO key:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Crea un Custom Menu Link en una location de GHL
+   * @param locationId - ID de la location
+   * @param accessToken - Access token válido para la location
+   * @param menuLinkData - Datos del menu link
+   */
+  async createCustomMenuLink(
+    locationId: string,
+    accessToken: string,
+    menuLinkData: {
+      name: string;
+      url: string;
+      icon?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      console.log(`📎 Creando Custom Menu Link para location ${locationId}:`, menuLinkData);
+
+      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/customMenuLinks`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Version: GHL_API_VERSION,
+        },
+        body: JSON.stringify(menuLinkData),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("❌ Error creando Custom Menu Link:", {
+          status: response.status,
+          error
+        });
+        return false;
+      }
+
+      const result = await response.json();
+      console.log("✅ Custom Menu Link creado exitosamente:", result);
+      return true;
+    } catch (error) {
+      console.error("❌ Error en createCustomMenuLink:", error);
+      return false;
+    }
   }
 }
 

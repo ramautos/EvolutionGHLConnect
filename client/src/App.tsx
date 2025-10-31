@@ -28,6 +28,7 @@ import DashboardGHL from "@/pages/DashboardGHL";
 import LocationsDashboard from "@/pages/LocationsDashboard";
 import AuthSuccess from "@/pages/AuthSuccess";
 import ClaimSubaccount from "@/pages/ClaimSubaccount";
+import GhlIframe from "@/pages/GhlIframe";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -172,6 +173,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/old-dashboard" component={DashboardGHL} />
+
+      {/* GHL Iframe - SSO Authentication (no requiere ProtectedRoute, usa SSO) */}
+      <Route path="/ghl-iframe" component={GhlIframe} />
+
       <Route component={NotFound} />
     </Switch>
   );
