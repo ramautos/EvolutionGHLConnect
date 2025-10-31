@@ -208,6 +208,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Mapa temporal para tokens de recuperación (en producción usar DB con expiración)
+  const passwordResetTokens = new Map<string, { email: string; expires: number }>();
+
+  // Solicitar recuperación de contraseña
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      
+      // Verificar que el usuario existe
+      const user = await storage.getSubaccountByEmail(email);
+      
+      // Por seguridad, siempre devolver éxito aunque el email no exista
+      // Esto previene que se descubra qué emails están registrados
+      if (!user) {
+        console.log(`Forgot password request for non-existent email: ${email}`);
+        res.json({ success: true });
+        return;
+      }
+
+      // Generar token único
+      const token = Array.from({ length: 32 }, () => 
+        Math.random().toString(36)[2]
+      ).join('');
+      
+      // Guardar token con expiración de 1 hora
+      passwordResetTokens.set(token, {
+        email,
+        expires: Date.now() + 3600000, // 1 hora
+      });
+
+      // En producción, aquí se enviaría un email real
+      // Por ahora, loggeamos el link de recuperación
+      const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+      console.log(`
+========================================
+PASSWORD RESET REQUEST
+Email: ${email}
+Reset Link: ${resetLink}
+Token expires in 1 hour
+========================================
+      `);
+
+      res.json({ 
+        success: true,
+        // Solo para desarrollo, en producción no devolver el link
+        devResetLink: process.env.NODE_ENV === 'development' ? resetLink : undefined
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Email inválido" });
+      } else {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ error: "Error al procesar solicitud" });
+      }
+    }
+  });
+
+  // Restablecer contraseña con token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = z.object({
+        token: z.string(),
+        password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+      }).parse(req.body);
+
+      // Verificar token
+      const tokenData = passwordResetTokens.get(token);
+      
+      if (!tokenData) {
+        res.status(400).json({ error: "Token inválido o expirado" });
+        return;
+      }
+
+      // Verificar expiración
+      if (Date.now() > tokenData.expires) {
+        passwordResetTokens.delete(token);
+        res.status(400).json({ error: "Token expirado" });
+        return;
+      }
+
+      // Obtener usuario
+      const user = await storage.getSubaccountByEmail(tokenData.email);
+      if (!user) {
+        res.status(404).json({ error: "Usuario no encontrado" });
+        return;
+      }
+
+      // Actualizar contraseña
+      const passwordHash = await hashPassword(password);
+      await storage.updateSubaccount(user.id, { passwordHash });
+
+      // Eliminar token usado
+      passwordResetTokens.delete(token);
+
+      console.log(`Password successfully reset for user: ${tokenData.email}`);
+
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      } else {
+        console.error("Reset password error:", error);
+        res.status(500).json({ error: "Error al restablecer contraseña" });
+      }
+    }
+  });
+
   // ============================================
   // RUTAS DE PERFIL DE USUARIO
   // ============================================

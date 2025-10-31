@@ -9,6 +9,8 @@ import { AdminLayout } from "@/components/AdminLayout";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import SubaccountDetails from "@/pages/SubaccountDetails";
@@ -33,6 +35,8 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/claim-subaccount">
         <ProtectedRoute>
