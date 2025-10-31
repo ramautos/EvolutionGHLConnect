@@ -263,6 +263,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(subaccounts.isActive, true),
         not(eq(subaccounts.role, "system_admin")), // Excluir system_admins
+        not(eq(subaccounts.role, "admin")), // Excluir admins
         not(eq(subaccounts.companyId, "PENDING_CLAIM")) // Excluir pendientes de claim
       ));
 
