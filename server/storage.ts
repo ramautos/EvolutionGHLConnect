@@ -244,7 +244,11 @@ export class DatabaseStorage implements IStorage {
       ));
 
     // Filtrar subcuentas locales (creadas en registro, no son ubicaciones de GHL)
-    return results.filter(sub => !sub.locationId.startsWith('LOCAL_'));
+    // También filtrar company_owners (cuentas de administración)
+    return results.filter(sub =>
+      !sub.locationId.startsWith('LOCAL_') &&
+      sub.role !== 'company_owner'
+    );
   }
 
   async getAllSubaccounts(): Promise<Subaccount[]> {

@@ -288,6 +288,7 @@ export default function AdminPanel() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Location ID</TableHead>
+                      <TableHead>Propietario</TableHead>
                       <TableHead>Rol</TableHead>
                       <TableHead>Instancias</TableHead>
                       <TableHead>Billing</TableHead>
@@ -304,6 +305,15 @@ export default function AdminPanel() {
                           <TableCell className="font-medium">{s.name}</TableCell>
                           <TableCell>{s.email}</TableCell>
                           <TableCell className="font-mono text-xs">{s.locationId}</TableCell>
+                          <TableCell>
+                            {(s as any).ownerCompany ? (
+                              <span className="text-sm text-muted-foreground">
+                                {(s as any).ownerCompany.name}
+                              </span>
+                            ) : (
+                              <Badge variant="outline">Sin asignar</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={s.role === "admin" ? "default" : "secondary"}>
                               {s.role}

@@ -70,13 +70,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isActive: true,
       });
 
-      // Crear subcuenta asociada a la nueva empresa
+      // Crear subcuenta de administración (NO es una ubicación de GHL)
+      // Esta subcuenta es solo para autenticación, no aparece en listas
       const user = await storage.createSubaccount({
         companyId: newCompany.id,
         email: validatedData.email,
         name: validatedData.name,
         passwordHash,
-        role: "user",
+        role: "company_owner", // Rol especial para diferenciar de subcuentas GHL
         isActive: true,
         locationId: `LOCAL_${Date.now()}`,
         ghlCompanyId: "LOCAL_AUTH",
@@ -976,8 +977,25 @@ ${ghlErrorDetails}
   app.get("/api/admin/subaccounts", isAdmin, async (req, res) => {
     try {
       const subaccounts = await storage.getAllSubaccounts();
-      res.json(subaccounts);
+
+      // Obtener información de todas las empresas
+      const companies = await storage.getCompanies();
+      const companiesMap = new Map(companies.map(c => [c.id, c]));
+
+      // Agregar información del propietario a cada subcuenta
+      const subaccountsWithOwner = subaccounts.map(sub => ({
+        ...sub,
+        ownerCompany: sub.companyId && sub.companyId !== 'PENDING_CLAIM'
+          ? {
+              id: companiesMap.get(sub.companyId)?.id || sub.companyId,
+              name: companiesMap.get(sub.companyId)?.name || 'Unknown',
+            }
+          : null
+      }));
+
+      res.json(subaccountsWithOwner);
     } catch (error) {
+      console.error("Error getting subaccounts:", error);
       res.status(500).json({ error: "Failed to get subaccounts" });
     }
   });

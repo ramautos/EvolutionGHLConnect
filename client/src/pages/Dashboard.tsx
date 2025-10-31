@@ -246,7 +246,7 @@ function DashboardContent() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <Building2 className="w-5 h-5 text-muted-foreground" />
-                          <CardTitle className="text-lg">{subaccount.name}</CardTitle>
+                          <CardTitle className="text-lg">{subaccount.locationName || subaccount.name}</CardTitle>
                         </div>
                         <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
                           {status.label}
