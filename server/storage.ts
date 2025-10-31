@@ -1,6 +1,7 @@
 import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
+import { evolutionAPI } from "./evolution-api";
 
 export interface IStorage {
   // ============================================
@@ -80,6 +81,7 @@ export interface IStorage {
   getOAuthState(state: string): Promise<OAuthState | undefined>;
   markOAuthStateAsUsed(state: string): Promise<void>;
   cleanupExpiredOAuthStates(): Promise<void>;
+  cleanupAllOAuthStates(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -169,10 +171,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCompany(id: string): Promise<boolean> {
+    // CASCADA: Eliminar todas las subcuentas de la empresa primero
+    // Esto a su vez eliminará todas las instancias de cada subcuenta
+    const companySubaccounts = await db
+      .select()
+      .from(subaccounts)
+      .where(eq(subaccounts.companyId, id));
+
+    console.log(`🗑️ Deleting company ${id} with ${companySubaccounts.length} subaccounts...`);
+
+    // Eliminar cada subcuenta (esto eliminará sus instancias)
+    for (const subaccount of companySubaccounts) {
+      await this.deleteSubaccount(subaccount.id);
+    }
+
+    // Ahora eliminar la empresa
     const result = await db
       .delete(companies)
       .where(eq(companies.id, id))
       .returning();
+
+    console.log(`✅ Company ${id} deleted successfully`);
     return result.length > 0;
   }
 
@@ -361,14 +380,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSubaccount(id: string): Promise<boolean> {
+    // CASCADA: Eliminar todas las instancias de WhatsApp de Evolution API primero
+    const instances = await db
+      .select()
+      .from(whatsappInstances)
+      .where(eq(whatsappInstances.subaccountId, id));
+
+    console.log(`🗑️ Deleting subaccount ${id} with ${instances.length} WhatsApp instances...`);
+
+    // Eliminar cada instancia de Evolution API
+    for (const instance of instances) {
+      try {
+        console.log(`🗑️ Deleting Evolution API instance: ${instance.evolutionInstanceName}`);
+        await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+        console.log(`✅ Evolution API instance deleted: ${instance.evolutionInstanceName}`);
+      } catch (error) {
+        console.error(`⚠️ Failed to delete Evolution API instance ${instance.evolutionInstanceName}:`, error);
+        // Continuar aunque falle la eliminación en Evolution API
+      }
+
+      // Eliminar instancia de la base de datos
+      await db
+        .delete(whatsappInstances)
+        .where(eq(whatsappInstances.id, instance.id));
+    }
+
+    // Ahora marcar subcuenta como inactiva
     const [deleted] = await db
       .update(subaccounts)
-      .set({ 
+      .set({
         isActive: false,
         uninstalledAt: new Date()
       })
       .where(eq(subaccounts.id, id))
       .returning();
+
+    console.log(`✅ Subaccount ${id} deleted successfully`);
     return !!deleted;
   }
 
@@ -672,6 +719,14 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(oauthStates)
       .where(drizzleSql`${oauthStates.expiresAt} < NOW()`);
+  }
+
+  async cleanupAllOAuthStates(): Promise<number> {
+    // Eliminar TODOS los OAuth states (expirados, usados, y pendientes)
+    // Útil para limpiar la base de datos después de borrar empresas/subcuentas
+    const deleted = await db.delete(oauthStates).returning();
+    console.log(`🗑️ Deleted ${deleted.length} OAuth states`);
+    return deleted.length;
   }
 }
 

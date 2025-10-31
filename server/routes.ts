@@ -1512,6 +1512,23 @@ ${ghlErrorDetails}
     }
   });
 
+  // Limpiar TODOS los OAuth states (admin only)
+  // Útil cuando se borran empresas/subcuentas y quedan OAuth states huérfanos
+  app.post("/api/admin/oauth-states/cleanup", isAdmin, async (req, res) => {
+    try {
+      console.log("🗑️ Admin cleaning up OAuth states...");
+      const count = await storage.cleanupAllOAuthStates();
+      res.json({
+        success: true,
+        message: `Deleted ${count} OAuth states`,
+        count
+      });
+    } catch (error) {
+      console.error("Error cleaning OAuth states:", error);
+      res.status(500).json({ error: "Failed to cleanup OAuth states" });
+    }
+  });
+
   // Actualizar estado de activación manual de una subcuenta (solo admin)
   app.patch("/api/admin/subaccounts/:id/activation", isAdmin, async (req, res) => {
     try {
