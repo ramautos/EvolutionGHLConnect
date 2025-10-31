@@ -155,7 +155,13 @@ export default function Pricing() {
                   >
                     {plan.name}
                   </div>
-                  <h3 className="text-3xl font-black mb-2">{plan.title}</h3>
+                  <h3 className={`text-3xl font-black mb-2 ${
+                    plan.highlighted 
+                      ? "" 
+                      : "bg-gradient-to-r from-primary via-chart-2 to-primary bg-clip-text text-transparent"
+                  }`}>
+                    {plan.title}
+                  </h3>
                   <p
                     className={`text-sm ${
                       plan.highlighted ? "text-white/90" : "text-muted-foreground"
