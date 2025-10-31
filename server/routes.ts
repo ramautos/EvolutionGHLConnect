@@ -7,11 +7,23 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // ============================================
+  // INICIALIZAR STRIPE
+  // ============================================
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) {
+    console.warn("⚠️  STRIPE_SECRET_KEY not configured. Billing features disabled.");
+  }
+  const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+    apiVersion: "2025-10-29.clover",
+  }) : null;
+
   // ============================================
   // CONFIGURAR AUTENTICACIÓN
   // ============================================
@@ -1571,6 +1583,258 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error getting invoices:", error);
       res.status(500).json({ error: "Failed to get invoices" });
+    }
+  });
+
+  // ============================================
+  // STRIPE BILLING ENDPOINTS (Para usuario logueado)
+  // ============================================
+
+  // Obtener suscripción del usuario logueado
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      let subscription = await storage.getSubscription(user.id);
+      
+      // Si no tiene suscripción, crear una con trial de 15 días
+      if (!subscription) {
+        subscription = await storage.createSubscription(user.id, 15);
+      }
+
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error getting subscription:", error);
+      res.status(500).json({ error: "Error al obtener suscripción" });
+    }
+  });
+
+  // Actualizar plan de suscripción del usuario logueado
+  app.patch("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const validatedData = updateSubscriptionSchema.parse(req.body);
+      
+      // Obtener o crear suscripción
+      let subscription = await storage.getSubscription(user.id);
+      if (!subscription) {
+        subscription = await storage.createSubscription(user.id, 15);
+      }
+
+      // Actualizar suscripción
+      const updatedSubscription = await storage.updateSubscription(user.id, validatedData);
+      
+      res.json(updatedSubscription);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Datos inválidos", details: error.errors });
+      } else {
+        console.error("Error updating subscription:", error);
+        res.status(500).json({ error: "Error al actualizar suscripción" });
+      }
+    }
+  });
+
+  // Crear sesión de checkout de Stripe
+  app.post("/api/create-checkout-session", isAuthenticated, async (req, res) => {
+    try {
+      if (!stripe) {
+        res.status(503).json({ error: "Stripe no configurado" });
+        return;
+      }
+
+      const user = req.user as any;
+      if (!user || !user.id) {
+        res.status(401).json({ error: "No autenticado" });
+        return;
+      }
+
+      const { planId, priceId } = req.body;
+      if (!planId || !priceId) {
+        res.status(400).json({ error: "planId y priceId son requeridos" });
+        return;
+      }
+
+      // Obtener o crear suscripción
+      let subscription = await storage.getSubscription(user.id);
+      if (!subscription) {
+        subscription = await storage.createSubscription(user.id, 15);
+      }
+
+      // Crear o recuperar Stripe customer
+      let customerId = subscription.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: {
+            subaccountId: user.id,
+            companyId: user.companyId || "",
+          },
+        });
+        customerId = customer.id;
+        
+        // Actualizar suscripción con customer ID
+        await storage.updateSubscription(user.id, {
+          stripeCustomerId: customerId,
+        });
+      }
+
+      // Crear checkout session con trial de 15 días
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        subscription_data: {
+          trial_period_days: 15,
+          metadata: {
+            subaccountId: user.id,
+            planId,
+          },
+        },
+        success_url: `${process.env.REPLIT_DEV_DOMAIN || "https://whatsapp.cloude.es"}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.REPLIT_DEV_DOMAIN || "https://whatsapp.cloude.es"}/billing`,
+        metadata: {
+          subaccountId: user.id,
+          planId,
+        },
+      });
+
+      res.json({ sessionId: session.id, url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ error: "Error al crear sesión de pago" });
+    }
+  });
+
+  // Webhook de Stripe para manejar eventos
+  app.post("/api/webhooks/stripe", async (req, res) => {
+    try {
+      if (!stripe) {
+        res.status(503).json({ error: "Stripe no configurado" });
+        return;
+      }
+
+      const sig = req.headers["stripe-signature"];
+      if (!sig) {
+        res.status(400).json({ error: "No stripe signature" });
+        return;
+      }
+
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.warn("⚠️  STRIPE_WEBHOOK_SECRET not configured. Skipping signature verification.");
+      }
+
+      let event: Stripe.Event;
+
+      if (webhookSecret) {
+        try {
+          event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        } catch (err: any) {
+          console.error(`⚠️  Webhook signature verification failed: ${err.message}`);
+          res.status(400).json({ error: `Webhook Error: ${err.message}` });
+          return;
+        }
+      } else {
+        // Sin verificación de firma (solo para desarrollo)
+        event = req.body as Stripe.Event;
+      }
+
+      console.log(`✅ Stripe webhook received: ${event.type}`);
+
+      // Manejar eventos de Stripe
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const subaccountId = session.metadata?.subaccountId;
+          const planId = session.metadata?.planId;
+
+          if (subaccountId && planId) {
+            // Obtener detalles del plan
+            const planDetails = {
+              basic_1: { maxSubaccounts: "1", includedInstances: "1", basePrice: "15.00" },
+              pro_5: { maxSubaccounts: "5", includedInstances: "5", basePrice: "50.00" },
+              enterprise_10: { maxSubaccounts: "10", includedInstances: "10", basePrice: "90.00" },
+            }[planId as "basic_1" | "pro_5" | "enterprise_10"];
+
+            if (planDetails) {
+              await storage.updateSubscription(subaccountId, {
+                plan: planId as any,
+                maxSubaccounts: planDetails.maxSubaccounts,
+                includedInstances: planDetails.includedInstances,
+                basePrice: planDetails.basePrice,
+                status: "active",
+                stripeSubscriptionId: session.subscription as string,
+              });
+              console.log(`✅ Subscription activated for subaccount ${subaccountId}`);
+            }
+          }
+          break;
+        }
+
+        case "customer.subscription.updated": {
+          const subscription = event.data.object as Stripe.Subscription;
+          const subaccountId = subscription.metadata?.subaccountId;
+
+          if (subaccountId) {
+            await storage.updateSubscription(subaccountId, {
+              status: subscription.status === "active" ? "active" : "expired",
+            });
+            console.log(`✅ Subscription updated for subaccount ${subaccountId}`);
+          }
+          break;
+        }
+
+        case "customer.subscription.deleted": {
+          const subscription = event.data.object as Stripe.Subscription;
+          const subaccountId = subscription.metadata?.subaccountId;
+
+          if (subaccountId) {
+            await storage.updateSubscription(subaccountId, {
+              status: "cancelled",
+              cancelledAt: new Date(),
+            });
+            console.log(`✅ Subscription cancelled for subaccount ${subaccountId}`);
+          }
+          break;
+        }
+
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as Stripe.Invoice;
+          console.log(`✅ Payment succeeded for invoice ${invoice.id}`);
+          break;
+        }
+
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as Stripe.Invoice;
+          console.log(`⚠️  Payment failed for invoice ${invoice.id}`);
+          break;
+        }
+
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      res.status(500).json({ error: "Error al procesar webhook" });
     }
   });
 
