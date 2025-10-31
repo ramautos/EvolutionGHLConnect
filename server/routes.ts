@@ -2123,9 +2123,10 @@ ${ghlErrorDetails}
       console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
       await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-      // Configurar webhook automáticamente
+      // Configurar webhook automáticamente para recibir eventos de Evolution API
+      // IMPORTANTE: Cuando el usuario escanea el QR, Evolution API notificará a este webhook
       try {
-        const webhookUrl = 'https://whatsapp.cloude.es/api/webhook/message';
+        const webhookUrl = 'https://whatsapp.cloude.es/api/webhooks/evolution';
         console.log(`🔗 Configuring webhook for instance ${whatsappInstance.evolutionInstanceName}: ${webhookUrl}`);
         await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
         console.log(`✅ Webhook configured successfully`);
@@ -2451,6 +2452,11 @@ ${ghlErrorDetails}
               disconnectedAt: new Date(),
             });
             console.log(`Instance ${instance.id} disconnected at ${new Date().toISOString()}`);
+
+            // Emitir evento de WebSocket para actualizar UI en tiempo real
+            io.to(`instance-${instance.id}`).emit("instance-disconnected", {
+              instanceId: instance.id,
+            });
           }
         } else {
           console.error(`Instance not found for name: ${instanceName}`);
