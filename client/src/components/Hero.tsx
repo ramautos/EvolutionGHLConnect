@@ -7,7 +7,7 @@ export default function Hero() {
   const [, setLocation] = useLocation();
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
+    <section className="relative py-16 md:py-20 lg:py-24 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px]"></div>
       
       <div className="container mx-auto px-6 lg:px-12 relative z-10">

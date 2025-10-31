@@ -6,6 +6,11 @@ A production-ready multi-tenant SaaS platform integrating WhatsApp Business with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 31, 2025)
+- **Stripe Integration**: Complete Stripe billing integration with 15-day free trial, checkout flow, webhooks, and BillingSuccess confirmation page
+- **Favicon Update**: Changed favicon to use the official application logo (favicon.png, logo192.png, logo512.png)
+- **Hero Spacing Fix**: Adjusted Hero section spacing from `min-h-screen` to `py-16 md:py-20 lg:py-24` to reduce excessive space between navbar and content
+
 ## System Architecture
 
 ### Frontend
