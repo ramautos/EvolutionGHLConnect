@@ -83,22 +83,26 @@ export default function Billing() {
     enabled: !!user?.id,
   });
 
-  const upgradePlanMutation = useMutation({
-    mutationFn: async (plan: typeof selectedPlan) => {
-      return await apiRequest("PATCH", "/api/subscription", { plan });
+  const checkoutMutation = useMutation({
+    mutationFn: async ({ planId, priceId }: { planId: string; priceId: string }) => {
+      return await apiRequest("POST", "/api/create-checkout-session", { planId, priceId });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      toast({
-        title: "¡Plan actualizado!",
-        description: "Tu plan ha sido actualizado exitosamente.",
-      });
+    onSuccess: (data: any) => {
+      if (data.url) {
+        // Redirigir a Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo crear la sesión de pago",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
-        title: "Error al actualizar plan",
-        description: error.message || "No se pudo actualizar tu plan. Intenta nuevamente.",
+        title: "Error al procesar pago",
+        description: error.message || "No se pudo crear la sesión de pago. Intenta nuevamente.",
         variant: "destructive",
       });
     },
@@ -355,27 +359,30 @@ export default function Billing() {
                   <Button 
                     className="w-full" 
                     size="lg"
-                    onClick={() => upgradePlanMutation.mutate(selectedPlan)}
-                    disabled={upgradePlanMutation.isPending || subscription?.plan === selectedPlan}
+                    onClick={() => checkoutMutation.mutate({ 
+                      planId: selectedPlan, 
+                      priceId: selectedPlanData.priceId 
+                    })}
+                    disabled={checkoutMutation.isPending || subscription?.plan === selectedPlan}
                     data-testid="button-proceed-payment"
                   >
-                    {upgradePlanMutation.isPending ? (
+                    {checkoutMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Procesando...
+                        Redirigiendo a Stripe...
                       </>
                     ) : subscription?.plan === selectedPlan ? (
                       "Plan Actual"
                     ) : (
                       <>
                         <CreditCard className="w-4 h-4 mr-2" />
-                        Actualizar Plan
+                        Proceder al Pago
                       </>
                     )}
                   </Button>
                   <p className="text-xs text-center text-muted-foreground mt-3">
                     <Check className="w-3 h-3 inline mr-1" />
-                    Pago seguro con Stripe • Cancela en cualquier momento
+                    15 días de prueba gratuita • Pago seguro con Stripe
                   </p>
                 </div>
               </CardContent>

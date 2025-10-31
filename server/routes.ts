@@ -20,9 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   if (!stripeSecretKey) {
     console.warn("⚠️  STRIPE_SECRET_KEY not configured. Billing features disabled.");
   }
-  const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
-    apiVersion: "2025-10-29.clover",
-  }) : null;
+  const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
   // ============================================
   // CONFIGURAR AUTENTICACIÓN
@@ -97,6 +95,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         billingEnabled: true,
         manuallyActivated: true,
       });
+
+      // Crear suscripción con 15 días de prueba gratuita
+      await storage.createSubscription(user.id, 15);
+      console.log(`✅ Subscription created with 15-day trial for user ${user.email}`);
 
       // Auto-login después de registro
       req.login(user, (err) => {

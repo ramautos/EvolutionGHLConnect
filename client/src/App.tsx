@@ -21,6 +21,7 @@ import AdminWebhook from "@/pages/AdminWebhook";
 import AdminAPI from "@/pages/AdminAPI";
 import AdminSettings from "@/pages/AdminSettings";
 import Billing from "@/pages/Billing";
+import BillingSuccess from "@/pages/BillingSuccess";
 import Invoices from "@/pages/Invoices";
 import Onboarding from "@/pages/Onboarding";
 import DashboardGHL from "@/pages/DashboardGHL";
@@ -148,6 +149,11 @@ function Router() {
       <Route path="/billing">
         <ProtectedRoute>
           <Billing />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/billing/success">
+        <ProtectedRoute>
+          <BillingSuccess />
         </ProtectedRoute>
       </Route>
       <Route path="/invoices">
