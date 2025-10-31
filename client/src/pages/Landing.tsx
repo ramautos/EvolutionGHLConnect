@@ -2,6 +2,7 @@ import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import Testimonials from "@/components/Testimonials";
+import Pricing from "@/components/Pricing";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
@@ -31,6 +32,9 @@ export default function Landing() {
               <a href="#how-it-works" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-how-it-works">
                 Cómo Funciona
               </a>
+              <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-pricing">
+                Precios
+              </a>
               <a href="#testimonials" className="text-sm font-medium hover:text-primary transition-colors" data-testid="nav-testimonials">
                 Testimonios
               </a>
@@ -55,6 +59,9 @@ export default function Landing() {
         </div>
         <div id="how-it-works">
           <HowItWorks />
+        </div>
+        <div id="pricing">
+          <Pricing />
         </div>
         <div id="testimonials">
           <Testimonials />
