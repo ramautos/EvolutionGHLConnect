@@ -245,20 +245,49 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubaccountByEmail(email: string): Promise<Subaccount | undefined> {
-    const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.email, email));
+    // IMPORTANTE: Excluir system_admin y admin para evitar conflictos
+    // El super admin NO debe interferir con registros normales
+    const [subaccount] = await db
+      .select()
+      .from(subaccounts)
+      .where(
+        and(
+          eq(subaccounts.email, email),
+          not(eq(subaccounts.role, "system_admin")),
+          not(eq(subaccounts.role, "admin"))
+        )
+      );
     return subaccount || undefined;
   }
 
   async getSubaccountByGoogleId(googleId: string): Promise<Subaccount | undefined> {
-    const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.googleId, googleId));
+    // IMPORTANTE: Excluir system_admin y admin para evitar conflictos
+    const [subaccount] = await db
+      .select()
+      .from(subaccounts)
+      .where(
+        and(
+          eq(subaccounts.googleId, googleId),
+          not(eq(subaccounts.role, "system_admin")),
+          not(eq(subaccounts.role, "admin"))
+        )
+      );
     return subaccount || undefined;
   }
 
   async getSubaccountByLocationId(locationId: string): Promise<Subaccount | undefined> {
+    // IMPORTANTE: Excluir system_admin y admin para evitar conflictos
+    // El super admin NO debe interferir con instalaciones normales de GHL
     const [subaccount] = await db
       .select()
       .from(subaccounts)
-      .where(eq(subaccounts.locationId, locationId));
+      .where(
+        and(
+          eq(subaccounts.locationId, locationId),
+          not(eq(subaccounts.role, "system_admin")),
+          not(eq(subaccounts.role, "admin"))
+        )
+      );
     return subaccount || undefined;
   }
 
