@@ -122,7 +122,7 @@ export default function Pricing() {
             return (
               <div
                 key={index}
-                className={`relative rounded-3xl p-8 border-2 transition-all duration-300 ${
+                className={`group relative rounded-3xl p-8 border-2 transition-all duration-300 overflow-hidden ${
                   plan.highlighted
                     ? "bg-gradient-to-br from-primary to-chart-2 text-white border-primary shadow-xl scale-105 hover:scale-110"
                     : "bg-card border-border hover:-translate-y-3 hover:border-primary hover:shadow-2xl"
@@ -140,10 +140,11 @@ export default function Pricing() {
                 )}
 
                 <div
-                  className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-chart-2 rounded-t-3xl transition-all duration-300"
-                  style={{
-                    transform: plan.highlighted ? "scaleX(1)" : "scaleX(0)",
-                  }}
+                  className={`absolute top-0 left-0 w-full h-1 rounded-t-3xl transition-all duration-400 ${
+                    plan.highlighted
+                      ? "bg-white scale-x-100"
+                      : "bg-gradient-to-r from-primary to-chart-2 scale-x-0 group-hover:scale-x-100"
+                  }`}
                 />
 
                 <div className="mb-6">
