@@ -172,13 +172,13 @@ export default function Pricing() {
                 </div>
 
                 <div
-                  className={`py-6 my-8 border-t border-b ${
+                  className={`py-8 my-8 border-t border-b text-center ${
                     plan.highlighted ? "border-white/20" : "border-border"
                   }`}
                 >
-                  <div className="flex items-baseline justify-center gap-1">
+                  <div className="flex items-baseline justify-center gap-1 mb-3">
                     <span className="text-3xl font-extrabold">$</span>
-                    <span className="text-6xl font-black leading-none">{price}</span>
+                    <span className="text-7xl font-black leading-none">{price}</span>
                     <span
                       className={`text-lg font-medium ${
                         plan.highlighted ? "text-white/80" : "text-muted-foreground"
@@ -188,14 +188,16 @@ export default function Pricing() {
                     </span>
                   </div>
                   {billingPeriod === "annual" && (
-                    <div
-                      className={`inline-block mt-3 px-4 py-2 rounded-lg text-xs font-bold ${
-                        plan.highlighted
-                          ? "bg-white/20 text-white"
-                          : "bg-chart-2/15 text-chart-2"
-                      }`}
-                    >
-                      Ahorras ${plan.savings} USD al año
+                    <div className="flex justify-center">
+                      <div
+                        className={`inline-block px-4 py-2 rounded-lg text-xs font-bold ${
+                          plan.highlighted
+                            ? "bg-white/20 text-white"
+                            : "bg-primary/15 text-primary"
+                        }`}
+                      >
+                        Ahorras ${plan.savings} USD al año
+                      </div>
                     </div>
                   )}
                 </div>
