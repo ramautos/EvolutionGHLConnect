@@ -381,8 +381,15 @@ export class DatabaseStorage implements IStorage {
       })
       .from(whatsappInstances)
       .leftJoin(subaccounts, eq(whatsappInstances.subaccountId, subaccounts.id));
-    
-    return results;
+
+    // Aplanar los datos para que sean más fáciles de usar en el frontend
+    return results.map(r => ({
+      ...r.instance,
+      subaccountName: r.subaccount?.name,
+      subaccountEmail: r.subaccount?.email,
+      subaccountLocationId: r.subaccount?.locationId,
+      subaccountCompanyId: r.subaccount?.companyId,
+    }));
   }
 
   async createWhatsappInstance(insertInstance: CreateWhatsappInstance): Promise<WhatsappInstance> {

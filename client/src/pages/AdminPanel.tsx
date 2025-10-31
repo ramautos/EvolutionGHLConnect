@@ -53,15 +53,12 @@ export default function AdminPanel() {
   });
 
   // Filter data by companyId if provided
-  const subaccounts = companyIdFilter 
+  const subaccounts = companyIdFilter
     ? allSubaccounts.filter(s => s.companyId === companyIdFilter)
     : allSubaccounts;
-    
+
   const instances = companyIdFilter
-    ? allInstances.filter(i => {
-        const subaccount = allSubaccounts.find(s => s.id === i.subaccountId);
-        return subaccount?.companyId === companyIdFilter;
-      })
+    ? allInstances.filter(i => i.subaccountCompanyId === companyIdFilter)
     : allInstances;
 
   const deleteSubaccountMutation = useMutation({
@@ -393,10 +390,14 @@ export default function AdminPanel() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {instances.map((inst) => {
-                      const subaccount = subaccounts.find(s => s.id === inst.subaccountId);
-                      
-                      return (
+                    {instances.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No hay instancias creadas aún
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      instances.map((inst) => (
                         <TableRow key={inst.id} data-testid={`row-instance-${inst.id}`}>
                           <TableCell className="font-medium">
                             {inst.customName || "Sin nombre"}
@@ -404,13 +405,13 @@ export default function AdminPanel() {
                           <TableCell className="font-mono text-xs">
                             {inst.evolutionInstanceName}
                           </TableCell>
-                          <TableCell>{subaccount?.name || "—"}</TableCell>
-                          <TableCell>{subaccount?.email || "—"}</TableCell>
+                          <TableCell>{inst.subaccountName || "—"}</TableCell>
+                          <TableCell>{inst.subaccountEmail || "—"}</TableCell>
                           <TableCell>{inst.phoneNumber || "—"}</TableCell>
                           <TableCell>{getStatusBadge(inst.status)}</TableCell>
                         </TableRow>
-                      );
-                    })}
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
