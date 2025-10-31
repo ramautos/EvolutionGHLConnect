@@ -105,12 +105,16 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
       id: "PENDING_CLAIM",
       name: "Pending Claim",
       email: "pending@system.internal",
-      isActive: false, // Inactiva para evitar apariciones en listas
+      isActive: true, // DEBE estar activa para que foreign key funcione
     }).returning();
     pendingCompany = newPendingCompany;
     console.log(`   ✓ PENDING_CLAIM company created (ID: ${pendingCompany.id})`);
   } else {
-    console.log(`   ✓ PENDING_CLAIM company already exists (ID: ${pendingCompany.id})`);
+    // Asegurar que siempre esté activa
+    await db.update(companies)
+      .set({ isActive: true })
+      .where(eq(companies.id, "PENDING_CLAIM"));
+    console.log(`   ✓ PENDING_CLAIM company already exists and activated (ID: ${pendingCompany.id})`);
   }
 
   // 3. Crear o actualizar usuario administrador del sistema (SIN empresa)
