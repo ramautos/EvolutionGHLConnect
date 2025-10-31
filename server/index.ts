@@ -162,6 +162,26 @@ app.use((req, res, next) => {
         
         console.log('🎯 Server is ready and will run indefinitely');
         
+        // Ensure PENDING_CLAIM company is active (critical for webhooks)
+        import('./db').then(({ db }) => {
+          return import('../shared/schema').then(({ companies }) => {
+            return import('drizzle-orm').then(({ sql }) => {
+              console.log('🔧 Ensuring PENDING_CLAIM company is active...');
+              return db.execute(sql`
+                INSERT INTO companies (id, name, email, is_active, created_at, updated_at)
+                VALUES ('PENDING_CLAIM', 'Pending Claim', 'pending@system.internal', true, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE SET is_active = true, updated_at = NOW()
+              `).then(() => {
+                console.log('✅ PENDING_CLAIM company is active');
+              }).catch((err: any) => {
+                console.error('❌ Failed to ensure PENDING_CLAIM:', err.message);
+              });
+            });
+          });
+        }).catch((err: any) => {
+          console.error('❌ Failed to import dependencies for PENDING_CLAIM check:', err);
+        });
+        
         // Run bootstrap in background without blocking (fire-and-forget)
         // This ensures health checks can respond immediately
         import('./bootstrap')
