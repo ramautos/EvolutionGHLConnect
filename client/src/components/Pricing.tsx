@@ -122,7 +122,7 @@ export default function Pricing() {
             return (
               <div
                 key={index}
-                className={`group relative rounded-3xl p-8 border-2 transition-all duration-300 overflow-hidden ${
+                className={`group relative rounded-3xl p-8 border-2 transition-all duration-300 overflow-hidden flex flex-col ${
                   plan.highlighted
                     ? "bg-gradient-to-br from-primary to-chart-2 text-white border-primary shadow-xl scale-105 hover:scale-110"
                     : "bg-card border-border hover:-translate-y-3 hover:border-primary hover:shadow-2xl"
@@ -222,7 +222,7 @@ export default function Pricing() {
                 </ul>
 
                 <Button
-                  className={`w-full py-6 text-base font-bold rounded-xl transition-all ${
+                  className={`w-full py-6 text-base font-bold rounded-xl transition-all mt-auto ${
                     plan.highlighted
                       ? "bg-white text-primary hover:bg-white/95 hover:shadow-xl"
                       : "bg-foreground text-background hover:bg-primary hover:text-white hover:shadow-xl"
@@ -230,7 +230,7 @@ export default function Pricing() {
                   data-testid={`button-cta-${plan.name.toLowerCase()}`}
                   onClick={() => setLocation("/register")}
                 >
-                  Comenzar ahora
+                  Prueba gratis
                 </Button>
               </div>
             );
