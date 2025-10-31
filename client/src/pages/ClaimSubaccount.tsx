@@ -4,10 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { queryClient } from "@/lib/queryClient";
+import { useUser } from "@/contexts/UserContext";
 
 export default function ClaimSubaccount() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useUser();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -45,6 +48,12 @@ export default function ClaimSubaccount() {
         console.log("✅ Subcuenta reclamada exitosamente:", data);
         setStatus("success");
         setMessage("Tu subcuenta ha sido vinculada exitosamente a tu cuenta");
+
+        // Invalidar cache de subcuentas e instancias para refrescar la lista
+        if (user?.id) {
+          queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user.id] });
+        }
 
         // Redirigir al dashboard después de 2 segundos
         setTimeout(() => {
