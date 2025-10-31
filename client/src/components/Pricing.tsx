@@ -122,10 +122,10 @@ export default function Pricing() {
             return (
               <div
                 key={index}
-                className={`group relative rounded-3xl p-8 border-2 transition-all duration-300 overflow-hidden flex flex-col ${
+                className={`group relative rounded-3xl border-2 transition-all duration-300 flex flex-col ${
                   plan.highlighted
                     ? "bg-gradient-to-br from-primary to-chart-2 text-white border-primary shadow-xl scale-105 hover:scale-110"
-                    : "bg-card border-border hover:-translate-y-3 hover:border-primary hover:shadow-2xl"
+                    : "bg-card border-border hover:-translate-y-3 hover:border-primary hover:shadow-2xl overflow-hidden"
                 }`}
                 style={{
                   animation: `fadeInUp 0.6s ease-out ${0.1 + index * 0.1}s forwards`,
@@ -139,13 +139,17 @@ export default function Pricing() {
                   </div>
                 )}
 
-                <div
-                  className={`absolute top-0 left-0 w-full h-1 rounded-t-3xl transition-all duration-400 ${
-                    plan.highlighted
-                      ? "bg-white scale-x-100"
-                      : "bg-gradient-to-r from-primary to-chart-2 scale-x-0 group-hover:scale-x-100"
-                  }`}
-                />
+                {!plan.highlighted && (
+                  <div
+                    className="absolute top-0 left-0 w-full h-1 rounded-t-3xl transition-all duration-400 bg-gradient-to-r from-primary to-chart-2 scale-x-0 group-hover:scale-x-100"
+                  />
+                )}
+                
+                {plan.highlighted && (
+                  <div className="absolute top-0 left-0 w-full h-1 bg-white" />
+                )}
+                
+                <div className="p-8 flex flex-col flex-1">
 
                 <div className="mb-6">
                   <div
@@ -223,17 +227,14 @@ export default function Pricing() {
                   ))}
                 </ul>
 
-                <Button
-                  className={`w-full py-6 text-base font-bold rounded-xl transition-all mt-auto ${
-                    plan.highlighted
-                      ? "bg-white text-primary hover:bg-white/95 hover:shadow-xl"
-                      : "bg-foreground text-background hover:bg-primary hover:text-white hover:shadow-xl"
-                  }`}
-                  data-testid={`button-cta-${plan.name.toLowerCase()}`}
-                  onClick={() => setLocation("/register")}
-                >
-                  Prueba gratis
-                </Button>
+                  <Button
+                    className="w-full py-6 text-base font-bold rounded-xl transition-all mt-auto bg-foreground text-background hover:bg-primary hover:text-white hover:shadow-xl"
+                    data-testid={`button-cta-${plan.name.toLowerCase()}`}
+                    onClick={() => setLocation("/register")}
+                  >
+                    Prueba gratis
+                  </Button>
+                </div>
               </div>
             );
           })}
