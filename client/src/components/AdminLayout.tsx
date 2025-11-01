@@ -14,14 +14,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout } = useUser();
   const [location, setLocation] = useLocation();
 
-  // Redirect non-admin users
+  // Redirect non-admin users (admin y system_admin son válidos)
   useEffect(() => {
-    if (user && user.role !== "admin") {
+    if (user && user.role !== "admin" && user.role !== "system_admin") {
       setLocation("/dashboard");
     }
   }, [user, setLocation]);
 
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "system_admin")) {
     return null;
   }
 

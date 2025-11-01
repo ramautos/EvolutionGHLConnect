@@ -42,16 +42,28 @@ function DashboardContent() {
     }
   }, [user?.role, setLocation]);
 
+  // No renderizar nada si es admin (evitar loops mientras redirige)
+  if (user?.role === "admin" || user?.role === "system_admin") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Redirigiendo al panel de administración...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Obtener subcuentas del usuario
   const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/subaccounts/user", user?.id],
-    enabled: !!user?.id && user?.role !== "admin" && user?.role !== "system_admin",
+    enabled: !!user?.id,
   });
 
   // Obtener todas las instancias del usuario
   const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/instances/user", user?.id],
-    enabled: !!user?.id && user?.role !== "admin",
+    enabled: !!user?.id,
   });
 
   const handleLogout = async () => {
@@ -158,12 +170,6 @@ function DashboardContent() {
                   <Receipt className="w-4 h-4 mr-2" />
                   Facturas
                 </DropdownMenuItem>
-                {user?.role === "admin" && (
-                  <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Panel de Admin
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
                   <LogOut className="w-4 h-4 mr-2" />
