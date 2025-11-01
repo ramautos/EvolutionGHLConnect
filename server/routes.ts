@@ -982,7 +982,19 @@ ${ghlErrorDetails}
       const validatedData = webhookSchema.parse(normalizedData);
 
       // 1. Verificar si la subcuenta ya existe (REINSTALACIÓN)
+      // Verificar por locationId primero, luego por email como fallback
       let existingSubaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
+
+      // CRÍTICO: Fallback por email (por si GHL cambió el locationId)
+      // Esto previene el error "duplicate key value violates unique constraint subaccounts_email_unique"
+      if (!existingSubaccount) {
+        console.log(`🔍 LocationId not found, checking by email: ${validatedData.email}`);
+        existingSubaccount = await storage.getSubaccountByEmail(validatedData.email);
+        if (existingSubaccount) {
+          console.log(`✅ Found existing subaccount by email (locationId may have changed)`);
+        }
+      }
+
       let isReinstall = !!existingSubaccount;
 
       // 2. Validar OAuth state y obtener información del usuario
@@ -1029,6 +1041,7 @@ ${ghlErrorDetails}
           email: validatedData.email,
           name: validatedData.name,
           phone: validatedData.phone || existingSubaccount.phone,
+          locationId: validatedData.locationId, // Actualizar si cambió
           locationName: validatedData.locationName || existingSubaccount.locationName,
           ghlCompanyId: validatedData.ghlCompanyId,
           installedAt: new Date(),
