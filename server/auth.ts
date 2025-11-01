@@ -124,22 +124,7 @@ export function setupPassport(app: Express) {
             if (!subaccount) {
               // Si no existe, buscar por email (incluye admins para login)
               const email = profile.emails?.[0]?.value;
-
-              // Verificar si el email es del super admin y no está intentando hacer login
-              if (email && DatabaseStorage.isSystemAdminEmail(email)) {
-                // Buscar si existe el super admin para permitir login
-                const existingAdmin = await storage.getSubaccountByEmailForAuth(email);
-                if (!existingAdmin) {
-                  // Si no existe, rechazar creación de cuenta con email del super admin
-                  return done(null, false, {
-                    message: "Este email está reservado para el administrador del sistema"
-                  });
-                }
-                // Si existe, permitir login
-                subaccount = existingAdmin;
-              }
-
-              if (!subaccount && email) {
+              if (email) {
                 subaccount = await storage.getSubaccountByEmailForAuth(email);
               }
 

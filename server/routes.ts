@@ -978,15 +978,6 @@ ${ghlErrorDetails}
 
       const validatedData = webhookSchema.parse(normalizedData);
 
-      // Verificar si el email es del super admin
-      if (DatabaseStorage.isSystemAdminEmail(validatedData.email)) {
-        console.error(`❌ Attempted to create subaccount with system admin email: ${validatedData.email}`);
-        res.status(400).json({
-          error: "Este email está reservado para el administrador del sistema"
-        });
-        return;
-      }
-
       // 1. Validar OAuth state y obtener información del usuario
       let ownerCompanyId: string | undefined;
       let ownerUserId: string | undefined;
