@@ -35,9 +35,9 @@ function DashboardContent() {
   const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
 
-  // Si el usuario es admin, redirigir al panel de admin
+  // Si el usuario es admin o system_admin, redirigir al panel de admin
   useEffect(() => {
-    if (user?.role === "admin") {
+    if (user?.role === "admin" || user?.role === "system_admin") {
       setLocation("/admin");
     }
   }, [user?.role, setLocation]);
@@ -45,7 +45,7 @@ function DashboardContent() {
   // Obtener subcuentas del usuario
   const { data: subaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/subaccounts/user", user?.id],
-    enabled: !!user?.id && user?.role !== "admin",
+    enabled: !!user?.id && user?.role !== "admin" && user?.role !== "system_admin",
   });
 
   // Obtener todas las instancias del usuario
