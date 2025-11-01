@@ -7,6 +7,9 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
+import { db } from "./db";
+import { subaccounts, oauthStates, companies } from "@shared/schema";
+import { eq, and, sql, not, or } from "drizzle-orm";
 import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -1534,6 +1537,83 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error cleaning OAuth states:", error);
       res.status(500).json({ error: "Failed to cleanup OAuth states" });
+    }
+  });
+
+  // Limpiar TODA la basura de la base de datos (admin only)
+  // Esto es un "reset completo" para resolver problemas de datos inconsistentes
+  app.post("/api/admin/database/cleanup-all", isAdmin, async (req, res) => {
+    try {
+      console.log("🗑️🗑️🗑️ FULL DATABASE CLEANUP INITIATED BY ADMIN...");
+      const results: any = {};
+
+      // 1. Eliminar TODOS los OAuth states
+      console.log("🗑️ Deleting all OAuth states...");
+      const oauthDeleted = await db.delete(oauthStates).returning();
+      results.oauthStatesDeleted = oauthDeleted.length;
+      console.log(`✅ Deleted ${oauthDeleted.length} OAuth states`);
+
+      // 2. Eliminar subcuentas soft-deleted (isActive=false) que quedaron del sistema anterior
+      console.log("🗑️ Deleting soft-deleted subaccounts (isActive=false)...");
+      const softDeletedSubaccounts = await db
+        .delete(subaccounts)
+        .where(eq(subaccounts.isActive, false))
+        .returning();
+      results.softDeletedSubaccountsRemoved = softDeletedSubaccounts.length;
+      console.log(`✅ Deleted ${softDeletedSubaccounts.length} soft-deleted subaccounts`);
+
+      // 3. Eliminar companies huérfanas (sin subcuentas) excepto las del sistema
+      console.log("🗑️ Finding orphaned companies...");
+      const allCompanies = await db.select().from(companies);
+      let orphanedCompaniesDeleted = 0;
+
+      for (const company of allCompanies) {
+        // No eliminar companies del sistema
+        if (company.id === 'PENDING_CLAIM' ||
+            company.name === 'Default Company' ||
+            company.id === 'SYSTEM') {
+          continue;
+        }
+
+        // Verificar si tiene subcuentas
+        const companySubaccounts = await db
+          .select()
+          .from(subaccounts)
+          .where(eq(subaccounts.companyId, company.id));
+
+        if (companySubaccounts.length === 0) {
+          console.log(`🗑️ Deleting orphaned company: ${company.name} (${company.id})`);
+          await db.delete(companies).where(eq(companies.id, company.id));
+          orphanedCompaniesDeleted++;
+        }
+      }
+      results.orphanedCompaniesDeleted = orphanedCompaniesDeleted;
+      console.log(`✅ Deleted ${orphanedCompaniesDeleted} orphaned companies`);
+
+      // 4. Limpiar sesiones expiradas (de la tabla "session")
+      console.log("🗑️ Cleaning expired sessions...");
+      try {
+        const expiredSessionsResult = await db.execute(
+          sql`DELETE FROM session WHERE expire < NOW()`
+        );
+        results.expiredSessionsDeleted = (expiredSessionsResult as any).rowCount || 0;
+        console.log(`✅ Deleted ${results.expiredSessionsDeleted} expired sessions`);
+      } catch (sessionError) {
+        console.warn("⚠️ Could not clean sessions (table might not exist):", sessionError);
+        results.expiredSessionsDeleted = 0;
+      }
+
+      console.log("✅✅✅ FULL DATABASE CLEANUP COMPLETED");
+      console.log("Results:", results);
+
+      res.json({
+        success: true,
+        message: "Database cleanup completed successfully",
+        results
+      });
+    } catch (error) {
+      console.error("❌ Error during database cleanup:", error);
+      res.status(500).json({ error: "Failed to cleanup database" });
     }
   });
 
