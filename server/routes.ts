@@ -981,50 +981,80 @@ ${ghlErrorDetails}
 
       const validatedData = webhookSchema.parse(normalizedData);
 
-      // 1. Validar OAuth state y obtener información del usuario
+      // 1. Verificar si la subcuenta ya existe (REINSTALACIÓN)
+      let existingSubaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
+      let isReinstall = !!existingSubaccount;
+
+      // 2. Validar OAuth state y obtener información del usuario
       let ownerCompanyId: string | undefined;
       let ownerUserId: string | undefined;
       let ownerEmail: string | undefined;
+      let stateValidationFailed = false;
 
       if (validatedData.state) {
         console.log(`🔐 Validating OAuth state: ${validatedData.state}`);
         
         const oauthState = await storage.getOAuthState(validatedData.state);
         
-        if (!oauthState) {
-          console.error(`❌ Invalid OAuth state: ${validatedData.state}`);
-          res.status(400).json({ error: "Invalid or expired OAuth state" });
-          return;
+        if (!oauthState || oauthState.used || new Date() > new Date(oauthState.expiresAt)) {
+          // OAuth state inválido o expirado
+          console.log(`⚠️ OAuth state validation failed (invalid/used/expired)`);
+          stateValidationFailed = true;
+          
+          // Si es una REINSTALACIÓN, permitimos continuar sin OAuth state válido
+          if (!isReinstall) {
+            console.error(`❌ OAuth state invalid and this is NOT a reinstall - rejecting`);
+            res.status(400).json({ error: "Invalid or expired OAuth state" });
+            return;
+          } else {
+            console.log(`✅ OAuth state invalid but this IS a reinstall - allowing update`);
+          }
+        } else {
+          // OAuth state válido
+          await storage.markOAuthStateAsUsed(validatedData.state);
+          ownerCompanyId = oauthState.companyId;
+          ownerUserId = oauthState.userId;
+          ownerEmail = oauthState.userEmail;
+          console.log(`✅ OAuth state validated for user: ${ownerEmail} (company: ${ownerCompanyId})`);
         }
-
-        if (oauthState.used) {
-          console.error(`❌ OAuth state already used: ${validatedData.state}`);
-          res.status(400).json({ error: "OAuth state has already been used" });
-          return;
-        }
-
-        if (new Date() > new Date(oauthState.expiresAt)) {
-          console.error(`❌ OAuth state expired: ${validatedData.state}`);
-          res.status(400).json({ error: "OAuth state has expired" });
-          return;
-        }
-
-        // Marcar state como usado
-        await storage.markOAuthStateAsUsed(validatedData.state);
-
-        // Recuperar información del usuario que inició el OAuth
-        ownerCompanyId = oauthState.companyId;
-        ownerUserId = oauthState.userId;
-        ownerEmail = oauthState.userEmail;
-
-        console.log(`✅ OAuth state validated for user: ${ownerEmail} (company: ${ownerCompanyId})`);
       }
 
-      // 2. Determinar la empresa a la que pertenece esta subcuenta
+      // 3. Manejar REINSTALACIÓN (subcuenta ya existe)
+      if (isReinstall && existingSubaccount) {
+        console.log(`🔄 REINSTALL detected for location ${validatedData.locationId}`);
+        console.log(`📝 Updating existing subaccount data...`);
+        
+        // Actualizar datos de la subcuenta existente
+        const updatedSubaccount = await storage.updateSubaccount(existingSubaccount.id, {
+          email: validatedData.email,
+          name: validatedData.name,
+          phone: validatedData.phone || existingSubaccount.phone,
+          locationName: validatedData.locationName || existingSubaccount.locationName,
+          ghlCompanyId: validatedData.ghlCompanyId,
+          installedAt: new Date(),
+        });
+
+        console.log(`✅ Subaccount updated successfully on reinstall`);
+        
+        res.json({ 
+          success: true, 
+          message: "Subaccount reinstalled - data updated",
+          reinstall: true,
+          subaccount: {
+            id: existingSubaccount.id,
+            email: existingSubaccount.email,
+            name: existingSubaccount.name,
+            locationId: existingSubaccount.locationId,
+          }
+        });
+        return;
+      }
+
+      // 4. Determinar la empresa para NUEVA INSTALACIÓN
       let companyId: string = 'PENDING_CLAIM';
       
       // PRIORIDAD 1: Usar la company del usuario que instaló la subcuenta (OAuth validado)
-      if (ownerCompanyId) {
+      if (ownerCompanyId && !stateValidationFailed) {
         console.log(`🔍 Finding owner's company: ${ownerCompanyId}`);
         const company = await storage.getCompany(ownerCompanyId);
         if (company) {
@@ -1034,33 +1064,14 @@ ${ghlErrorDetails}
       }
       
       // PRIORIDAD 2: Si no hay owner validado, usar PENDING_CLAIM
-      // La subcuenta será "claimed" posteriormente por un usuario autenticado
       if (companyId === 'PENDING_CLAIM') {
         console.log(`⚠️ No owner validated - subaccount will be assigned to PENDING_CLAIM company (pending claim)`);
       }
 
-      // 2. Verificar si la subcuenta ya existe por locationId
-      let subaccount = await storage.getSubaccountByLocationId(validatedData.locationId);
-
-      if (subaccount) {
-        console.log(`✅ Subaccount already exists for location ${validatedData.locationId}`);
-        res.json({ 
-          success: true, 
-          message: "Subaccount already exists",
-          subaccount: {
-            id: subaccount.id,
-            email: subaccount.email,
-            name: subaccount.name,
-            locationId: subaccount.locationId,
-          }
-        });
-        return;
-      }
-
-      // 3. Crear la subcuenta (pendiente de claim si no hay companyId)
+      // 5. Crear la subcuenta (pendiente de claim si no hay companyId)
       console.log(`📝 Creating new subaccount for location ${validatedData.locationId}`);
       
-      subaccount = await storage.createSubaccount({
+      let subaccount = await storage.createSubaccount({
         email: validatedData.email,
         name: validatedData.name,
         phone: validatedData.phone || null,
@@ -1181,13 +1192,31 @@ ${ghlErrorDetails}
         return;
       }
 
-      const deleted = await storage.deleteSubaccount(userId);
-      if (!deleted) {
+      // Obtener subcuenta antes de eliminar para obtener locationId
+      const subaccount = await storage.getSubaccount(userId);
+      if (!subaccount) {
         res.status(404).json({ error: "Usuario no encontrado" });
         return;
       }
 
-      res.json({ success: true, message: "Usuario eliminado exitosamente" });
+      // Eliminar de la base de datos principal (Replit)
+      const deleted = await storage.deleteSubaccount(userId);
+      if (!deleted) {
+        res.status(500).json({ error: "Error al eliminar de base de datos principal" });
+        return;
+      }
+
+      // Eliminar también de la base de datos GHL si tiene locationId
+      if (subaccount.locationId && !subaccount.locationId.startsWith('LOCAL_')) {
+        const ghlDeleted = await ghlStorage.deleteClienteByLocationId(subaccount.locationId);
+        if (ghlDeleted) {
+          console.log(`✅ Deleted from GHL database: ${subaccount.locationId}`);
+        } else {
+          console.log(`⚠️ Could not delete from GHL database (may not exist): ${subaccount.locationId}`);
+        }
+      }
+
+      res.json({ success: true, message: "Usuario eliminado exitosamente de ambas bases de datos" });
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ error: "Error al eliminar usuario" });
@@ -1497,15 +1526,32 @@ ${ghlErrorDetails}
         });
         return;
       }
-      
-      const deleted = await storage.deleteCompany(id);
-      
-      if (!deleted) {
+
+      // Obtener información de la empresa antes de eliminarla
+      const company = await storage.getCompany(id);
+      if (!company) {
         res.status(404).json({ error: "Empresa no encontrada" });
         return;
       }
+
+      // Eliminar todas las subcuentas de la base de datos GHL primero
+      // (las subcuentas de Replit se eliminarán automáticamente por CASCADE)
+      const ghlDeletedCount = await ghlStorage.deleteClientesByCompanyId(id);
+      console.log(`✅ Deleted ${ghlDeletedCount} GHL clientes for company ${id}`);
       
-      res.json({ success: true, message: "Empresa eliminada exitosamente" });
+      // Eliminar empresa de la base de datos principal (esto eliminará subcuentas por CASCADE)
+      const deleted = await storage.deleteCompany(id);
+      
+      if (!deleted) {
+        res.status(500).json({ error: "Error al eliminar empresa de base de datos principal" });
+        return;
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Empresa eliminada exitosamente de ambas bases de datos",
+        ghlDeletedCount 
+      });
     } catch (error) {
       console.error("Error deleting company:", error);
       res.status(500).json({ error: "Failed to delete company" });

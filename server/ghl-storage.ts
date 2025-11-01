@@ -9,6 +9,8 @@ export interface IGhlStorage {
   createOrUpdateCliente(cliente: InsertGhlCliente): Promise<GhlCliente | undefined>;
   updateAccessToken(locationId: string, accessToken: string, refreshToken: string, expiresAt: Date): Promise<void>;
   getActiveClientes(): Promise<GhlCliente[]>;
+  deleteClienteByLocationId(locationId: string): Promise<boolean>;
+  deleteClientesByCompanyId(companyId: string): Promise<number>;
 }
 
 export class GhlDatabaseStorage implements IGhlStorage {
@@ -147,6 +149,53 @@ export class GhlDatabaseStorage implements IGhlStorage {
     } catch (error) {
       console.error('Error fetching active clientes:', error);
       return [];
+    }
+  }
+
+  async deleteClienteByLocationId(locationId: string): Promise<boolean> {
+    if (!isGhlDbConfigured || !ghlDb) {
+      console.warn('GHL Database not configured - skipping GHL delete');
+      return false;
+    }
+
+    try {
+      console.log(`🗑️ Deleting GHL cliente with locationId: ${locationId}`);
+      const deleted = await ghlDb
+        .delete(ghlClientes)
+        .where(eq(ghlClientes.locationid, locationId))
+        .returning();
+      
+      if (deleted.length > 0) {
+        console.log(`✅ GHL cliente deleted: ${locationId}`);
+        return true;
+      }
+      console.log(`⚠️ GHL cliente not found: ${locationId}`);
+      return false;
+    } catch (error) {
+      console.error('Error deleting GHL cliente:', error);
+      return false;
+    }
+  }
+
+  async deleteClientesByCompanyId(companyId: string): Promise<number> {
+    if (!isGhlDbConfigured || !ghlDb) {
+      console.warn('GHL Database not configured - skipping GHL delete');
+      return 0;
+    }
+
+    try {
+      console.log(`🗑️ Deleting all GHL clientes for company: ${companyId}`);
+      const deleted = await ghlDb
+        .delete(ghlClientes)
+        .where(eq(ghlClientes.companyid, companyId))
+        .returning();
+      
+      const count = deleted.length;
+      console.log(`✅ Deleted ${count} GHL clientes for company ${companyId}`);
+      return count;
+    } catch (error) {
+      console.error('Error deleting GHL clientes by company ID:', error);
+      return 0;
     }
   }
 }
