@@ -113,14 +113,45 @@ export default function SubaccountDetails() {
       
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       toast({
         title: "Instancia creada",
-        description: "La instancia de WhatsApp ha sido creada exitosamente",
+        description: "Generando código QR...",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
+      
+      // Cerrar el diálogo de creación
       setCreateInstanceOpen(false);
       setInstanceName("");
+      
+      // Invalidar queries para refrescar la lista
+      await queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
+      
+      // Generar automáticamente el código QR para la nueva instancia
+      if (data.whatsappInstance?.id) {
+        try {
+          const qrRes = await apiRequest("POST", `/api/instances/${data.whatsappInstance.id}/generate-qr`, {});
+          const qrData = await qrRes.json();
+          
+          // Mostrar el modal con el código QR
+          setSelectedInstance({ 
+            ...data.whatsappInstance, 
+            qrCode: qrData.qrCode 
+          });
+          setQrModalOpen(true);
+          
+          toast({
+            title: "¡Listo para escanear!",
+            description: "Escanea el código QR con WhatsApp para conectar tu cuenta",
+          });
+        } catch (error) {
+          console.error("Error generating QR after instance creation:", error);
+          toast({
+            title: "Instancia creada",
+            description: "Haz clic en 'Generar QR' para conectar WhatsApp",
+            variant: "default",
+          });
+        }
+      }
     },
     onError: (error: any) => {
       toast({
