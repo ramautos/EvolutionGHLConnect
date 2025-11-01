@@ -591,6 +591,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         subaccountId,
         plan: "none",
+        maxSubaccounts: "1",
         includedInstances: "0",
         extraSlots: "0",
         basePrice: "0.00",
