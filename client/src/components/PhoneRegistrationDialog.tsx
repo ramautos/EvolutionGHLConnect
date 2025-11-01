@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ interface PhoneRegistrationDialogProps {
 
 export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [canSkip, setCanSkip] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const { toast } = useToast();
   const { refetch } = useUser();
 
@@ -32,7 +34,6 @@ export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps
       return response.json();
     },
     onSuccess: async () => {
-      // Recargar el usuario para cerrar el diálogo
       await refetch();
       toast({
         title: "¡Número registrado!",
@@ -44,6 +45,36 @@ export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps
         variant: "destructive",
         title: "Error",
         description: error.message || "No se pudo guardar el número de teléfono",
+      });
+    },
+  });
+
+  const skipPhoneMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ phone: "SKIP" }),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Error al actualizar el perfil");
+      }
+      return response.json();
+    },
+    onSuccess: async () => {
+      await refetch();
+      toast({
+        title: "Registro pospuesto",
+        description: "Podrás agregar tu número de teléfono más tarde en tu perfil.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo procesar la solicitud",
       });
     },
   });
@@ -61,17 +92,46 @@ export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps
     updatePhoneMutation.mutate(phoneNumber);
   };
 
+  const handleSkip = () => {
+    skipPhoneMutation.mutate();
+  };
+
+  // Controlar el countdown cuando el diálogo está abierto
+  useEffect(() => {
+    if (!isOpen) {
+      // Resetear el estado cuando se cierra
+      setCountdown(3);
+      setCanSkip(false);
+      return;
+    }
+
+    // El diálogo acaba de abrirse, iniciar el countdown
+    setCountdown(3);
+    setCanSkip(false);
+
+    // Crear el intervalo para el countdown
+    let currentCount = 3;
+    const interval = setInterval(() => {
+      currentCount--;
+      if (currentCount >= 0) {
+        setCountdown(currentCount);
+      }
+      if (currentCount === 0) {
+        setCanSkip(true);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent 
-        className="sm:max-w-md"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Registro de Número de Teléfono</DialogTitle>
           <DialogDescription>
-            Por favor registra tu número de teléfono para continuar. Este campo es obligatorio.
+            Por favor registra tu número de teléfono. Podrás agregarlo más tarde si lo prefieres.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -92,16 +152,35 @@ export function PhoneRegistrationDialog({ isOpen }: PhoneRegistrationDialogProps
               enableSearch
               searchPlaceholder="Buscar país..."
               preferredCountries={["do", "us", "mx", "co", "ve"]}
+              countryCodeEditable={false}
+              enableAreaCodes={true}
+              disableCountryGuess={false}
             />
           </div>
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={updatePhoneMutation.isPending}
-            data-testid="button-register-phone"
-          >
-            {updatePhoneMutation.isPending ? "Guardando..." : "Registrar Número"}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={updatePhoneMutation.isPending}
+              data-testid="button-register-phone"
+            >
+              {updatePhoneMutation.isPending ? "Guardando..." : "Registrar Número"}
+            </Button>
+            <Button 
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={handleSkip}
+              disabled={!canSkip || skipPhoneMutation.isPending}
+              data-testid="button-skip-phone"
+            >
+              {skipPhoneMutation.isPending 
+                ? "Procesando..." 
+                : canSkip 
+                  ? "Agregar luego" 
+                  : `Agregar luego (${countdown}s)`}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
