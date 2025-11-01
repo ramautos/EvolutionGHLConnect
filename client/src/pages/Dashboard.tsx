@@ -105,8 +105,10 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Phone Registration Dialog - Obligatorio */}
-      <PhoneRegistrationDialog isOpen={!user?.phone} />
+      {/* Phone Registration Dialog - Obligatorio solo para usuarios normales */}
+      {user?.role !== "admin" && user?.role !== "system_admin" && (
+        <PhoneRegistrationDialog isOpen={!user?.phone} />
+      )}
       
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
