@@ -38,7 +38,7 @@ function DashboardContent() {
   // Si el usuario es admin o system_admin, redirigir al panel de admin
   useEffect(() => {
     if (user?.role === "admin" || user?.role === "system_admin") {
-      setLocation("/admin");
+      setLocation("/admin/dashboard");
     }
   }, [user?.role, setLocation]);
 
