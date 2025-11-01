@@ -87,9 +87,23 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // ============================================
+  // HELPER METHODS
+  // ============================================
+
+  /**
+   * Verifica si un email corresponde al super admin del sistema
+   * El super admin NO debe poder ser usado para registrar empresas o subcuentas normales
+   */
+  static isSystemAdminEmail(email: string): boolean {
+    const adminEmail = process.env.ADMIN_INITIAL_EMAIL;
+    if (!adminEmail) return false;
+    return email.toLowerCase().trim() === adminEmail.toLowerCase().trim();
+  }
+
+  // ============================================
   // COMPANY OPERATIONS
   // ============================================
-  
+
   async getCompany(id: string): Promise<SelectCompany | undefined> {
     const [company] = await db.select().from(companies).where(eq(companies.id, id));
     return company || undefined;

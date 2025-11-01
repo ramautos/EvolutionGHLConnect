@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import passport from "passport";
-import { storage } from "./storage";
+import { storage, DatabaseStorage } from "./storage";
 import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
@@ -62,7 +62,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const validatedData = registerSchema.parse(req.body);
-      
+
+      // Verificar si el email es del super admin
+      if (DatabaseStorage.isSystemAdminEmail(validatedData.email)) {
+        res.status(400).json({
+          error: "Este email está reservado para el administrador del sistema"
+        });
+        return;
+      }
+
       // Verificar si el email ya existe
       const existingUser = await storage.getSubaccountByEmail(validatedData.email);
       if (existingUser) {
@@ -969,6 +977,15 @@ ${ghlErrorDetails}
       });
 
       const validatedData = webhookSchema.parse(normalizedData);
+
+      // Verificar si el email es del super admin
+      if (DatabaseStorage.isSystemAdminEmail(validatedData.email)) {
+        console.error(`❌ Attempted to create subaccount with system admin email: ${validatedData.email}`);
+        res.status(400).json({
+          error: "Este email está reservado para el administrador del sistema"
+        });
+        return;
+      }
 
       // 1. Validar OAuth state y obtener información del usuario
       let ownerCompanyId: string | undefined;
