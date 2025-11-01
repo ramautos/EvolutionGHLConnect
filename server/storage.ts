@@ -416,17 +416,15 @@ export class DatabaseStorage implements IStorage {
         .where(eq(whatsappInstances.id, instance.id));
     }
 
-    // Ahora marcar subcuenta como inactiva
+    // HARD DELETE: Eliminar subcuenta de la base de datos
+    // Esto permite reutilizar el email y locationId en el futuro
+    // La suscripción se eliminará automáticamente por CASCADE (schema.ts línea 118)
     const [deleted] = await db
-      .update(subaccounts)
-      .set({
-        isActive: false,
-        uninstalledAt: new Date()
-      })
+      .delete(subaccounts)
       .where(eq(subaccounts.id, id))
       .returning();
 
-    console.log(`✅ Subaccount ${id} deleted successfully`);
+    console.log(`✅ Subaccount ${id} deleted successfully (hard delete)`);
     return !!deleted;
   }
 
