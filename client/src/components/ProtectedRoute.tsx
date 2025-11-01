@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
   }, [user, isLoading, setLocation]);
 
   useEffect(() => {
-    if (!isLoading && user && requireAdmin && user.role !== "admin") {
+    if (!isLoading && user && requireAdmin && user.role !== "admin" && user.role !== "system_admin") {
       setLocation("/dashboard");
     }
   }, [user, isLoading, requireAdmin, setLocation]);
@@ -36,7 +36,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
     return null;
   }
 
-  if (requireAdmin && user.role !== "admin") {
+  if (requireAdmin && user.role !== "admin" && user.role !== "system_admin") {
     return null;
   }
 
