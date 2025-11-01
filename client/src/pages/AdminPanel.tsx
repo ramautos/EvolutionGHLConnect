@@ -44,12 +44,12 @@ export default function AdminPanel() {
 
   const { data: allSubaccounts = [], isLoading: subaccountsLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/admin/subaccounts"],
-    enabled: user?.role === "admin",
+    enabled: user?.role === "admin" || user?.role === "system_admin",
   });
 
   const { data: allInstances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
     queryKey: ["/api/admin/instances"],
-    enabled: user?.role === "admin",
+    enabled: user?.role === "admin" || user?.role === "system_admin",
   });
 
   // Filter data by companyId if provided
@@ -168,7 +168,7 @@ export default function AdminPanel() {
 
   const connectedInstances = instances.filter(i => i.status === "connected").length;
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "admin" && user?.role !== "system_admin") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="max-w-md">
