@@ -733,10 +733,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markOAuthStateAsUsed(state: string): Promise<void> {
+    // SOLUCIÓN DEFINITIVA: BORRAR el state después de usarlo
+    // En lugar de solo marcarlo como "used", lo eliminamos completamente
+    // Esto evita acumulación de basura y errores de "state already used"
     await db
-      .update(oauthStates)
-      .set({ used: true })
+      .delete(oauthStates)
       .where(eq(oauthStates.state, state));
+
+    console.log(`🗑️ OAuth state deleted after use: ${state.substring(0, 10)}...`);
   }
 
   async cleanupExpiredOAuthStates(): Promise<void> {
