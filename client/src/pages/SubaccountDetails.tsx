@@ -25,7 +25,11 @@ import {
   Key,
   Eye,
   EyeOff,
-  Edit2
+  Edit2,
+  AlertCircle,
+  Check,
+  CreditCard,
+  Zap
 } from "lucide-react";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
@@ -41,12 +45,14 @@ export default function SubaccountDetails() {
 
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [crmSettingsOpen, setCrmSettingsOpen] = useState(false);
+  const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
+  const [plansDialogOpen, setPlansDialogOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<WhatsappInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
-  const [openaiApiKey, setOpenaiApiKey] = useState("");
-  const [calendarId, setCalendarId] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
 
   // Obtener subcuenta
   const { data: subaccounts = [], isLoading: subaccountLoading } = useQuery<Subaccount[]>({
@@ -56,15 +62,7 @@ export default function SubaccountDetails() {
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
 
-  // Inicializar API key y calendar ID cuando se carga la subcuenta
-  useEffect(() => {
-    if (subaccount?.openaiApiKey) {
-      setOpenaiApiKey(subaccount.openaiApiKey);
-    }
-    if (subaccount?.calendarId) {
-      setCalendarId(subaccount.calendarId);
-    }
-  }, [subaccount]);
+  // No inicializar API keys por seguridad - los inputs son write-only
 
   // Obtener instancias
   const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
@@ -263,47 +261,47 @@ export default function SubaccountDetails() {
     },
   });
 
-  // Mutation para actualizar CRM Settings (OpenAI + Calendar ID)
-  const updateCrmSettingsMutation = useMutation({
-    mutationFn: async ({ openaiKey, calendId }: { openaiKey?: string; calendId?: string }) => {
+  // Mutation para actualizar API Settings (ElevenLabs y Gemini)
+  const updateApiSettingsMutation = useMutation({
+    mutationFn: async ({ elevenLabsKey, geminiKey }: { elevenLabsKey?: string; geminiKey?: string }) => {
       if (!subaccount?.locationId) {
         throw new Error("Location ID no encontrado");
       }
       
-      const promises = [];
+      const updates: any = {};
       
-      // Actualizar OpenAI Key si cambió
-      if (openaiKey !== undefined && openaiKey !== subaccount.openaiApiKey) {
-        promises.push(
-          apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/openai-key`, {
-            openaiApiKey: openaiKey,
-          })
-        );
+      // Solo incluir las keys que se proporcionaron (no vacías)
+      if (elevenLabsKey && elevenLabsKey.trim()) {
+        updates.elevenLabsApiKey = elevenLabsKey.trim();
       }
       
-      // Actualizar Calendar ID si cambió
-      if (calendId !== undefined && calendId !== subaccount.calendarId) {
-        promises.push(
-          apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/crm-settings`, {
-            calendarId: calendId,
-          })
-        );
+      if (geminiKey && geminiKey.trim()) {
+        updates.geminiApiKey = geminiKey.trim();
       }
       
-      if (promises.length === 0) {
-        return { message: "No changes to save" };
+      if (Object.keys(updates).length === 0) {
+        throw new Error("Por favor proporciona al menos una API key para actualizar");
       }
       
-      await Promise.all(promises);
-      return { success: true };
+      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, updates);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update API settings");
+      }
+      
+      return await res.json();
     },
     onSuccess: () => {
       toast({
         title: "Configuración actualizada",
-        description: "Los ajustes del CRM se guardaron exitosamente",
+        description: "Las API keys se guardaron exitosamente",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
-      setCrmSettingsOpen(false);
+      setApiSettingsOpen(false);
+      // Limpiar los campos después de guardar
+      setElevenLabsApiKey("");
+      setGeminiApiKey("");
     },
     onError: (error: any) => {
       toast({
@@ -344,10 +342,10 @@ export default function SubaccountDetails() {
     updateInstanceNameMutation.mutate({ instanceId, newName });
   };
 
-  const handleSaveCrmSettings = () => {
-    updateCrmSettingsMutation.mutate({
-      openaiKey: openaiApiKey,
-      calendId: calendarId,
+  const handleSaveApiSettings = () => {
+    updateApiSettingsMutation.mutate({
+      elevenLabsKey: elevenLabsApiKey,
+      geminiKey: geminiApiKey,
     });
   };
 
@@ -366,12 +364,12 @@ export default function SubaccountDetails() {
     return Math.max(0, days);
   };
 
-  // Helper para determinar estado del trial
+  // Helper para determinar estado del trial (7 días ahora)
   const getTrialStatus = () => {
     if (!subscription?.inTrial) return "expired";
     const daysRemaining = getDaysRemaining();
-    if (daysRemaining > 3) return "active"; // Días 4-15
-    if (daysRemaining > 0) return "warning"; // Últimos 3 días
+    if (daysRemaining > 2) return "active"; // Días 3-7
+    if (daysRemaining > 0) return "warning"; // Últimos 2 días (ROJO)
     return "expired";
   };
 
@@ -420,7 +418,7 @@ export default function SubaccountDetails() {
             <CardDescription>La subcuenta que buscas no existe</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setLocation("/dashboard")}>
+            <Button onClick={() => setLocation("/dashboard")} data-testid="button-back-not-found">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Volver al Dashboard
             </Button>
@@ -429,6 +427,9 @@ export default function SubaccountDetails() {
       </div>
     );
   }
+
+  const daysRemaining = getDaysRemaining();
+  const trialStatus = getTrialStatus();
 
   return (
     <div className="min-h-screen bg-background">
@@ -453,80 +454,250 @@ export default function SubaccountDetails() {
 
       {/* Main Content */}
       <main className="container py-8">
-        <div className="space-y-8 max-w-4xl mx-auto">
+        <div className="space-y-8 max-w-6xl mx-auto">
           {/* Trial Banner */}
-          {subscription && (
-            <>
-              {getTrialStatus() === "active" && (
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 p-6 text-white">
-                  <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-2">🎉 Período de Prueba Activo</h3>
-                      <p className="text-white/90 mb-1">
-                        Te quedan <span className="font-bold text-2xl">{getDaysRemaining()} días</span> de trial gratuito
-                      </p>
-                      <p className="text-sm text-white/80">
-                        Puedes crear instancias ilimitadas durante este período
+          {subscription && subscription.inTrial && (
+            <Card className={`border-2 ${trialStatus === "warning" ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "border-blue-500 bg-blue-50 dark:bg-blue-950/20"}`}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-full ${trialStatus === "warning" ? "bg-red-100 dark:bg-red-900/30" : "bg-blue-100 dark:bg-blue-900/30"}`}>
+                      {trialStatus === "warning" ? (
+                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      ) : (
+                        <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className={`text-lg font-bold ${trialStatus === "warning" ? "text-red-700 dark:text-red-300" : "text-blue-700 dark:text-blue-300"}`}>
+                        {trialStatus === "warning" ? "⚠️ Trial por expirar" : "🎉 Período de Prueba Activo"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {trialStatus === "warning" ? (
+                          <>Solo te quedan <span className="font-bold text-red-600 dark:text-red-400">{daysRemaining} días</span> de prueba</>
+                        ) : (
+                          <>Te quedan <span className="font-bold">{daysRemaining} días</span> de trial gratuito</>
+                        )}
                       </p>
                     </div>
-                    <Button 
-                      variant="secondary" 
-                      className="bg-white text-purple-600 hover:bg-white/90"
-                      data-testid="button-add-payment-method"
-                    >
-                      Agregar Método de Pago
-                    </Button>
                   </div>
+                  <Button 
+                    variant={trialStatus === "warning" ? "destructive" : "default"}
+                    onClick={() => setPlansDialogOpen(true)}
+                    data-testid="button-view-plans"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Ver Planes
+                  </Button>
                 </div>
-              )}
-              
-              {getTrialStatus() === "warning" && (
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 p-6 text-white animate-pulse">
-                  <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-2">⚠️ ¡Tu Trial Está Por Expirar!</h3>
-                      <p className="text-white/90 mb-1">
-                        Solo quedan <span className="font-bold text-2xl">{getDaysRemaining()} días</span> de prueba
-                      </p>
-                      <p className="text-sm text-white/80">
-                        Agrega un método de pago ahora para evitar la interrupción del servicio
-                      </p>
-                    </div>
-                    <Button 
-                      variant="secondary" 
-                      className="bg-white text-orange-600 hover:bg-white/90 font-bold"
-                      data-testid="button-add-payment-urgent"
-                    >
-                      Agregar Pago Ahora
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {getTrialStatus() === "expired" && (
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-gray-600 via-gray-700 to-red-600 p-6 text-white">
-                  <div className="relative z-10 flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-2">🔒 Período de Prueba Finalizado</h3>
-                      <p className="text-white/90 mb-1">
-                        Tu trial de 15 días ha expirado
-                      </p>
-                      <p className="text-sm text-white/80">
-                        Tus instancias están pausadas. Activa tu cuenta para continuar.
-                      </p>
-                    </div>
-                    <Button 
-                      variant="secondary" 
-                      className="bg-white text-red-600 hover:bg-white/90 font-bold"
-                      data-testid="button-activate-account"
-                    >
-                      Activar Cuenta Ahora
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+              </CardContent>
+            </Card>
           )}
+
+          {subscription && !subscription.inTrial && (
+            <Card className="border-2 border-gray-500 bg-gray-50 dark:bg-gray-950/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-gray-100 dark:bg-gray-900/30">
+                      <XCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300">
+                        🔒 Período de Prueba Finalizado
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Tu trial de 7 días ha expirado. Activa un plan para continuar
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => setPlansDialogOpen(true)}
+                    data-testid="button-activate-account"
+                  >
+                    Activar Cuenta Ahora
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* WhatsApp Instances - MOVIDO ARRIBA */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-2xl font-bold">Instancias de WhatsApp</h2>
+                <p className="text-sm text-muted-foreground">
+                  Gestiona tus conexiones de WhatsApp Business
+                </p>
+              </div>
+              <Button
+                onClick={() => setCreateInstanceOpen(true)}
+                disabled={createInstanceMutation.isPending}
+                data-testid="button-create-instance"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Instancia
+              </Button>
+            </div>
+
+            {instances.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <MessageSquare className="w-16 h-16 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No hay instancias</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Crea tu primera instancia de WhatsApp para comenzar
+                  </p>
+                  <Button onClick={() => setCreateInstanceOpen(true)} data-testid="button-create-first-instance">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Instancia
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {instances.map((instance) => (
+                  <Card key={instance.id} className="hover-elevate">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                            <h3 className="font-semibold truncate">{instance.customName}</h3>
+                            <Badge variant={getStatusColor(instance.status || "disconnected")}>
+                              <span className="flex items-center gap-1">
+                                {getStatusIcon(instance.status || "disconnected")}
+                                {instance.status || "disconnected"}
+                              </span>
+                            </Badge>
+                          </div>
+                          
+                          {instance.phoneNumber && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                              <Phone className="w-4 h-4" />
+                              <span>{instance.phoneNumber}</span>
+                            </div>
+                          )}
+                          
+                          <p className="text-xs text-muted-foreground">
+                            Actualizado {formatDistanceToNow(new Date(instance.updatedAt || instance.createdAt), { 
+                              addSuffix: true,
+                              locale: es 
+                            })}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {instance.status !== "connected" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleGenerateQr(instance)}
+                              disabled={generateQrMutation.isPending}
+                              data-testid={`button-generate-qr-${instance.id}`}
+                            >
+                              <QrCode className="w-4 h-4 mr-2" />
+                              Generar QR
+                            </Button>
+                          )}
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSyncInstance(instance.id)}
+                            disabled={syncInstanceMutation.isPending}
+                            data-testid={`button-sync-${instance.id}`}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newName = prompt("Nuevo nombre:", instance.customName);
+                              if (newName && newName !== instance.customName) {
+                                handleUpdateInstanceName(instance.id, newName);
+                              }
+                            }}
+                            data-testid={`button-edit-name-${instance.id}`}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteInstance(instance.id)}
+                            disabled={deleteInstanceMutation.isPending}
+                            data-testid={`button-delete-${instance.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* API Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <CardTitle>Configuración de APIs</CardTitle>
+                    <CardDescription className="mt-1">
+                      Gestiona las credenciales de ElevenLabs y Gemini
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setApiSettingsOpen(true)}
+                  data-testid="button-api-settings"
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Configurar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/50">
+                <span className="font-medium">ElevenLabs API:</span>
+                <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
+                  {(subaccount as any).hasElevenLabsKey ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" />
+                      Configurado
+                    </>
+                  ) : (
+                    "No configurado"
+                  )}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/50">
+                <span className="font-medium">Gemini API:</span>
+                <Badge variant={(subaccount as any).hasGeminiKey ? "default" : "secondary"}>
+                  {(subaccount as any).hasGeminiKey ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" />
+                      Configurado
+                    </>
+                  ) : (
+                    "No configurado"
+                  )}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Subaccount Info */}
           <Card>
@@ -537,661 +708,318 @@ export default function SubaccountDetails() {
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Nombre:</span>
-                  <p className="text-muted-foreground">{subaccount.name}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="p-3 rounded-md bg-muted/50">
+                  <span className="font-medium block text-muted-foreground mb-1">Nombre</span>
+                  <p className="font-semibold">{subaccount.name}</p>
                 </div>
-                <div>
-                  <span className="font-medium">Location ID:</span>
-                  <p className="text-muted-foreground font-mono text-xs">{subaccount.locationId}</p>
+                <div className="p-3 rounded-md bg-muted/50">
+                  <span className="font-medium block text-muted-foreground mb-1">Location ID</span>
+                  <p className="font-mono text-xs">{subaccount.locationId}</p>
                 </div>
                 {subaccount.city && subaccount.state && (
-                  <div>
-                    <span className="font-medium">Ubicación:</span>
-                    <p className="text-muted-foreground">{subaccount.city}, {subaccount.state}</p>
+                  <div className="p-3 rounded-md bg-muted/50">
+                    <span className="font-medium block text-muted-foreground mb-1">Ubicación</span>
+                    <p className="font-semibold">{subaccount.city}, {subaccount.state}</p>
                   </div>
                 )}
                 {subaccount.email && (
-                  <div>
-                    <span className="font-medium">Email:</span>
-                    <p className="text-muted-foreground">{subaccount.email}</p>
+                  <div className="p-3 rounded-md bg-muted/50">
+                    <span className="font-medium block text-muted-foreground mb-1">Email</span>
+                    <p className="font-semibold">{subaccount.email}</p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
-
-          {/* CRM Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Key className="w-5 h-5 text-muted-foreground" />
-                  <CardTitle>Ajustes del CRM</CardTitle>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCrmSettingsOpen(true)}
-                  data-testid="button-crm-settings"
-                >
-                  Configurar
-                </Button>
-              </div>
-              <CardDescription>
-                Configura las opciones del CRM y gestiona las integraciones
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">OpenAI API Key:</span>
-                <span className="font-mono">{subaccount.openaiApiKey ? "Configurado ✓" : "No configurado"}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Planes y Facturación */}
-          {subscription && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Planes y Facturación</h2>
-                <p className="text-sm text-muted-foreground">
-                  Gestiona tu suscripción y selecciona el plan que mejor se adapte a tus necesidades
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Columna Izquierda - Estado Actual del Plan */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      {subscription.inTrial ? "Plan Trial" : `Plan ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}`}
-                    </CardTitle>
-                    <CardDescription>
-                      {subscription.inTrial ? "Prueba gratuita activa" : "Plan actual"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {subscription.inTrial ? (
-                      <>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">Instancias disponibles</p>
-                          <p className="text-2xl font-bold">Ilimitadas</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">Días restantes</p>
-                          <p className="text-2xl font-bold">{getDaysRemaining()} días</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">Precio mensual</p>
-                          <p className="text-2xl font-bold">${subscription.basePrice}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-1">WhatsApps incluidos</p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                              <div 
-                                className="bg-primary h-full transition-all"
-                                style={{ width: `${Math.min((instances.length / parseInt(subscription.includedInstances || "1")) * 100, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-sm font-medium">
-                              {instances.length} / {subscription.includedInstances}
-                            </span>
-                          </div>
-                        </div>
-                        {parseInt(subscription.extraSlots) > 0 && (
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-1">Instancias adicionales</p>
-                            <p className="text-lg font-bold">
-                              {subscription.extraSlots} × $5 = ${(parseInt(subscription.extraSlots) * 5).toFixed(2)}
-                            </p>
-                          </div>
-                        )}
-                        <div className="pt-4 border-t">
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="flex-1"
-                              data-testid="button-change-plan"
-                            >
-                              Cambiar Plan
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="flex-1 text-destructive"
-                              data-testid="button-cancel-subscription"
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Columna Derecha - Selector de Planes */}
-                <div className="space-y-4">
-                  <p className="text-sm font-medium text-muted-foreground">Planes disponibles</p>
-                  
-                  {/* Grid de 3 planes */}
-                  <div className="grid gap-4">
-                    {/* Plan Starter */}
-                    <Card className={subscription.plan === "starter" ? "border-primary" : ""}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base">Plan Starter</CardTitle>
-                            <p className="text-2xl font-bold mt-1">$10<span className="text-sm text-muted-foreground">/mes</span></p>
-                          </div>
-                          {subscription.plan === "starter" && (
-                            <Badge variant="default">ACTUAL</Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-sm text-muted-foreground">✓ 1 cuenta de WhatsApp</p>
-                        <p className="text-sm text-muted-foreground">✓ Soporte 24/7</p>
-                        <p className="text-sm text-muted-foreground">✓ API completa</p>
-                        {subscription.plan !== "starter" && !subscription.inTrial && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full mt-2"
-                            data-testid="button-select-starter"
-                          >
-                            Seleccionar
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Plan Básico */}
-                    <Card className={subscription.plan === "basic" ? "border-primary" : ""}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base">Plan Básico</CardTitle>
-                            <p className="text-2xl font-bold mt-1">$19<span className="text-sm text-muted-foreground">/mes</span></p>
-                            <p className="text-xs text-green-600 font-medium">Ahorras $11</p>
-                          </div>
-                          {subscription.plan === "basic" && (
-                            <Badge variant="default">ACTUAL</Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-sm text-muted-foreground">✓ 3 cuentas de WhatsApp</p>
-                        <p className="text-sm text-muted-foreground">✓ Soporte prioritario</p>
-                        <p className="text-sm text-muted-foreground">✓ API completa</p>
-                        {subscription.plan !== "basic" && !subscription.inTrial && (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full mt-2"
-                            data-testid="button-select-basic"
-                          >
-                            Seleccionar
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Plan Pro */}
-                    <Card className={subscription.plan === "pro" ? "border-primary border-2" : "border-purple-500 border-2"}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base">Plan Pro</CardTitle>
-                            <p className="text-2xl font-bold mt-1">$29<span className="text-sm text-muted-foreground">/mes</span></p>
-                            <p className="text-xs text-green-600 font-medium">Ahorras $21</p>
-                          </div>
-                          <Badge variant="default" className="bg-purple-600">
-                            {subscription.plan === "pro" ? "ACTUAL" : "RECOMENDADO"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-sm text-muted-foreground">✓ 5 cuentas de WhatsApp</p>
-                        <p className="text-sm text-muted-foreground">✓ Soporte VIP</p>
-                        <p className="text-sm text-muted-foreground">✓ API completa</p>
-                        <p className="text-sm text-muted-foreground">✓ Webhooks avanzados</p>
-                        {subscription.plan !== "pro" && !subscription.inTrial && (
-                          <Button 
-                            size="sm" 
-                            className="w-full mt-2"
-                            data-testid="button-select-pro"
-                          >
-                            Seleccionar
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Alert de instancias adicionales */}
-                  <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-blue-900 dark:text-blue-100">
-                        💡 <span className="font-medium">¿Necesitas más de 5 cuentas?</span> Cada WhatsApp adicional cuesta $5/mes
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-
-              {/* Calculadora de Cuentas Adicionales (solo si plan Pro y >5 instancias) */}
-              {subscription.plan === "pro" && instances.length > 5 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Calculadora de Cuentas Adicionales</CardTitle>
-                    <CardDescription>
-                      Simula el costo de tu plan con diferentes cantidades de instancias
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Resumen actual */}
-                    <div className="grid sm:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Plan Pro Base</p>
-                        <p className="text-lg font-bold">$29.00</p>
-                        <p className="text-xs text-muted-foreground">(5 incluidas)</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Cuentas Adicionales</p>
-                        <p className="text-lg font-bold">{instances.length - 5} × $5</p>
-                        <p className="text-xs text-muted-foreground">= ${((instances.length - 5) * 5).toFixed(2)}</p>
-                      </div>
-                      <div className="sm:border-l sm:pl-4">
-                        <p className="text-xs text-muted-foreground mb-1">Total Mensual</p>
-                        <p className="text-2xl font-bold text-primary">
-                          ${(29 + (instances.length - 5) * 5).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Simulador */}
-                    <div className="space-y-3">
-                      <Label htmlFor="instance-simulator">Simular cantidad de instancias</Label>
-                      <div className="flex items-center gap-4">
-                        <Input
-                          id="instance-simulator"
-                          type="number"
-                          min="6"
-                          max="50"
-                          defaultValue={instances.length}
-                          className="max-w-[120px]"
-                          data-testid="input-instance-calculator"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm text-muted-foreground">
-                            Precio estimado: <span className="font-bold text-foreground">$29 + ${((parseInt((document.getElementById('instance-simulator') as HTMLInputElement)?.value || "6") - 5) * 5).toFixed(2)} = ${(29 + ((parseInt((document.getElementById('instance-simulator') as HTMLInputElement)?.value || "6") - 5) * 5)).toFixed(2)}/mes</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* WhatsApp Instances */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Instancias de WhatsApp</h2>
-                <p className="text-sm text-muted-foreground">
-                  Conecta y gestiona números de WhatsApp para esta ubicación
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  if (getTrialStatus() === "expired") {
-                    toast({
-                      title: "Trial expirado",
-                      description: "Tu período de prueba ha finalizado. Activa tu cuenta para crear instancias.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  setCreateInstanceOpen(true);
-                }}
-                disabled={getTrialStatus() === "expired"}
-                data-testid="button-add-instance"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nueva Instancia
-              </Button>
-            </div>
-
-            {instances.length === 0 ? (
-              <Card className="text-center py-12">
-                <CardHeader>
-                  <div className="flex justify-center mb-4">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                      <MessageSquare className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <CardTitle>No hay instancias de WhatsApp</CardTitle>
-                  <CardDescription>
-                    Crea tu primera instancia para conectar WhatsApp
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => setCreateInstanceOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear Primera Instancia
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {instances.map((instance) => (
-                  <Card key={instance.id} data-testid={`card-instance-${instance.id}`}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg">{instance.customName}</CardTitle>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="w-7 h-7"
-                              onClick={() => {
-                                const newName = prompt("Nuevo nombre para la instancia:", instance.customName || "");
-                                if (newName && newName.trim() && newName !== instance.customName) {
-                                  handleUpdateInstanceName(instance.id, newName.trim());
-                                }
-                              }}
-                              data-testid={`button-edit-name-${instance.id}`}
-                              title="Editar nombre"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                          <CardDescription className="font-mono text-xs">
-                            {instance.evolutionInstanceName}
-                          </CardDescription>
-                          <div className="text-xs text-muted-foreground space-y-0.5">
-                            <div><span className="font-medium">Empresa:</span> {subaccount.name}</div>
-                            <div><span className="font-medium">Location:</span> {instance.locationId}</div>
-                          </div>
-                        </div>
-                        <Badge variant={getStatusColor(instance.status)} className="gap-1">
-                          {getStatusIcon(instance.status)}
-                          {instance.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {instance.phoneNumber && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">{instance.phoneNumber}</span>
-                        </div>
-                      )}
-
-                      {instance.status === "disconnected" && instance.disconnectedAt && (
-                        <div className="flex items-center gap-2 text-sm text-destructive">
-                          <XCircle className="w-4 h-4" />
-                          <span>
-                            Desconectado hace {formatDistanceToNow(new Date(instance.disconnectedAt), { 
-                              addSuffix: false, 
-                              locale: es 
-                            })}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        {instance.status !== "connected" && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="flex-1"
-                            onClick={() => handleGenerateQr(instance)}
-                            disabled={generateQrMutation.isPending}
-                            data-testid={`button-qr-${instance.id}`}
-                          >
-                            <QrCode className="w-4 h-4 mr-2" />
-                            Generar QR
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSyncInstance(instance.id)}
-                          disabled={syncInstanceMutation.isPending}
-                          data-testid={`button-sync-${instance.id}`}
-                          title="Sincronizar con Evolution API"
-                        >
-                          <RefreshCw className={`w-4 h-4 ${syncInstanceMutation.isPending ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteInstance(instance.id)}
-                          disabled={deleteInstanceMutation.isPending}
-                          data-testid={`button-delete-${instance.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </main>
 
-      {/* Create Instance Modal */}
+      {/* Dialog: Create Instance */}
       <Dialog open={createInstanceOpen} onOpenChange={setCreateInstanceOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Crear Instancia de WhatsApp</DialogTitle>
+            <DialogTitle>Nueva Instancia de WhatsApp</DialogTitle>
             <DialogDescription>
-              Dale un nombre descriptivo a esta instancia
+              Crea una nueva instancia para conectar una cuenta de WhatsApp Business
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="instance-name">Nombre de la Instancia</Label>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="instance-name">Nombre de la instancia</Label>
               <Input
                 id="instance-name"
-                placeholder="Ej: WhatsApp Principal"
+                placeholder="Ej: WhatsApp Ventas"
                 value={instanceName}
                 onChange={(e) => setInstanceName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateInstance()}
                 data-testid="input-instance-name"
               />
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCreateInstanceOpen(false);
-                  setInstanceName("");
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleCreateInstance}
-                disabled={createInstanceMutation.isPending}
-                data-testid="button-create-instance"
-              >
-                {createInstanceMutation.isPending && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                Crear Instancia
-              </Button>
-            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCreateInstanceOpen(false)}
+              data-testid="button-cancel-create"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateInstance}
+              disabled={createInstanceMutation.isPending || !instanceName.trim()}
+              data-testid="button-confirm-create"
+            >
+              {createInstanceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Crear Instancia
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* QR Code Modal */}
+      {/* Dialog: QR Code */}
       <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Conectar WhatsApp</DialogTitle>
             <DialogDescription>
-              Escanea este código QR con tu WhatsApp
+              Escanea este código QR con WhatsApp
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {selectedInstance?.qrCode ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-4 bg-white rounded-lg">
-                  <QRCodeSVG value={selectedInstance.qrCode} size={256} />
-                </div>
-                <div className="text-sm text-muted-foreground text-center">
-                  <p>1. Abre WhatsApp en tu teléfono</p>
-                  <p>2. Ve a Configuración → Dispositivos vinculados</p>
-                  <p>3. Escanea este código QR</p>
-                </div>
+          {selectedInstance?.qrCode && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="p-4 bg-white rounded-lg">
+                <QRCodeSVG value={selectedInstance.qrCode} size={256} />
               </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Generando código QR...</p>
+              <div className="text-center space-y-2">
+                <p className="text-sm font-medium">Pasos para conectar:</p>
+                <ol className="text-xs text-muted-foreground space-y-1 text-left">
+                  <li>1. Abre WhatsApp en tu teléfono</li>
+                  <li>2. Toca Menú o Configuración</li>
+                  <li>3. Toca Dispositivos vinculados</li>
+                  <li>4. Toca Vincular un dispositivo</li>
+                  <li>5. Escanea este código QR</li>
+                </ol>
               </div>
-            )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: API Settings */}
+      <Dialog open={apiSettingsOpen} onOpenChange={setApiSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configuración de APIs</DialogTitle>
+            <DialogDescription>
+              Configura las API keys para ElevenLabs y Gemini. Solo se guardarán las keys que proporciones.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="elevenlabs-key">ElevenLabs API Key</Label>
+                {(subaccount as any)?.hasElevenLabsKey && (
+                  <Badge variant="default" className="text-xs">
+                    <Check className="w-3 h-3 mr-1" />
+                    Ya configurada
+                  </Badge>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  id="elevenlabs-key"
+                  type={showElevenLabsKey ? "text" : "password"}
+                  placeholder="Ingresa nueva key o deja vacío para mantener"
+                  value={elevenLabsApiKey}
+                  onChange={(e) => setElevenLabsApiKey(e.target.value)}
+                  data-testid="input-elevenlabs-key"
+                  className="pr-10"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowElevenLabsKey(!showElevenLabsKey)}
+                  data-testid="button-toggle-elevenlabs"
+                >
+                  {showElevenLabsKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Usada para servicios de voz y transcripción
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="gemini-key">Gemini API Key</Label>
+                {(subaccount as any)?.hasGeminiKey && (
+                  <Badge variant="default" className="text-xs">
+                    <Check className="w-3 h-3 mr-1" />
+                    Ya configurada
+                  </Badge>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  id="gemini-key"
+                  type={showGeminiKey ? "text" : "password"}
+                  placeholder="Ingresa nueva key o deja vacío para mantener"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  data-testid="input-gemini-key"
+                  className="pr-10"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  data-testid="button-toggle-gemini"
+                >
+                  {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Usada para procesamiento de lenguaje natural
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setApiSettingsOpen(false)}
+              data-testid="button-cancel-api-settings"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveApiSettings}
+              disabled={updateApiSettingsMutation.isPending}
+              data-testid="button-save-api-settings"
+            >
+              {updateApiSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar Cambios
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* CRM Settings Dialog */}
-      <Dialog open={crmSettingsOpen} onOpenChange={setCrmSettingsOpen}>
-        <DialogContent className="max-w-xl">
+      {/* Dialog: Plans */}
+      <Dialog open={plansDialogOpen} onOpenChange={setPlansDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Key className="w-5 h-5" />
-              Ajustes del CRM
-            </DialogTitle>
+            <DialogTitle>Selecciona tu Plan</DialogTitle>
             <DialogDescription>
-              Configure las opciones del CRM y gestione sus etiquetas personalizadas
+              Elige el plan que mejor se adapte a tus necesidades
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-6">
-            {/* Location ID (Read-only) */}
-            <div className="space-y-2">
-              <Label htmlFor="location-id">Location ID</Label>
-              <Input
-                id="location-id"
-                value={subaccount?.locationId || ""}
-                readOnly
-                className="bg-muted"
-                data-testid="input-location-id"
-              />
-            </div>
-
-            {/* Calendar ID */}
-            <div className="space-y-2">
-              <Label htmlFor="calendar-id">Calendar ID</Label>
-              <Input
-                id="calendar-id"
-                value={calendarId}
-                onChange={(e) => setCalendarId(e.target.value)}
-                placeholder="Ingresa el Calendar ID de GHL"
-                data-testid="input-calendar-id"
-              />
-            </div>
-
-            {/* OpenAI Integration */}
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <Key className="w-4 h-4 text-muted-foreground" />
+          
+          <div className="grid md:grid-cols-3 gap-4 py-4">
+            {/* Plan Starter */}
+            <Card className="hover-elevate cursor-pointer" data-testid="plan-card-starter">
+              <CardHeader>
+                <CardTitle className="text-lg">Starter</CardTitle>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold">$15</span>
+                  <span className="text-muted-foreground">/mes</span>
                 </div>
-                <div>
-                  <h4 className="font-medium">Integración Cloude AI</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Conecte su cuenta de Cloude AI con el CRM
-                  </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Hasta 3 instancias</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Soporte básico</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>APIs incluidas</span>
+                  </div>
                 </div>
+                <Button className="w-full" variant="outline" data-testid="button-select-starter">
+                  Seleccionar Plan
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Plan Basic */}
+            <Card className="hover-elevate cursor-pointer border-2 border-primary" data-testid="plan-card-basic">
+              <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl-md">
+                Recomendado
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="openai-key-dialog">API Key de OpenAI</Label>
-                <div className="relative">
-                  <Input
-                    id="openai-key-dialog"
-                    type={showApiKey ? "text" : "password"}
-                    value={showApiKey ? openaiApiKey : (openaiApiKey ? maskApiKey(openaiApiKey) : "")}
-                    onChange={(e) => setOpenaiApiKey(e.target.value)}
-                    placeholder="sk-proj-..."
-                    data-testid="input-openai-key-dialog"
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    data-testid="button-toggle-visibility-dialog"
-                  >
-                    {showApiKey ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </Button>
+              <CardHeader>
+                <CardTitle className="text-lg">Basic</CardTitle>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold">$25</span>
+                  <span className="text-muted-foreground">/mes</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Se usa para transcripción de voz en WhatsApp. Obtén tu API Key en{" "}
-                  <a
-                    href="https://platform.openai.com/api-keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    platform.openai.com
-                  </a>
-                </p>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Hasta 10 instancias</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Soporte prioritario</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>APIs incluidas</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Análisis avanzado</span>
+                  </div>
+                </div>
+                <Button className="w-full" data-testid="button-select-basic">
+                  Seleccionar Plan
+                </Button>
+              </CardContent>
+            </Card>
 
-            {/* Actions */}
-            <div className="flex gap-3 justify-end pt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCrmSettingsOpen(false);
-                  // Reset to original values
-                  setOpenaiApiKey(subaccount?.openaiApiKey || "");
-                  setCalendarId(subaccount?.calendarId || "");
-                }}
-                data-testid="button-cancel-crm-settings"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSaveCrmSettings}
-                disabled={updateCrmSettingsMutation.isPending}
-                data-testid="button-save-crm-settings"
-              >
-                {updateCrmSettingsMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  "Guardar Configuración"
-                )}
-              </Button>
-            </div>
+            {/* Plan Pro */}
+            <Card className="hover-elevate cursor-pointer" data-testid="plan-card-pro">
+              <CardHeader>
+                <CardTitle className="text-lg">Pro</CardTitle>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold">$45</span>
+                  <span className="text-muted-foreground">/mes</span>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Instancias ilimitadas</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Soporte 24/7</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>APIs incluidas</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>Análisis avanzado</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span>API personalizada</span>
+                  </div>
+                </div>
+                <Button className="w-full" variant="outline" data-testid="button-select-pro">
+                  Seleccionar Plan
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </DialogContent>
       </Dialog>

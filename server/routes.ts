@@ -2167,13 +2167,21 @@ ${ghlErrorDetails}
       const company = await storage.getCompany(user.companyId);
 
       // Agregar información del propietario a cada subcuenta
-      const subaccountsWithOwner = subaccounts.map(sub => ({
-        ...sub,
-        ownerCompany: company ? {
-          id: company.id,
-          name: company.name,
-        } : null
-      }));
+      // SEGURIDAD: Eliminar API keys sensibles de la respuesta
+      const subaccountsWithOwner = subaccounts.map(sub => {
+        const { elevenLabsApiKey, geminiApiKey, ...safeSubaccount } = sub;
+        
+        return {
+          ...safeSubaccount,
+          // Solo indicar si las keys están configuradas (no exponer el valor)
+          hasElevenLabsKey: !!elevenLabsApiKey,
+          hasGeminiKey: !!geminiApiKey,
+          ownerCompany: company ? {
+            id: company.id,
+            name: company.name,
+          } : null
+        };
+      });
 
       res.json(subaccountsWithOwner);
     } catch (error) {
