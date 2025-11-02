@@ -33,9 +33,7 @@ export default function AddSubaccountModal({ open, onClose }: AddSubaccountModal
       console.log('✅ OAuth state generado:', state);
 
       // 2. Construir URL de GHL con el state
-      const ghlInstallerUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https://ray.cloude.es/webhook/registrocuenta&client_id=${
-        import.meta.env.VITE_GHL_CLIENT_ID || ""
-      }&scope=locations.readonly contacts.readonly&state=${state}`;
+      const ghlInstallerUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=https%3A%2F%2Fray.cloude.es%2Fwebhook%2Fregistrocuenta&client_id=68a94abebdd32d0a7010600e-mgpykfcm&scope=contacts.readonly+contacts.write+conversations.readonly+conversations.write+conversations%2Fmessage.readonly+conversations%2Fmessage.write+locations.readonly+locations%2FcustomValues.readonly+locations%2FcustomValues.write+locations%2FcustomFields.readonly+locations%2FcustomFields.write+locations%2Ftags.write+socialplanner%2Ftag.readonly+locations%2Ftasks.readonly+locations%2Ftags.readonly+users.readonly+companies.readonly+locations%2Ftemplates.readonly&version_id=68a94abebdd32d0a7010600e&state=${state}`;
 
       // 3. Redirigir a GHL
       window.location.href = ghlInstallerUrl;
