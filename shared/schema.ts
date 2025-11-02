@@ -67,9 +67,9 @@ export const subaccounts = pgTable("subaccounts", {
   role: roleEnum("role").notNull().default("user"),
   lastLoginAt: timestamp("last_login_at"),
   
-  // Configuración de CRM
-  openaiApiKey: text("openai_api_key"),
-  calendarId: text("calendar_id"),
+  // Configuración de API para Transcripciones y Audio
+  elevenLabsApiKey: text("eleven_labs_api_key"),
+  geminiApiKey: text("gemini_api_key"),
   
   // Control de estado
   isActive: boolean("is_active").notNull().default(true),
@@ -280,16 +280,17 @@ export const updateSubaccountPasswordSchema = z.object({
   newPassword: z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
 });
 
-export const updateSubaccountOpenAIKeySchema = z.object({
-  openaiApiKey: z.string().min(1, "API Key de OpenAI es requerida"),
+export const updateSubaccountElevenLabsKeySchema = z.object({
+  elevenLabsApiKey: z.string().min(1, "API Key de Eleven Labs es requerida"),
 });
 
-export const updateSubaccountCalendarIdSchema = z.object({
-  calendarId: z.string().min(1, "Calendar ID es requerido"),
+export const updateSubaccountGeminiKeySchema = z.object({
+  geminiApiKey: z.string().min(1, "API Key de Gemini es requerida"),
 });
 
-export const updateSubaccountCrmSettingsSchema = z.object({
-  calendarId: z.string().optional(),
+export const updateSubaccountApiSettingsSchema = z.object({
+  elevenLabsApiKey: z.string().optional(),
+  geminiApiKey: z.string().optional(),
 });
 
 export type Subaccount = typeof subaccounts.$inferSelect;
@@ -299,9 +300,9 @@ export type LoginSubaccount = z.infer<typeof loginSubaccountSchema>;
 export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
 export type UpdateSubaccountProfile = z.infer<typeof updateSubaccountProfileSchema>;
 export type UpdateSubaccountPassword = z.infer<typeof updateSubaccountPasswordSchema>;
-export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
-export type UpdateSubaccountCalendarId = z.infer<typeof updateSubaccountCalendarIdSchema>;
-export type UpdateSubaccountCrmSettings = z.infer<typeof updateSubaccountCrmSettingsSchema>;
+export type UpdateSubaccountElevenLabsKey = z.infer<typeof updateSubaccountElevenLabsKeySchema>;
+export type UpdateSubaccountGeminiKey = z.infer<typeof updateSubaccountGeminiKeySchema>;
+export type UpdateSubaccountApiSettings = z.infer<typeof updateSubaccountApiSettingsSchema>;
 
 // WhatsApp Instances
 export const insertWhatsappInstanceSchema = createInsertSchema(whatsappInstances).omit({
