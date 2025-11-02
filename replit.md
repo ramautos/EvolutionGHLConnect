@@ -6,8 +6,21 @@ A production-ready multi-tenant SaaS platform integrating WhatsApp Business with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (October 31, 2025)
-- **Stripe Integration**: Complete Stripe billing integration with 15-day free trial, checkout flow, webhooks, and BillingSuccess confirmation page
+## Recent Changes (November 2, 2025)
+- **Trial Period Update**: Migrated from 15-day to 7-day free trial across entire codebase (storage.ts, auth.ts, bootstrap.ts, routes.ts, system_config)
+- **API Integration Changes**: Replaced OpenAI/Calendar with ElevenLabs (voice services) and Gemini (transcriptions)
+  - Removed: `openaiApiKey` and `calendarId` fields
+  - Added: `elevenLabsApiKey` and `geminiApiKey` fields in subaccounts table
+  - Backend strips API keys from all responses, only returns boolean flags (hasElevenLabsKey, hasGeminiKey)
+  - Frontend uses write-only inputs for API keys (never displays existing values)
+- **Dashboard Redesign**: Complete UI overhaul of SubaccountDetails page
+  - WhatsApp instances moved to top in structured table format
+  - Green "Conectado" badge for active instances (status: connected/open)
+  - Color-coded trial countdown (red when ≤2 days remaining)
+  - "Ver Planes" button with selectable plan options (Starter, Basic, Pro)
+  - API configuration section shows ElevenLabs and Gemini logos with descriptive text
+- **Security Enhancement**: API keys never exposed to client - write-only pattern with boolean status indicators
+- **Stripe Integration**: Complete Stripe billing integration with 7-day free trial, checkout flow, webhooks, and BillingSuccess confirmation page
 - **Favicon Update**: Changed favicon to use the official application logo (favicon.png, logo192.png, logo512.png)
 - **Hero Spacing Fix**: Adjusted Hero section spacing from `min-h-screen` to `py-16 md:py-20 lg:py-24` to reduce excessive space between navbar and content
 
@@ -27,8 +40,8 @@ Preferred communication style: Simple, everyday language.
 -   **API Design**: RESTful API for core functionalities including authentication, user management, subaccount operations, WhatsApp instance lifecycle, GoHighLevel integration, and admin features.
 -   **Subaccount Management**: Integrates with GoHighLevel OAuth; n8n webhook intermediates token exchange and storage.
 -   **WhatsApp Instance Management**: Uses Evolution API for instance creation, QR code generation, and status management, with real-time updates via Socket.io. Includes bidirectional synchronization and orphaned instance detection/deletion.
--   **Billing and Subscription**: 15-day free trial, automatic plan assignment (Starter, Basic, Pro) based on instance count, with subaccount-level billing and admin controls.
--   **CRM Settings & Webhook**: Per-subaccount CRM configuration including `calendarId` and OpenAI API Key. Global webhook configuration for forwarding messages from Evolution API.
+-   **Billing and Subscription**: 7-day free trial, automatic plan assignment (Starter, Basic, Pro) based on instance count, with subaccount-level billing and admin controls.
+-   **CRM Settings & Webhook**: Per-subaccount API configuration including ElevenLabs API Key (voice services) and Gemini API Key (transcriptions). API keys never exposed to client - only boolean status flags returned. Global webhook configuration for forwarding messages from Evolution API.
 -   **Admin Control System**: Comprehensive admin panel for hierarchical company management, user and subaccount oversight, manual billing/activation, and global webhook configuration.
 -   **System Configuration**: Admin settings page (`/admin/settings`) with sections for Evolution API credentials, system info, trial period settings, and maintenance mode, persisted in the `system_config` table.
 
@@ -66,7 +79,7 @@ For the initial deployment to production, configure the following required envir
 - **Automatic Bootstrap Process** (first time only):
   1. Creates default company
   2. Creates admin user with provided credentials (bcrypt hashed)
-  3. Activates 15-day trial subscription
+  3. Activates 7-day trial subscription
   4. Marks database as initialized
 - **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
 
@@ -100,7 +113,7 @@ Secure OAuth flow where subaccounts are "claimed" by the authenticated user afte
 4. **N8N Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
    - N8N sends webhook with complete client data
    - Backend creates subaccount with **companyId = NULL** (no owner yet)
-   - Creates 15-day trial subscription
+   - Creates 7-day trial subscription
    - Does NOT create WhatsApp instance yet (pending claim)
    - Does NOT create company automatically
 
@@ -156,7 +169,8 @@ If OAuth state validation is provided, subaccount is immediately associated with
 ### Third-Party APIs
 -   **Evolution API**: WhatsApp Business API integration.
 -   **GoHighLevel**: CRM platform OAuth 2.0.
--   **OpenAI**: AI services.
+-   **ElevenLabs**: Voice message services.
+-   **Gemini**: AI transcription services.
 -   **Stripe**: Subscription management and billing.
 
 ### Database Services

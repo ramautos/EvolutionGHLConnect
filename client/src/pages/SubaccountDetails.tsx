@@ -610,7 +610,7 @@ export default function SubaccountDetails() {
                               </td>
                               <td className="px-4 py-4">
                                 <span className="text-sm text-muted-foreground">
-                                  {formatDistanceToNow(new Date(instance.updatedAt || instance.createdAt), { 
+                                  {formatDistanceToNow(new Date((instance as any).updatedAt || instance.createdAt || new Date()), { 
                                     addSuffix: true,
                                     locale: es 
                                   })}
@@ -644,7 +644,7 @@ export default function SubaccountDetails() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                      const newName = prompt("Nuevo nombre:", instance.customName);
+                                      const newName = prompt("Nuevo nombre:", instance.customName || "");
                                       if (newName && newName !== instance.customName) {
                                         handleUpdateInstanceName(instance.id, newName);
                                       }
