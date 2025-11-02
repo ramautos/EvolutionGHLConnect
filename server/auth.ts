@@ -152,9 +152,9 @@ export function setupPassport(app: Express) {
                   manuallyActivated: true,
                 });
                 
-                // Crear suscripción con 15 días de prueba gratuita
-                await storage.createSubscription(subaccount.id, 15);
-                console.log(`✅ Subscription created with 15-day trial for Google user ${email}`);
+                // Crear suscripción con 7 días de prueba gratuita
+                await storage.createSubscription(subaccount.id, 7);
+                console.log(`✅ Subscription created with 7-day trial for Google user ${email}`);
               } else if (subaccount && !subaccount.googleId) {
                 // Vincular Google ID a cuenta existente
                 subaccount = await storage.updateSubaccount(subaccount.id, { googleId: profile.id }) || subaccount;

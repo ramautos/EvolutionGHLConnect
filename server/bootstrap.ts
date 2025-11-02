@@ -86,7 +86,7 @@ async function performBootstrap(existingConfig: any): Promise<boolean> {
   if (!config) {
     const [newConfig] = await db.insert(systemConfig).values({
       systemName: "WhatsApp AI Platform",
-      trialDays: "15",
+      trialDays: "7",
       trialEnabled: true,
       isInitialized: false,
     }).returning();

@@ -10,7 +10,7 @@ import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { db } from "./db";
 import { subaccounts, oauthStates, companies } from "@shared/schema";
 import { eq, and, sql, not, or } from "drizzle-orm";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountOpenAIKeySchema, updateSubaccountCrmSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Crear suscripción con 15 días de prueba gratuita
-      await storage.createSubscription(user.id, 15);
+      await storage.createSubscription(user.id, 7);
       console.log(`✅ Subscription created with 15-day trial for user ${user.email}`);
 
       // Auto-login después de registro
@@ -900,7 +900,7 @@ ${ghlErrorDetails}
       });
 
       // 7. Crear suscripción con trial
-      await storage.createSubscription(subaccount.id, 15);
+      await storage.createSubscription(subaccount.id, 7);
 
       // 8. Crear instancia de WhatsApp
       const existingInstances = await storage.getWhatsappInstancesByLocationId(validatedData.locationId);
@@ -1101,7 +1101,7 @@ ${ghlErrorDetails}
       });
 
       // 4. Crear suscripción con trial de 15 días
-      await storage.createSubscription(subaccount.id, 15);
+      await storage.createSubscription(subaccount.id, 7);
 
       console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
 
@@ -1857,7 +1857,7 @@ ${ghlErrorDetails}
       
       // Si no tiene suscripción, crear una con trial de 15 días
       if (!subscription) {
-        subscription = await storage.createSubscription(user.id, 15);
+        subscription = await storage.createSubscription(user.id, 7);
       }
 
       res.json(subscription);
@@ -1881,7 +1881,7 @@ ${ghlErrorDetails}
       // Obtener o crear suscripción
       let subscription = await storage.getSubscription(user.id);
       if (!subscription) {
-        subscription = await storage.createSubscription(user.id, 15);
+        subscription = await storage.createSubscription(user.id, 7);
       }
 
       // Actualizar suscripción
@@ -1921,7 +1921,7 @@ ${ghlErrorDetails}
       // Obtener o crear suscripción
       let subscription = await storage.getSubscription(user.id);
       if (!subscription) {
-        subscription = await storage.createSubscription(user.id, 15);
+        subscription = await storage.createSubscription(user.id, 7);
       }
 
       // Crear o recuperar Stripe customer
@@ -2368,11 +2368,11 @@ ${ghlErrorDetails}
     }
   });
 
-  // Actualizar API Key de OpenAI por locationId
-  app.patch("/api/subaccounts/:locationId/openai-key", async (req, res) => {
+  // Actualizar API Key de Eleven Labs por locationId
+  app.patch("/api/subaccounts/:locationId/elevenlabs-key", async (req, res) => {
     try {
       const { locationId } = req.params;
-      const validatedData = updateSubaccountOpenAIKeySchema.parse(req.body);
+      const validatedData = updateSubaccountElevenLabsKeySchema.parse(req.body);
 
       const subaccount = await storage.getSubaccountByLocationId(locationId);
       
@@ -2382,7 +2382,7 @@ ${ghlErrorDetails}
       }
 
       const updated = await storage.updateSubaccount(subaccount.id, {
-        openaiApiKey: validatedData.openaiApiKey,
+        elevenLabsApiKey: validatedData.elevenLabsApiKey,
       });
 
       res.json(updated);
@@ -2390,16 +2390,43 @@ ${ghlErrorDetails}
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to update OpenAI API key" });
+        res.status(500).json({ error: "Failed to update Eleven Labs API key" });
       }
     }
   });
 
-  // Actualizar Ajustes del CRM (Calendar ID) por locationId
-  app.patch("/api/subaccounts/:locationId/crm-settings", isAuthenticated, async (req, res) => {
+  // Actualizar API Key de Gemini por locationId
+  app.patch("/api/subaccounts/:locationId/gemini-key", async (req, res) => {
     try {
       const { locationId } = req.params;
-      const validatedData = updateSubaccountCrmSettingsSchema.parse(req.body);
+      const validatedData = updateSubaccountGeminiKeySchema.parse(req.body);
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      const updated = await storage.updateSubaccount(subaccount.id, {
+        geminiApiKey: validatedData.geminiApiKey,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to update Gemini API key" });
+      }
+    }
+  });
+
+  // Actualizar Ajustes de API (Eleven Labs y Gemini) por locationId
+  app.patch("/api/subaccounts/:locationId/api-settings", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const validatedData = updateSubaccountApiSettingsSchema.parse(req.body);
 
       const subaccount = await storage.getSubaccountByLocationId(locationId);
       
@@ -2415,16 +2442,22 @@ ${ghlErrorDetails}
         return;
       }
 
-      const updated = await storage.updateSubaccount(subaccount.id, {
-        calendarId: validatedData.calendarId,
-      });
+      const updates: Partial<any> = {};
+      if (validatedData.elevenLabsApiKey !== undefined) {
+        updates.elevenLabsApiKey = validatedData.elevenLabsApiKey;
+      }
+      if (validatedData.geminiApiKey !== undefined) {
+        updates.geminiApiKey = validatedData.geminiApiKey;
+      }
+
+      const updated = await storage.updateSubaccount(subaccount.id, updates);
 
       res.json(updated);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to update CRM settings" });
+        res.status(500).json({ error: "Failed to update API settings" });
       }
     }
   });
@@ -2485,7 +2518,7 @@ ${ghlErrorDetails}
       // Obtener o crear subscription
       let subscription = await storage.getSubscription(validatedData.subaccountId);
       if (!subscription) {
-        subscription = await storage.createSubscription(validatedData.subaccountId, 15); // 15 días de prueba
+        subscription = await storage.createSubscription(validatedData.subaccountId, 7); // 15 días de prueba
       }
 
       // Verificar si está en período de prueba

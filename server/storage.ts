@@ -582,7 +582,7 @@ export class DatabaseStorage implements IStorage {
     return subscription;
   }
 
-  async createSubscription(subaccountId: string, trialDays: number = 15): Promise<Subscription> {
+  async createSubscription(subaccountId: string, trialDays: number = 7): Promise<Subscription> {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
     
