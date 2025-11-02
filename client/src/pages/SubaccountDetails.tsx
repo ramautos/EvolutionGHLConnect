@@ -35,6 +35,8 @@ import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import geminiLogo from "@assets/stock_images/google_gemini_ai_log_8407513a.jpg";
+import elevenLabsLogo from "@assets/stock_images/elevenlabs_logo_offi_aa872f5b.jpg";
 
 export default function SubaccountDetails() {
   const { user } = useUser();
@@ -557,91 +559,120 @@ export default function SubaccountDetails() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {instances.map((instance) => (
-                  <Card key={instance.id} className="hover-elevate">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                            <h3 className="font-semibold truncate">{instance.customName}</h3>
-                            <Badge variant={getStatusColor(instance.status || "disconnected")}>
-                              <span className="flex items-center gap-1">
-                                {getStatusIcon(instance.status || "disconnected")}
-                                {instance.status || "disconnected"}
-                              </span>
-                            </Badge>
-                          </div>
-                          
-                          {instance.phoneNumber && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                              <Phone className="w-4 h-4" />
-                              <span>{instance.phoneNumber}</span>
-                            </div>
-                          )}
-                          
-                          <p className="text-xs text-muted-foreground">
-                            Actualizado {formatDistanceToNow(new Date(instance.updatedAt || instance.createdAt), { 
-                              addSuffix: true,
-                              locale: es 
-                            })}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {instance.status !== "connected" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleGenerateQr(instance)}
-                              disabled={generateQrMutation.isPending}
-                              data-testid={`button-generate-qr-${instance.id}`}
-                            >
-                              <QrCode className="w-4 h-4 mr-2" />
-                              Generar QR
-                            </Button>
-                          )}
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSyncInstance(instance.id)}
-                            disabled={syncInstanceMutation.isPending}
-                            data-testid={`button-sync-${instance.id}`}
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const newName = prompt("Nuevo nombre:", instance.customName);
-                              if (newName && newName !== instance.customName) {
-                                handleUpdateInstanceName(instance.id, newName);
-                              }
-                            }}
-                            data-testid={`button-edit-name-${instance.id}`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteInstance(instance.id)}
-                            disabled={deleteInstanceMutation.isPending}
-                            data-testid={`button-delete-${instance.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Nombre</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Teléfono</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">Actualizado</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {instances.map((instance) => {
+                          const isConnected = instance.status === "connected" || instance.status === "open";
+                          return (
+                            <tr key={instance.id} className="border-b hover-elevate">
+                              <td className="px-4 py-4">
+                                <div className="flex items-center gap-2">
+                                  <MessageSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="font-medium">{instance.customName}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <Badge 
+                                  variant={isConnected ? "default" : "secondary"}
+                                  className={isConnected ? "bg-green-600 hover:bg-green-700 dark:bg-green-700" : ""}
+                                >
+                                  <span className="flex items-center gap-1">
+                                    {isConnected ? (
+                                      <CheckCircle2 className="w-3 h-3" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3" />
+                                    )}
+                                    {isConnected ? "Conectado" : instance.status || "disconnected"}
+                                  </span>
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-4">
+                                {instance.phoneNumber ? (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Phone className="w-4 h-4 text-muted-foreground" />
+                                    <span>{instance.phoneNumber}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">-</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-4">
+                                <span className="text-sm text-muted-foreground">
+                                  {formatDistanceToNow(new Date(instance.updatedAt || instance.createdAt), { 
+                                    addSuffix: true,
+                                    locale: es 
+                                  })}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="flex items-center justify-end gap-2">
+                                  {!isConnected && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleGenerateQr(instance)}
+                                      disabled={generateQrMutation.isPending}
+                                      data-testid={`button-generate-qr-${instance.id}`}
+                                    >
+                                      <QrCode className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSyncInstance(instance.id)}
+                                    disabled={syncInstanceMutation.isPending}
+                                    data-testid={`button-sync-${instance.id}`}
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </Button>
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const newName = prompt("Nuevo nombre:", instance.customName);
+                                      if (newName && newName !== instance.customName) {
+                                        handleUpdateInstanceName(instance.id, newName);
+                                      }
+                                    }}
+                                    data-testid={`button-edit-name-${instance.id}`}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDeleteInstance(instance.id)}
+                                    disabled={deleteInstanceMutation.isPending}
+                                    data-testid={`button-delete-${instance.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
 
@@ -670,8 +701,18 @@ export default function SubaccountDetails() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/50">
-                <span className="font-medium">ElevenLabs API:</span>
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={elevenLabsLogo} 
+                    alt="ElevenLabs" 
+                    className="w-8 h-8 rounded object-cover"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">ElevenLabs</div>
+                    <div className="text-xs text-muted-foreground">Para envío de mensaje de voz</div>
+                  </div>
+                </div>
                 <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
                   {(subaccount as any).hasElevenLabsKey ? (
                     <>
@@ -683,8 +724,18 @@ export default function SubaccountDetails() {
                   )}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/50">
-                <span className="font-medium">Gemini API:</span>
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={geminiLogo} 
+                    alt="Gemini" 
+                    className="w-8 h-8 rounded object-cover"
+                  />
+                  <div>
+                    <div className="font-medium text-sm">Gemini</div>
+                    <div className="text-xs text-muted-foreground">Transcripciones</div>
+                  </div>
+                </div>
                 <Badge variant={(subaccount as any).hasGeminiKey ? "default" : "secondary"}>
                   {(subaccount as any).hasGeminiKey ? (
                     <>
