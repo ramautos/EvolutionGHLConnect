@@ -794,32 +794,35 @@ export default function SubaccountDetails() {
           {/* Notification Phone */}
           <Card>
             <CardHeader>
-              <CardTitle>Número de Notificación</CardTitle>
+              <CardTitle className="text-lg">Número de Notificación</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <Input
-                  type="tel"
-                  placeholder="+1234567890"
-                  value={isEditingPhone ? notificationPhone : ((subaccount as any)?.notificationPhone || "")}
-                  onChange={(e) => {
-                    setNotificationPhone(e.target.value);
-                    if (!isEditingPhone) setIsEditingPhone(true);
-                  }}
-                  onFocus={() => {
-                    if (!isEditingPhone) {
-                      setNotificationPhone((subaccount as any)?.notificationPhone || "");
-                      setIsEditingPhone(true);
-                    }
-                  }}
-                  data-testid="input-notification-phone"
-                  className="flex-1"
-                />
+            <CardContent className="space-y-4">
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <Input
+                    type="tel"
+                    placeholder="+1234567890"
+                    value={isEditingPhone ? notificationPhone : ((subaccount as any)?.notificationPhone || "")}
+                    onChange={(e) => {
+                      setNotificationPhone(e.target.value);
+                      if (!isEditingPhone) setIsEditingPhone(true);
+                    }}
+                    onFocus={() => {
+                      if (!isEditingPhone) {
+                        setNotificationPhone((subaccount as any)?.notificationPhone || "");
+                        setIsEditingPhone(true);
+                      }
+                    }}
+                    data-testid="input-notification-phone"
+                    className="text-base h-11"
+                  />
+                </div>
                 {isEditingPhone && (
                   <Button
                     onClick={handleSaveNotificationPhone}
                     disabled={updateNotificationPhoneMutation.isPending}
                     data-testid="button-save-notification-phone"
+                    className="h-11"
                   >
                     {updateNotificationPhoneMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -829,12 +832,12 @@ export default function SubaccountDetails() {
                   </Button>
                 )}
               </div>
-              <div className="bg-muted/50 p-3 rounded-md space-y-1">
-                <p className="text-xs font-medium flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" />
+              <div className="bg-muted/30 border border-muted p-4 rounded-lg space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
                   Ejemplo de uso:
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Si un WhatsApp se desconecta, a este número se le enviará una notificación de desconexión automáticamente.
                 </p>
               </div>
