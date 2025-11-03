@@ -35,8 +35,8 @@ import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import geminiLogo from "@assets/stock_images/google_gemini_ai_log_8407513a.jpg";
-import elevenLabsLogo from "@assets/stock_images/elevenlabs_logo_offi_aa872f5b.jpg";
+import geminiLogo from "@assets/gemini-color_1762127968113.png";
+import elevenLabsLogo from "@assets/ElevenLabs_1762127966161.png";
 
 export default function SubaccountDetails() {
   const { user } = useUser();
@@ -53,6 +53,7 @@ export default function SubaccountDetails() {
   const [instanceName, setInstanceName] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [notificationPhone, setNotificationPhone] = useState("");
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
 
@@ -263,9 +264,9 @@ export default function SubaccountDetails() {
     },
   });
 
-  // Mutation para actualizar API Settings (ElevenLabs y Gemini)
+  // Mutation para actualizar API Settings (ElevenLabs, Gemini y Notificación)
   const updateApiSettingsMutation = useMutation({
-    mutationFn: async ({ elevenLabsKey, geminiKey }: { elevenLabsKey?: string; geminiKey?: string }) => {
+    mutationFn: async ({ elevenLabsKey, geminiKey, phone }: { elevenLabsKey?: string; geminiKey?: string; phone?: string }) => {
       if (!subaccount?.locationId) {
         throw new Error("Location ID no encontrado");
       }
@@ -281,8 +282,12 @@ export default function SubaccountDetails() {
         updates.geminiApiKey = geminiKey.trim();
       }
       
+      if (phone !== undefined) {
+        updates.notificationPhone = phone.trim() || null;
+      }
+      
       if (Object.keys(updates).length === 0) {
-        throw new Error("Por favor proporciona al menos una API key para actualizar");
+        throw new Error("Por favor proporciona al menos un campo para actualizar");
       }
       
       const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, updates);
@@ -304,6 +309,7 @@ export default function SubaccountDetails() {
       // Limpiar los campos después de guardar
       setElevenLabsApiKey("");
       setGeminiApiKey("");
+      setNotificationPhone("");
     },
     onError: (error: any) => {
       toast({
@@ -348,6 +354,7 @@ export default function SubaccountDetails() {
     updateApiSettingsMutation.mutate({
       elevenLabsKey: elevenLabsApiKey,
       geminiKey: geminiApiKey,
+      phone: notificationPhone,
     });
   };
 
@@ -934,6 +941,35 @@ export default function SubaccountDetails() {
               <p className="text-xs text-muted-foreground">
                 Usada para procesamiento de lenguaje natural
               </p>
+            </div>
+
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notification-phone">Número de Notificación</Label>
+                {(subaccount as any)?.notificationPhone && (
+                  <Badge variant="default" className="text-xs">
+                    <Check className="w-3 h-3 mr-1" />
+                    Configurado
+                  </Badge>
+                )}
+              </div>
+              <Input
+                id="notification-phone"
+                type="tel"
+                placeholder="+1234567890"
+                value={notificationPhone || (subaccount as any)?.notificationPhone || ""}
+                onChange={(e) => setNotificationPhone(e.target.value)}
+                data-testid="input-notification-phone"
+              />
+              <div className="bg-muted/50 p-3 rounded-md space-y-1">
+                <p className="text-xs font-medium flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" />
+                  Ejemplo de uso:
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Si un WhatsApp se desconecta, a este número se le enviará una notificación de desconexión automáticamente.
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
