@@ -71,6 +71,9 @@ export const subaccounts = pgTable("subaccounts", {
   elevenLabsApiKey: text("eleven_labs_api_key"),
   geminiApiKey: text("gemini_api_key"),
   
+  // Notificaciones de desconexión de WhatsApp
+  notificationPhone: text("notification_phone"),
+  
   // Control de estado
   isActive: boolean("is_active").notNull().default(true),
   billingEnabled: boolean("billing_enabled").notNull().default(true),
