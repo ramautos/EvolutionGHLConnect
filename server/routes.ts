@@ -2457,6 +2457,9 @@ ${ghlErrorDetails}
       if (validatedData.geminiApiKey !== undefined) {
         updates.geminiApiKey = validatedData.geminiApiKey;
       }
+      if (validatedData.notificationPhone !== undefined) {
+        updates.notificationPhone = validatedData.notificationPhone;
+      }
 
       const updated = await storage.updateSubaccount(subaccount.id, updates);
 

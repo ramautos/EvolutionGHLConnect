@@ -294,6 +294,7 @@ export const updateSubaccountGeminiKeySchema = z.object({
 export const updateSubaccountApiSettingsSchema = z.object({
   elevenLabsApiKey: z.string().optional(),
   geminiApiKey: z.string().optional(),
+  notificationPhone: z.string().optional(),
 });
 
 export type Subaccount = typeof subaccounts.$inferSelect;
