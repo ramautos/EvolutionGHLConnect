@@ -115,11 +115,14 @@ function DashboardContent() {
     return { label: `${connectedCount}/${subaccountInstances.length} conectados`, variant: "secondary" as const };
   };
 
+  // Determine if user needs phone registration (only for non-admin roles)
+  const needsPhoneRegistration = user && user.role === "user" && !user.phone;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Phone Registration Dialog - Obligatorio solo para usuarios normales */}
-      {user?.role !== "admin" && user?.role !== "system_admin" && (
-        <PhoneRegistrationDialog isOpen={!user?.phone} />
+      {needsPhoneRegistration && (
+        <PhoneRegistrationDialog isOpen={true} />
       )}
       
       {/* Header */}
@@ -264,28 +267,26 @@ function DashboardContent() {
                         Location ID: {subaccount.locationId}
                       </CardDescription>
                       
-                      {/* Instance Count Display */}
-                      {subaccountInstances.length > 0 && (
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">{subaccountInstances.length}</span>
-                            <span className="text-muted-foreground">
-                              {subaccountInstances.length === 1 ? "instancia" : "instancias"}
-                            </span>
-                          </div>
-                          <div className="h-4 w-px bg-border" />
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                            <span className="font-medium">
-                              {subaccountInstances.filter(i => i.status === "connected").length}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {subaccountInstances.filter(i => i.status === "connected").length === 1 ? "conectada" : "conectadas"}
-                            </span>
-                          </div>
+                      {/* Instance Count Display - SIEMPRE visible */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">{subaccountInstances.length}</span>
+                          <span className="text-muted-foreground">
+                            {subaccountInstances.length === 1 ? "instancia" : "instancias"}
+                          </span>
                         </div>
-                      )}
+                        <div className="h-4 w-px bg-border" />
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-green-500" />
+                          <span className="font-medium">
+                            {subaccountInstances.filter(i => i.status === "connected").length}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {subaccountInstances.filter(i => i.status === "connected").length === 1 ? "conectada" : "conectadas"}
+                          </span>
+                        </div>
+                      </div>
                     </CardHeader>
 
                     <CardContent className="space-y-3">
