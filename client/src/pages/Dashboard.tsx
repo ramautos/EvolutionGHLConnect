@@ -251,7 +251,7 @@ function DashboardContent() {
                 return (
                   <Card key={subaccount.id} data-testid={`card-subaccount-${subaccount.id}`} className="hover-elevate">
                     <CardHeader>
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Building2 className="w-5 h-5 text-muted-foreground" />
                           <CardTitle className="text-lg">{subaccount.locationName || subaccount.name}</CardTitle>
@@ -260,9 +260,32 @@ function DashboardContent() {
                           {status.label}
                         </Badge>
                       </div>
-                      <CardDescription className="line-clamp-2">
+                      <CardDescription className="line-clamp-2 mb-3">
                         Location ID: {subaccount.locationId}
                       </CardDescription>
+                      
+                      {/* Instance Count Display */}
+                      {subaccountInstances.length > 0 && (
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-medium">{subaccountInstances.length}</span>
+                            <span className="text-muted-foreground">
+                              {subaccountInstances.length === 1 ? "instancia" : "instancias"}
+                            </span>
+                          </div>
+                          <div className="h-4 w-px bg-border" />
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <span className="font-medium">
+                              {subaccountInstances.filter(i => i.status === "connected").length}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {subaccountInstances.filter(i => i.status === "connected").length === 1 ? "conectada" : "conectadas"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </CardHeader>
 
                     <CardContent className="space-y-3">
