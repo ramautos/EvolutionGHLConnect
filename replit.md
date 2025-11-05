@@ -9,6 +9,15 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### November 5, 2025
+- **Unlimited Triggers System**: Migrated from single trigger per subaccount to unlimited triggers
+  - New dedicated `triggers` table with FK cascade to subaccounts
+  - Full CRUD infrastructure: storage methods (getTriggers, createTrigger, updateTrigger, deleteTrigger)
+  - REST API endpoints: GET/POST /api/subaccounts/:id/triggers, PATCH/DELETE /api/subaccounts/:id/triggers/:id
+  - Authorization: only subaccount owner or admin can manage triggers
+  - Frontend: list view with Dialog for adding triggers, delete with confirmation
+  - React Query integration with proper cache invalidation
+  - Removed legacy `triggerName` and `triggerTag` columns from subaccounts table
+  - Automatic data migration from old single trigger to new unlimited triggers system
 - **Stripe Pricing Plans Update**: Updated billing system with correct pricing structure
   - Starter Plan: $8/mes, 1 WhatsApp instance (no additional instances allowed)
   - Profesional Plan: $15/mes, 3 WhatsApp instances (no additional instances allowed)
@@ -26,12 +35,6 @@ Preferred communication style: Simple, everyday language.
   - Clean UI with search icon and placeholder text
   - "No results" state with clear search button
   - Uses `useMemo` for optimized filtering performance
-- **Trigger Configuration**: Added trigger configuration system per subaccount
-  - Two-field configuration: trigger name and tag name
-  - New section in SubaccountDetails page after notification phone
-  - Automatic tagging in GoHighLevel when trigger is activated
-  - Schema updated with `triggerName` and `triggerTag` fields in subaccounts table
-  - Integrated into existing API settings endpoint (`/api/subaccounts/:locationId/api-settings`)
 
 ### November 2, 2025
 - **Trial Period Update**: Migrated from 15-day to 7-day free trial across entire codebase (storage.ts, auth.ts, bootstrap.ts, routes.ts, system_config)
@@ -73,7 +76,7 @@ Preferred communication style: Simple, everyday language.
 -   **System Configuration**: Admin settings page (`/admin/settings`) with sections for Evolution API credentials, system info, trial period settings, and maintenance mode, persisted in the `system_config` table.
 
 ### Database Architecture
--   **Replit PostgreSQL (Neon)**: Primary application data storage (`companies`, `subaccounts`, `whatsappInstances`, `subscriptions`, `sessions`, `system_config`). The `subaccounts` table unifies CRM locations and authenticated users.
+-   **Replit PostgreSQL (Neon)**: Primary application data storage (`companies`, `subaccounts`, `triggers`, `whatsappInstances`, `subscriptions`, `sessions`, `system_config`). The `subaccounts` table unifies CRM locations and authenticated users. The `triggers` table stores unlimited trigger configurations per subaccount with cascade delete.
 -   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens (`ghl_clientes`).
 -   **Automatic Database Initialization**: Server automatically runs bootstrap on first startup to create default company, admin user, and system configuration using `ADMIN_INITIAL_EMAIL` and `ADMIN_INITIAL_PASSWORD` environment variables.
 
