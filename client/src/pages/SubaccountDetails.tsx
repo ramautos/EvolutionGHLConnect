@@ -58,6 +58,9 @@ export default function SubaccountDetails() {
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "profesional" | "business">("profesional");
+  const [triggerName, setTriggerName] = useState("");
+  const [triggerTag, setTriggerTag] = useState("");
+  const [isEditingTrigger, setIsEditingTrigger] = useState(false);
 
   // Plan definitions
   const PLANS = [
@@ -73,6 +76,14 @@ export default function SubaccountDetails() {
   });
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
+
+  // Inicializar trigger fields cuando se carga el subaccount
+  useEffect(() => {
+    if (subaccount && !isEditingTrigger) {
+      setTriggerName((subaccount as any)?.triggerName || "");
+      setTriggerTag((subaccount as any)?.triggerTag || "");
+    }
+  }, [subaccount, isEditingTrigger]);
 
   // No inicializar API keys por seguridad - los inputs son write-only
 
@@ -465,6 +476,49 @@ export default function SubaccountDetails() {
 
   const handleSaveNotificationPhone = () => {
     updateNotificationPhoneMutation.mutate(notificationPhone);
+  };
+
+  // Mutation para actualizar triggers
+  const updateTriggerMutation = useMutation({
+    mutationFn: async (data: { triggerName: string; triggerTag: string }) => {
+      if (!subaccount?.locationId) {
+        throw new Error("Location ID no encontrado");
+      }
+      
+      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, {
+        triggerName: data.triggerName.trim() || null,
+        triggerTag: data.triggerTag.trim() || null,
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update trigger");
+      }
+      
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Trigger actualizado",
+        description: "La configuración del trigger se guardó exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      setIsEditingTrigger(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el trigger",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveTrigger = () => {
+    updateTriggerMutation.mutate({
+      triggerName,
+      triggerTag,
+    });
   };
 
   const maskApiKey = (apiKey: string) => {
@@ -914,6 +968,99 @@ export default function SubaccountDetails() {
                 </p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Si un WhatsApp se desconecta, a este número se le enviará una notificación de desconexión automáticamente.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Trigger Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-muted-foreground" />
+                <CardTitle className="text-lg">Configuración de Trigger</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="trigger-name" className="text-sm font-medium mb-2 block">
+                    Nombre del Trigger
+                  </Label>
+                  <Input
+                    id="trigger-name"
+                    type="text"
+                    placeholder="Ej: Bienvenida"
+                    value={isEditingTrigger ? triggerName : ((subaccount as any)?.triggerName || "")}
+                    onChange={(e) => {
+                      setTriggerName(e.target.value);
+                      if (!isEditingTrigger) setIsEditingTrigger(true);
+                    }}
+                    onFocus={() => {
+                      if (!isEditingTrigger) {
+                        setTriggerName((subaccount as any)?.triggerName || "");
+                        setTriggerTag((subaccount as any)?.triggerTag || "");
+                        setIsEditingTrigger(true);
+                      }
+                    }}
+                    data-testid="input-trigger-name"
+                    className="text-base h-11"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="trigger-tag" className="text-sm font-medium mb-2 block">
+                    Nombre de la Etiqueta
+                  </Label>
+                  <Input
+                    id="trigger-tag"
+                    type="text"
+                    placeholder="Ej: nuevo_cliente"
+                    value={isEditingTrigger ? triggerTag : ((subaccount as any)?.triggerTag || "")}
+                    onChange={(e) => {
+                      setTriggerTag(e.target.value);
+                      if (!isEditingTrigger) setIsEditingTrigger(true);
+                    }}
+                    onFocus={() => {
+                      if (!isEditingTrigger) {
+                        setTriggerName((subaccount as any)?.triggerName || "");
+                        setTriggerTag((subaccount as any)?.triggerTag || "");
+                        setIsEditingTrigger(true);
+                      }
+                    }}
+                    data-testid="input-trigger-tag"
+                    className="text-base h-11"
+                  />
+                </div>
+              </div>
+              {isEditingTrigger && (
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveTrigger}
+                    disabled={updateTriggerMutation.isPending}
+                    data-testid="button-save-trigger"
+                    className="h-11"
+                  >
+                    {updateTriggerMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Guardar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+              <div className="bg-muted/30 border border-muted p-4 rounded-lg space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  Ejemplo de uso:
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Cuando se active el trigger especificado, se agregará automáticamente la etiqueta indicada al contacto en GoHighLevel.
                 </p>
               </div>
             </CardContent>

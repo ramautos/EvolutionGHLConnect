@@ -74,6 +74,10 @@ export const subaccounts = pgTable("subaccounts", {
   // Notificaciones de desconexión de WhatsApp
   notificationPhone: text("notification_phone"),
   
+  // Configuración de Triggers
+  triggerName: text("trigger_name"),
+  triggerTag: text("trigger_tag"),
+  
   // Control de estado
   isActive: boolean("is_active").notNull().default(true),
   billingEnabled: boolean("billing_enabled").notNull().default(true),
@@ -295,6 +299,8 @@ export const updateSubaccountApiSettingsSchema = z.object({
   elevenLabsApiKey: z.string().optional(),
   geminiApiKey: z.string().optional(),
   notificationPhone: z.string().optional(),
+  triggerName: z.string().optional(),
+  triggerTag: z.string().optional(),
 });
 
 export type Subaccount = typeof subaccounts.$inferSelect;

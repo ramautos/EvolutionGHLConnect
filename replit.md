@@ -26,6 +26,12 @@ Preferred communication style: Simple, everyday language.
   - Clean UI with search icon and placeholder text
   - "No results" state with clear search button
   - Uses `useMemo` for optimized filtering performance
+- **Trigger Configuration**: Added trigger configuration system per subaccount
+  - Two-field configuration: trigger name and tag name
+  - New section in SubaccountDetails page after notification phone
+  - Automatic tagging in GoHighLevel when trigger is activated
+  - Schema updated with `triggerName` and `triggerTag` fields in subaccounts table
+  - Integrated into existing API settings endpoint (`/api/subaccounts/:locationId/api-settings`)
 
 ### November 2, 2025
 - **Trial Period Update**: Migrated from 15-day to 7-day free trial across entire codebase (storage.ts, auth.ts, bootstrap.ts, routes.ts, system_config)

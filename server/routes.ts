@@ -2462,6 +2462,12 @@ ${ghlErrorDetails}
       if (validatedData.notificationPhone !== undefined) {
         updates.notificationPhone = validatedData.notificationPhone;
       }
+      if (validatedData.triggerName !== undefined) {
+        updates.triggerName = validatedData.triggerName;
+      }
+      if (validatedData.triggerTag !== undefined) {
+        updates.triggerTag = validatedData.triggerTag;
+      }
 
       const updated = await storage.updateSubaccount(subaccount.id, updates);
 
