@@ -74,10 +74,6 @@ export const subaccounts = pgTable("subaccounts", {
   // Notificaciones de desconexión de WhatsApp
   notificationPhone: text("notification_phone"),
   
-  // Configuración de Triggers
-  triggerName: text("trigger_name"),
-  triggerTag: text("trigger_tag"),
-  
   // Control de estado
   isActive: boolean("is_active").notNull().default(true),
   billingEnabled: boolean("billing_enabled").notNull().default(true),
