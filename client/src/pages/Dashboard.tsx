@@ -8,7 +8,8 @@ import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,7 @@ function DashboardContent() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Si el usuario es admin o system_admin, redirigir al panel de admin
   useEffect(() => {
@@ -126,6 +128,21 @@ function DashboardContent() {
     return { label: `${connectedCount}/${subaccountInstances.length} conectados`, variant: "secondary" as const };
   };
 
+  // Filtrar subcuentas basándose en la búsqueda
+  const filteredSubaccounts = useMemo(() => {
+    if (!searchQuery.trim()) return subaccounts;
+
+    const query = searchQuery.toLowerCase().trim();
+    return subaccounts.filter(subaccount => {
+      const matchesPhone = subaccount.phone?.toLowerCase().includes(query);
+      const matchesLocationId = subaccount.locationId?.toLowerCase().includes(query);
+      const matchesLocationName = subaccount.locationName?.toLowerCase().includes(query);
+      const matchesName = subaccount.name?.toLowerCase().includes(query);
+      
+      return matchesPhone || matchesLocationId || matchesLocationName || matchesName;
+    });
+  }, [subaccounts, searchQuery]);
+
   // Determine if user needs phone registration (only for non-admin roles)
   const needsPhoneRegistration = user && user.role === "user" && !user.phone;
 
@@ -215,6 +232,21 @@ function DashboardContent() {
             </Button>
           </div>
 
+          {/* Search Bar */}
+          {!subaccountsLoading && subaccounts.length > 0 && (
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por nombre, teléfono o Location ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-subaccounts"
+              />
+            </div>
+          )}
+
           {/* Loading State */}
           {(subaccountsLoading || instancesLoading) && (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -255,10 +287,36 @@ function DashboardContent() {
             </Card>
           )}
 
+          {/* No Results State (after search) */}
+          {!subaccountsLoading && !instancesLoading && subaccounts.length > 0 && filteredSubaccounts.length === 0 && (
+            <Card className="text-center py-12">
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <Search className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </div>
+                <CardTitle>No se encontraron resultados</CardTitle>
+                <CardDescription className="max-w-md mx-auto">
+                  No hay subcuentas que coincidan con "{searchQuery}". Intenta con otro término de búsqueda.
+                </CardDescription>
+              </CardHeader>
+              <CardFooter className="justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSearchQuery("")}
+                  data-testid="button-clear-search"
+                >
+                  Limpiar búsqueda
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
           {/* Subaccounts Grid */}
-          {!subaccountsLoading && !instancesLoading && subaccounts.length > 0 && (
+          {!subaccountsLoading && !instancesLoading && filteredSubaccounts.length > 0 && (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {subaccounts.map((subaccount) => {
+              {filteredSubaccounts.map((subaccount) => {
                 const status = getConnectionStatus(subaccount.id);
                 const subaccountInstances = getInstancesForSubaccount(subaccount.id);
 

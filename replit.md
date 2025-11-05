@@ -6,7 +6,28 @@ A production-ready multi-tenant SaaS platform integrating WhatsApp Business with
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (November 2, 2025)
+## Recent Changes
+
+### November 5, 2025
+- **Stripe Pricing Plans Update**: Updated billing system with correct pricing structure
+  - Starter Plan: $8/mes, 1 WhatsApp instance (no additional instances allowed)
+  - Profesional Plan: $15/mes, 3 WhatsApp instances (no additional instances allowed)
+  - Business Plan: $25/mes, 5 WhatsApp instances + $5/mes per additional instance
+  - Updated schema with `includedInstances`, `basePrice`, `extraPrice` fields
+  - Stripe webhook properly updates subscription limits (`maxSubaccounts`, `includedInstances`)
+  - BillingSuccess page updated to reflect 7-day trial period
+- **Instance Limit Validation**: Implemented client-side validation for WhatsApp instance creation
+  - Checks current instance count against plan limits before creation
+  - Shows error toast and opens plan selection modal when limit reached (Starter/Profesional)
+  - Prompts confirmation with additional cost for Business plan extra instances
+  - Prevents unauthorized instance creation beyond plan limits
+- **Subaccount Search Feature**: Added search functionality in Dashboard page
+  - Real-time filtering by subaccount name, phone number, or Location ID
+  - Clean UI with search icon and placeholder text
+  - "No results" state with clear search button
+  - Uses `useMemo` for optimized filtering performance
+
+### November 2, 2025
 - **Trial Period Update**: Migrated from 15-day to 7-day free trial across entire codebase (storage.ts, auth.ts, bootstrap.ts, routes.ts, system_config)
 - **API Integration Changes**: Replaced OpenAI/Calendar with ElevenLabs (voice services) and Gemini (transcriptions)
   - Removed: `openaiApiKey` and `calendarId` fields
