@@ -90,6 +90,21 @@ export const subaccounts = pgTable("subaccounts", {
 });
 
 // ============================================
+// TRIGGERS TABLE - Triggers ilimitados por subcuenta
+// ============================================
+export const triggers = pgTable("triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
+  
+  // Configuración del trigger
+  triggerName: text("trigger_name").notNull(),
+  triggerTag: text("trigger_tag").notNull(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
 // WHATSAPP INSTANCES TABLE - Instancias de WhatsApp
 // ============================================
 export const whatsappInstances = pgTable("whatsapp_instances", {
@@ -346,6 +361,27 @@ export type WhatsappInstance = typeof whatsappInstances.$inferSelect;
 export type InsertWhatsappInstance = z.infer<typeof insertWhatsappInstanceSchema>;
 export type CreateWhatsappInstance = z.infer<typeof createWhatsappInstanceSchema>;
 export type UpdateWhatsappInstance = z.infer<typeof updateWhatsappInstanceSchema>;
+
+// Triggers
+export const insertTriggerSchema = createInsertSchema(triggers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const createTriggerSchema = z.object({
+  triggerName: z.string().min(1, "El nombre del trigger es requerido").max(100, "Máximo 100 caracteres").trim(),
+  triggerTag: z.string().min(1, "El nombre de la etiqueta es requerido").max(100, "Máximo 100 caracteres").trim(),
+});
+
+export const updateTriggerSchema = z.object({
+  triggerName: z.string().min(1, "El nombre del trigger es requerido").max(100, "Máximo 100 caracteres").trim().optional(),
+  triggerTag: z.string().min(1, "El nombre de la etiqueta es requerido").max(100, "Máximo 100 caracteres").trim().optional(),
+});
+
+export type Trigger = typeof triggers.$inferSelect;
+export type InsertTrigger = z.infer<typeof insertTriggerSchema>;
+export type CreateTrigger = z.infer<typeof createTriggerSchema>;
+export type UpdateTrigger = z.infer<typeof updateTriggerSchema>;
 
 // Subscriptions
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
