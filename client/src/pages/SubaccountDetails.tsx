@@ -365,6 +365,41 @@ export default function SubaccountDetails() {
       });
       return;
     }
+
+    // Validar límite de instancias
+    const currentInstanceCount = instances?.length || 0;
+    const includedInstances = parseInt(subscription?.includedInstances || "1");
+    const extraPrice = parseFloat(subscription?.extraPrice || "0");
+    
+    // Determinar nombre del plan correctamente
+    let planName = "tu plan actual";
+    if (subscription?.plan === "starter") planName = "Starter";
+    else if (subscription?.plan === "profesional") planName = "Profesional";
+    else if (subscription?.plan === "business") planName = "Business";
+
+    if (currentInstanceCount >= includedInstances && extraPrice === 0) {
+      // Plan no permite instancias adicionales
+      toast({
+        title: "Límite alcanzado",
+        description: `Tu plan ${planName} permite hasta ${includedInstances} instancia${includedInstances > 1 ? 's' : ''}. Actualiza tu plan para agregar más.`,
+        variant: "destructive",
+      });
+      setPlansDialogOpen(true); // Abrir modal de planes
+      return; // No crear instancia
+    }
+
+    if (currentInstanceCount >= includedInstances && extraPrice > 0) {
+      // Plan permite instancias adicionales - mostrar confirmación
+      const confirmCreate = confirm(
+        `Tu plan incluye ${includedInstances} instancia${includedInstances > 1 ? 's' : ''}. ` +
+        `Esta será una instancia adicional con costo de $${extraPrice}/mes. ¿Deseas continuar?`
+      );
+      if (!confirmCreate) {
+        return; // No crear instancia
+      }
+    }
+
+    // Si pasó todas las validaciones, crear la instancia
     createInstanceMutation.mutate(instanceName);
   };
 
