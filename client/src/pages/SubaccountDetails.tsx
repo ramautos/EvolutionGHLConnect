@@ -58,9 +58,11 @@ export default function SubaccountDetails() {
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "profesional" | "business">("profesional");
-  const [triggerName, setTriggerName] = useState("");
-  const [triggerTag, setTriggerTag] = useState("");
-  const [isEditingTrigger, setIsEditingTrigger] = useState(false);
+  
+  // Nuevo sistema de triggers con Dialog
+  const [addTriggerOpen, setAddTriggerOpen] = useState(false);
+  const [newTriggerName, setNewTriggerName] = useState("");
+  const [newTriggerTag, setNewTriggerTag] = useState("");
 
   // Plan definitions
   const PLANS = [
@@ -77,13 +79,11 @@ export default function SubaccountDetails() {
 
   const subaccount = subaccounts.find(s => s.id === subaccountId);
 
-  // Inicializar trigger fields cuando se carga el subaccount
-  useEffect(() => {
-    if (subaccount && !isEditingTrigger) {
-      setTriggerName((subaccount as any)?.triggerName || "");
-      setTriggerTag((subaccount as any)?.triggerTag || "");
-    }
-  }, [subaccount, isEditingTrigger]);
+  // Obtener lista de triggers
+  const { data: triggers = [], isLoading: triggersLoading } = useQuery<any[]>({
+    queryKey: ["/api/subaccounts", subaccount?.locationId, "triggers"],
+    enabled: !!subaccount?.locationId,
+  });
 
   // No inicializar API keys por seguridad - los inputs son write-only
 
@@ -478,47 +478,52 @@ export default function SubaccountDetails() {
     updateNotificationPhoneMutation.mutate(notificationPhone);
   };
 
-  // Mutation para actualizar triggers
-  const updateTriggerMutation = useMutation({
+  // Mutation para crear trigger
+  const createTriggerMutation = useMutation({
     mutationFn: async (data: { triggerName: string; triggerTag: string }) => {
-      if (!subaccount?.locationId) {
-        throw new Error("Location ID no encontrado");
-      }
-      
-      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, {
-        triggerName: data.triggerName.trim() || null,
-        triggerTag: data.triggerTag.trim() || null,
-      });
-      
+      if (!subaccount?.locationId) throw new Error("Location ID no encontrado");
+      const res = await apiRequest("POST", `/api/subaccounts/${subaccount.locationId}/triggers`, data);
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update trigger");
+        throw new Error(errorData.error || "Error al crear el trigger");
       }
-      
       return await res.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Trigger actualizado",
-        description: "La configuración del trigger se guardó exitosamente",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
-      setIsEditingTrigger(false);
+      toast({ title: "Trigger creado", description: "El trigger se creó exitosamente" });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts", subaccount?.locationId, "triggers"] });
+      setAddTriggerOpen(false);
+      setNewTriggerName("");
+      setNewTriggerTag("");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo actualizar el trigger",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "No se pudo crear el trigger", variant: "destructive" });
     },
   });
 
-  const handleSaveTrigger = () => {
-    updateTriggerMutation.mutate({
-      triggerName,
-      triggerTag,
-    });
+  // Mutation para eliminar trigger
+  const deleteTriggerMutation = useMutation({
+    mutationFn: async (triggerId: string) => {
+      if (!subaccount?.locationId) throw new Error("Location ID no encontrado");
+      const res = await apiRequest("DELETE", `/api/subaccounts/${subaccount.locationId}/triggers/${triggerId}`, {});
+      if (!res.ok) throw new Error("Error al eliminar el trigger");
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Trigger eliminado", description: "El trigger se eliminó exitosamente" });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts", subaccount?.locationId, "triggers"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "No se pudo eliminar el trigger", variant: "destructive" });
+    },
+  });
+
+  const handleCreateTrigger = () => {
+    if (!newTriggerName.trim() || !newTriggerTag.trim()) {
+      toast({ title: "Error", description: "Por favor completa ambos campos", variant: "destructive" });
+      return;
+    }
+    createTriggerMutation.mutate({ triggerName: newTriggerName.trim(), triggerTag: newTriggerTag.trim() });
   };
 
   const maskApiKey = (apiKey: string) => {
@@ -976,82 +981,63 @@ export default function SubaccountDetails() {
           {/* Trigger Configuration */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-muted-foreground" />
-                <CardTitle className="text-lg">Configuración de Trigger</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-muted-foreground" />
+                  <CardTitle className="text-lg">Configuración de Triggers</CardTitle>
+                </div>
+                <Button
+                  onClick={() => setAddTriggerOpen(true)}
+                  size="sm"
+                  data-testid="button-add-trigger"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Trigger
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="trigger-name" className="text-sm font-medium mb-2 block">
-                    Nombre del Trigger
-                  </Label>
-                  <Input
-                    id="trigger-name"
-                    type="text"
-                    placeholder="Ej: Bienvenida"
-                    value={isEditingTrigger ? triggerName : ((subaccount as any)?.triggerName || "")}
-                    onChange={(e) => {
-                      setTriggerName(e.target.value);
-                      if (!isEditingTrigger) setIsEditingTrigger(true);
-                    }}
-                    onFocus={() => {
-                      if (!isEditingTrigger) {
-                        setTriggerName((subaccount as any)?.triggerName || "");
-                        setTriggerTag((subaccount as any)?.triggerTag || "");
-                        setIsEditingTrigger(true);
-                      }
-                    }}
-                    data-testid="input-trigger-name"
-                    className="text-base h-11"
-                  />
+              {triggersLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
-                <div>
-                  <Label htmlFor="trigger-tag" className="text-sm font-medium mb-2 block">
-                    Nombre de la Etiqueta
-                  </Label>
-                  <Input
-                    id="trigger-tag"
-                    type="text"
-                    placeholder="Ej: nuevo_cliente"
-                    value={isEditingTrigger ? triggerTag : ((subaccount as any)?.triggerTag || "")}
-                    onChange={(e) => {
-                      setTriggerTag(e.target.value);
-                      if (!isEditingTrigger) setIsEditingTrigger(true);
-                    }}
-                    onFocus={() => {
-                      if (!isEditingTrigger) {
-                        setTriggerName((subaccount as any)?.triggerName || "");
-                        setTriggerTag((subaccount as any)?.triggerTag || "");
-                        setIsEditingTrigger(true);
-                      }
-                    }}
-                    data-testid="input-trigger-tag"
-                    className="text-base h-11"
-                  />
+              ) : triggers.length === 0 ? (
+                <div className="text-center py-8">
+                  <Zap className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">
+                    No hay triggers configurados. Agrega uno para comenzar.
+                  </p>
                 </div>
-              </div>
-              {isEditingTrigger && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSaveTrigger}
-                    disabled={updateTriggerMutation.isPending}
-                    data-testid="button-save-trigger"
-                    className="h-11"
-                  >
-                    {updateTriggerMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Guardar
-                      </>
-                    )}
-                  </Button>
+              ) : (
+                <div className="space-y-3">
+                  {triggers.map((trigger: any) => (
+                    <div
+                      key={trigger.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover-elevate"
+                      data-testid={`trigger-item-${trigger.id}`}
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{trigger.triggerName}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {trigger.triggerTag}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Creado {formatDistanceToNow(new Date(trigger.createdAt), { addSuffix: true, locale: es })}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteTriggerMutation.mutate(trigger.id)}
+                        disabled={deleteTriggerMutation.isPending}
+                        data-testid={`button-delete-trigger-${trigger.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
               <div className="bg-muted/30 border border-muted p-4 rounded-lg space-y-2">
@@ -1407,6 +1393,61 @@ export default function SubaccountDetails() {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar trigger */}
+      <Dialog open={addTriggerOpen} onOpenChange={setAddTriggerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Trigger</DialogTitle>
+            <DialogDescription>
+              Crea un nuevo trigger para automatizar el etiquetado de contactos
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="new-trigger-name">Nombre del Trigger</Label>
+              <Input
+                id="new-trigger-name"
+                placeholder="Ej: Bienvenida"
+                value={newTriggerName}
+                onChange={(e) => setNewTriggerName(e.target.value)}
+                data-testid="input-new-trigger-name"
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-trigger-tag">Nombre de la Etiqueta</Label>
+              <Input
+                id="new-trigger-tag"
+                placeholder="Ej: nuevo_cliente"
+                value={newTriggerTag}
+                onChange={(e) => setNewTriggerTag(e.target.value)}
+                data-testid="input-new-trigger-tag"
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAddTriggerOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateTrigger}
+              disabled={createTriggerMutation.isPending}
+              data-testid="button-submit-trigger"
+            >
+              {createTriggerMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Trigger"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

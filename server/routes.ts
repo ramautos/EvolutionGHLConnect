@@ -10,7 +10,7 @@ import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { db } from "./db";
 import { subaccounts, oauthStates, companies } from "@shared/schema";
 import { eq, and, sql, not, or } from "drizzle-orm";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -2478,6 +2478,155 @@ ${ghlErrorDetails}
       } else {
         res.status(500).json({ error: "Failed to update API settings" });
       }
+    }
+  });
+
+  // ============================================
+  // RUTAS DE TRIGGERS (Por subcuenta)
+  // ============================================
+
+  // GET - Listar todos los triggers de una subcuenta
+  app.get("/api/subaccounts/:locationId/triggers", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const triggers = await storage.getTriggers(subaccount.id);
+      res.json(triggers);
+    } catch (error) {
+      console.error("Error fetching triggers:", error);
+      res.status(500).json({ error: "Failed to fetch triggers" });
+    }
+  });
+
+  // POST - Crear nuevo trigger
+  app.post("/api/subaccounts/:locationId/triggers", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const validatedData = createTriggerSchema.parse(req.body);
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      const newTrigger = await storage.createTrigger(subaccount.id, validatedData);
+      res.status(201).json(newTrigger);
+    } catch (error) {
+      console.error("Error creating trigger:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to create trigger" });
+      }
+    }
+  });
+
+  // PATCH - Actualizar trigger existente
+  app.patch("/api/subaccounts/:locationId/triggers/:triggerId", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId, triggerId } = req.params;
+      const validatedData = updateTriggerSchema.parse(req.body);
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      // Verificar que el trigger pertenece a esta subcuenta
+      const trigger = await storage.getTrigger(triggerId);
+      if (!trigger) {
+        res.status(404).json({ error: "Trigger not found" });
+        return;
+      }
+
+      if (trigger.subaccountId !== subaccount.id) {
+        res.status(403).json({ error: "Trigger does not belong to this subaccount" });
+        return;
+      }
+
+      const updated = await storage.updateTrigger(triggerId, validatedData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating trigger:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+      } else {
+        res.status(500).json({ error: "Failed to update trigger" });
+      }
+    }
+  });
+
+  // DELETE - Eliminar trigger
+  app.delete("/api/subaccounts/:locationId/triggers/:triggerId", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId, triggerId } = req.params;
+
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      // Verificar que el trigger pertenece a esta subcuenta
+      const trigger = await storage.getTrigger(triggerId);
+      if (!trigger) {
+        res.status(404).json({ error: "Trigger not found" });
+        return;
+      }
+
+      if (trigger.subaccountId !== subaccount.id) {
+        res.status(403).json({ error: "Trigger does not belong to this subaccount" });
+        return;
+      }
+
+      const deleted = await storage.deleteTrigger(triggerId);
+      if (deleted) {
+        res.json({ success: true, message: "Trigger deleted successfully" });
+      } else {
+        res.status(500).json({ error: "Failed to delete trigger" });
+      }
+    } catch (error) {
+      console.error("Error deleting trigger:", error);
+      res.status(500).json({ error: "Failed to delete trigger" });
     }
   });
 
