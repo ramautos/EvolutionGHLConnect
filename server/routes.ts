@@ -2022,10 +2022,10 @@ ${ghlErrorDetails}
           if (subaccountId && planId) {
             // Obtener detalles del plan
             const planDetails = {
-              basic_1: { maxSubaccounts: "1", includedInstances: "1", basePrice: "15.00" },
-              pro_5: { maxSubaccounts: "5", includedInstances: "5", basePrice: "50.00" },
-              enterprise_10: { maxSubaccounts: "10", includedInstances: "10", basePrice: "90.00" },
-            }[planId as "basic_1" | "pro_5" | "enterprise_10"];
+              starter: { maxSubaccounts: "1", includedInstances: "1", basePrice: "8.00", extraPrice: "0.00" },
+              profesional: { maxSubaccounts: "1", includedInstances: "3", basePrice: "15.00", extraPrice: "0.00" },
+              business: { maxSubaccounts: "1", includedInstances: "5", basePrice: "25.00", extraPrice: "5.00" },
+            }[planId as "starter" | "profesional" | "business"];
 
             if (planDetails) {
               await storage.updateSubscription(subaccountId, {
@@ -2033,10 +2033,12 @@ ${ghlErrorDetails}
                 maxSubaccounts: planDetails.maxSubaccounts,
                 includedInstances: planDetails.includedInstances,
                 basePrice: planDetails.basePrice,
+                extraPrice: planDetails.extraPrice,
                 status: "active",
+                inTrial: false,
                 stripeSubscriptionId: session.subscription as string,
               });
-              console.log(`✅ Subscription activated for subaccount ${subaccountId}`);
+              console.log(`✅ Subscription activated for subaccount ${subaccountId} with plan ${planId}`);
             }
           }
           break;

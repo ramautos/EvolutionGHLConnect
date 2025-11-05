@@ -349,7 +349,7 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
 });
 
 export const updateSubscriptionSchema = z.object({
-  plan: z.enum(["trial", "basic_1", "pro_5", "enterprise_10"]).optional(),
+  plan: z.enum(["trial", "none", "starter", "profesional", "business"]).optional(),
   maxSubaccounts: z.string().optional(),
   includedInstances: z.string().optional(),
   extraSlots: z.string().optional(),
@@ -359,6 +359,8 @@ export const updateSubscriptionSchema = z.object({
   stripeCustomerId: z.string().optional(),
   stripeSubscriptionId: z.string().optional(),
   stripeProductId: z.string().optional(),
+  inTrial: z.boolean().optional(),
+  trialEndsAt: z.date().optional(),
 });
 
 export type Subscription = typeof subscriptions.$inferSelect;

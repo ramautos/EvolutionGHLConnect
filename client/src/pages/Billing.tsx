@@ -12,56 +12,65 @@ import type { Subscription } from "@shared/schema";
 
 const PLANS = [
   {
-    id: "basic_1",
-    name: "Plan Básico",
-    price: 15,
-    priceId: "price_basic_1", // Stripe Price ID
-    maxSubaccounts: 1,
+    id: "starter",
+    name: "Starter",
+    price: 8,
+    priceId: "price_starter", // Stripe Price ID
     instances: 1,
-    description: "Perfecto para comenzar",
+    extraInstancePrice: undefined,
+    description: "Ideal para emprendedores y pequeñas empresas",
     features: [
-      "1 Subcuenta de GoHighLevel",
-      "1 Instancia de WhatsApp",
-      "Soporte por email",
-      "Integración con N8N",
-      "Dashboard básico",
+      "1 número de WhatsApp",
+      "Mensajería ilimitada",
+      "Generación de QR instantánea",
+      "Webhooks seguros",
+      "Integrado en panel GHL",
+      "OpenAI - Transcripción de audio",
+      "ElevenLabs - Envío de audio en chat",
     ],
     popular: false,
   },
   {
-    id: "pro_5",
-    name: "Plan Pro",
-    price: 50,
-    priceId: "price_pro_5",
-    maxSubaccounts: 5,
-    instances: 5,
-    description: "Para negocios en crecimiento",
+    id: "profesional",
+    name: "Profesional",
+    price: 15,
+    priceId: "price_profesional",
+    instances: 3,
+    extraInstancePrice: undefined,
+    description: "Perfecto para agencias y equipos de ventas",
     features: [
-      "5 Subcuentas de GoHighLevel",
-      "5 Instancias de WhatsApp",
-      "Soporte prioritario 24/7",
-      "Integración avanzada N8N",
-      "Dashboard completo",
-      "Webhooks personalizados",
+      "3 números de WhatsApp",
+      "Mensajería ilimitada",
+      "Generación de QR instantánea",
+      "Webhooks seguros avanzados",
+      "Multi-subcuentas GHL",
+      "Analytics en tiempo real",
+      "OpenAI - Transcripción de audio",
+      "ElevenLabs - Envío de audio en chat",
+      "Soporte prioritario",
     ],
     popular: true,
   },
   {
-    id: "enterprise_10",
-    name: "Plan Enterprise",
-    price: 90,
-    priceId: "price_enterprise_10",
-    maxSubaccounts: 10,
-    instances: 10,
-    description: "Para empresas escalando",
+    id: "business",
+    name: "Business",
+    price: 25,
+    priceId: "price_business",
+    instances: 5,
+    extraInstancePrice: 5,
+    description: "Para empresas que necesitan escalar operaciones",
     features: [
-      "10 Subcuentas de GoHighLevel",
-      "10 Instancias de WhatsApp",
-      "Soporte dedicado 24/7",
-      "Integración N8N ilimitada",
-      "Dashboard personalizado",
-      "API completa",
-      "Onboarding personalizado",
+      "5 números de WhatsApp",
+      "Mensajería ilimitada",
+      "Multi-subcuentas GHL ilimitadas",
+      "Generación de QR instantánea",
+      "Webhooks seguros avanzados",
+      "Analytics avanzados + reportes",
+      "API personalizada",
+      "OpenAI - Transcripción de audio",
+      "ElevenLabs - Envío de audio en chat",
+      "Soporte VIP 24/7",
+      "+$5 USD por instancia adicional",
     ],
     popular: false,
   },
@@ -71,7 +80,7 @@ export default function Billing() {
   const { user } = useUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [selectedPlan, setSelectedPlan] = useState<"basic_1" | "pro_5" | "enterprise_10">("pro_5");
+  const [selectedPlan, setSelectedPlan] = useState<"starter" | "profesional" | "business">("profesional");
 
   const { data: subscription, isLoading } = useQuery<Subscription>({
     queryKey: ["/api/subscription"],
@@ -276,22 +285,14 @@ export default function Billing() {
                     </span>
                     <span className="text-muted-foreground">/mes</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    ${(plan.price / plan.maxSubaccounts).toFixed(2)} por ubicación
-                  </p>
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-center gap-4 p-3 bg-muted/50 rounded-lg">
                     <div className="text-center">
-                      <Users className="w-5 h-5 mx-auto mb-1 text-primary" />
-                      <p className="text-2xl font-bold">{plan.maxSubaccounts}</p>
-                      <p className="text-xs text-muted-foreground">Subcuentas</p>
-                    </div>
-                    <div className="text-center">
                       <MessageSquare className="w-5 h-5 mx-auto mb-1 text-chart-2" />
                       <p className="text-2xl font-bold">{plan.instances}</p>
-                      <p className="text-xs text-muted-foreground">WhatsApp</p>
+                      <p className="text-xs text-muted-foreground">Instancias WhatsApp</p>
                     </div>
                   </div>
 
@@ -344,15 +345,14 @@ export default function Billing() {
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Subcuentas</p>
-                    <p className="text-xl font-bold">{selectedPlanData.maxSubaccounts}</p>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Instancias WhatsApp</p>
-                    <p className="text-xl font-bold">{selectedPlanData.instances}</p>
-                  </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Instancias WhatsApp incluidas</p>
+                  <p className="text-3xl font-bold mt-2">{selectedPlanData.instances}</p>
+                  {selectedPlanData.extraInstancePrice && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      +${selectedPlanData.extraInstancePrice} por instancia adicional
+                    </p>
+                  )}
                 </div>
                 
                 <div className="pt-4">

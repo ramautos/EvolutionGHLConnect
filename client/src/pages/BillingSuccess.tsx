@@ -65,7 +65,7 @@ export default function BillingSuccess() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span>Tienes <strong className="text-foreground">15 días de prueba gratuita</strong> para explorar todas las funcionalidades</span>
+                    <span>Tienes <strong className="text-foreground">7 días de prueba gratuita</strong> para explorar todas las funcionalidades</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />

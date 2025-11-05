@@ -57,6 +57,14 @@ export default function SubaccountDetails() {
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"starter" | "profesional" | "business">("profesional");
+
+  // Plan definitions
+  const PLANS = [
+    { id: "starter", name: "Starter", price: 8, priceId: "price_starter", instances: 1 },
+    { id: "profesional", name: "Profesional", price: 15, priceId: "price_profesional", instances: 3 },
+    { id: "business", name: "Business", price: 25, priceId: "price_business", instances: 5, extraPrice: 5 },
+  ] as const;
 
   // Obtener subcuenta
   const { data: subaccounts = [], isLoading: subaccountLoading } = useQuery<Subaccount[]>({
@@ -315,6 +323,38 @@ export default function SubaccountDetails() {
       });
     },
   });
+
+  // Mutation para crear checkout de Stripe
+  const checkoutMutation = useMutation({
+    mutationFn: async ({ planId, priceId }: { planId: string; priceId: string }) => {
+      return await apiRequest("POST", "/api/create-checkout-session", { planId, priceId });
+    },
+    onSuccess: (data: any) => {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo crear la sesión de pago",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al procesar pago",
+        description: error.message || "No se pudo crear la sesión de pago. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSelectPlan = (planId: string) => {
+    const plan = PLANS.find(p => p.id === planId);
+    if (plan) {
+      checkoutMutation.mutate({ planId: plan.id, priceId: plan.priceId });
+    }
+  };
 
   const handleCreateInstance = () => {
     if (!instanceName.trim()) {
@@ -1066,7 +1106,7 @@ export default function SubaccountDetails() {
               <CardHeader>
                 <CardTitle className="text-lg">Starter</CardTitle>
                 <div className="mt-2">
-                  <span className="text-3xl font-bold">$15</span>
+                  <span className="text-3xl font-bold">$8</span>
                   <span className="text-muted-foreground">/mes</span>
                 </div>
               </CardHeader>
@@ -1074,7 +1114,7 @@ export default function SubaccountDetails() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
-                    <span>Hasta 3 instancias</span>
+                    <span>Hasta 1 instancia</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
@@ -1085,21 +1125,28 @@ export default function SubaccountDetails() {
                     <span>APIs incluidas</span>
                   </div>
                 </div>
-                <Button className="w-full" variant="outline" data-testid="button-select-starter">
+                <Button 
+                  className="w-full" 
+                  variant="outline" 
+                  onClick={() => handleSelectPlan("starter")}
+                  disabled={checkoutMutation.isPending}
+                  data-testid="button-select-starter"
+                >
+                  {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Seleccionar Plan
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Plan Basic */}
-            <Card className="hover-elevate cursor-pointer border-2 border-primary" data-testid="plan-card-basic">
+            {/* Plan Profesional */}
+            <Card className="hover-elevate cursor-pointer border-2 border-primary" data-testid="plan-card-profesional">
               <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl-md">
                 Recomendado
               </div>
               <CardHeader>
-                <CardTitle className="text-lg">Basic</CardTitle>
+                <CardTitle className="text-lg">Profesional</CardTitle>
                 <div className="mt-2">
-                  <span className="text-3xl font-bold">$25</span>
+                  <span className="text-3xl font-bold">$15</span>
                   <span className="text-muted-foreground">/mes</span>
                 </div>
               </CardHeader>
@@ -1107,7 +1154,7 @@ export default function SubaccountDetails() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
-                    <span>Hasta 10 instancias</span>
+                    <span>Hasta 3 instancias</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
@@ -1122,18 +1169,24 @@ export default function SubaccountDetails() {
                     <span>Análisis avanzado</span>
                   </div>
                 </div>
-                <Button className="w-full" data-testid="button-select-basic">
+                <Button 
+                  className="w-full" 
+                  onClick={() => handleSelectPlan("profesional")}
+                  disabled={checkoutMutation.isPending}
+                  data-testid="button-select-profesional"
+                >
+                  {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Seleccionar Plan
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Plan Pro */}
-            <Card className="hover-elevate cursor-pointer" data-testid="plan-card-pro">
+            {/* Plan Business */}
+            <Card className="hover-elevate cursor-pointer" data-testid="plan-card-business">
               <CardHeader>
-                <CardTitle className="text-lg">Pro</CardTitle>
+                <CardTitle className="text-lg">Business</CardTitle>
                 <div className="mt-2">
-                  <span className="text-3xl font-bold">$45</span>
+                  <span className="text-3xl font-bold">$25</span>
                   <span className="text-muted-foreground">/mes</span>
                 </div>
               </CardHeader>
@@ -1141,7 +1194,7 @@ export default function SubaccountDetails() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
-                    <span>Instancias ilimitadas</span>
+                    <span>Hasta 5 instancias</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
@@ -1157,10 +1210,17 @@ export default function SubaccountDetails() {
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
-                    <span>API personalizada</span>
+                    <span>+$5 por instancia extra</span>
                   </div>
                 </div>
-                <Button className="w-full" variant="outline" data-testid="button-select-pro">
+                <Button 
+                  className="w-full" 
+                  variant="outline" 
+                  onClick={() => handleSelectPlan("business")}
+                  disabled={checkoutMutation.isPending}
+                  data-testid="button-select-business"
+                >
+                  {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Seleccionar Plan
                 </Button>
               </CardContent>
