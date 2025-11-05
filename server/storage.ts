@@ -1,4 +1,4 @@
-import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState } from "@shared/schema";
+import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, triggers, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState, type Trigger, type InsertTrigger } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
 import { evolutionAPI } from "./evolution-api";
@@ -83,6 +83,15 @@ export interface IStorage {
   markOAuthStateAsUsed(state: string): Promise<void>;
   cleanupExpiredOAuthStates(): Promise<void>;
   cleanupAllOAuthStates(): Promise<number>;
+  
+  // ============================================
+  // TRIGGER OPERATIONS
+  // ============================================
+  getTriggers(subaccountId: string): Promise<any[]>;
+  getTrigger(id: string): Promise<any | undefined>;
+  createTrigger(subaccountId: string, triggerData: { triggerName: string; triggerTag: string }): Promise<any>;
+  updateTrigger(id: string, updates: { triggerName?: string; triggerTag?: string }): Promise<any | undefined>;
+  deleteTrigger(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -755,6 +764,64 @@ export class DatabaseStorage implements IStorage {
     const deleted = await db.delete(oauthStates).returning();
     console.log(`🗑️ Deleted ${deleted.length} OAuth states`);
     return deleted.length;
+  }
+
+  // ============================================
+  // TRIGGER OPERATIONS
+  // ============================================
+
+  async getTriggers(subaccountId: string): Promise<Trigger[]> {
+    const triggerList = await db
+      .select()
+      .from(triggers)
+      .where(eq(triggers.subaccountId, subaccountId))
+      .orderBy(triggers.createdAt);
+    return triggerList;
+  }
+
+  async getTrigger(id: string): Promise<Trigger | undefined> {
+    const [trigger] = await db
+      .select()
+      .from(triggers)
+      .where(eq(triggers.id, id));
+    return trigger || undefined;
+  }
+
+  async createTrigger(subaccountId: string, triggerData: { triggerName: string; triggerTag: string }): Promise<Trigger> {
+    const [newTrigger] = await db
+      .insert(triggers)
+      .values({
+        subaccountId,
+        triggerName: triggerData.triggerName.trim(),
+        triggerTag: triggerData.triggerTag.trim(),
+      })
+      .returning();
+    return newTrigger;
+  }
+
+  async updateTrigger(id: string, updates: { triggerName?: string; triggerTag?: string }): Promise<Trigger | undefined> {
+    const cleanedUpdates: any = {};
+    if (updates.triggerName !== undefined) {
+      cleanedUpdates.triggerName = updates.triggerName.trim();
+    }
+    if (updates.triggerTag !== undefined) {
+      cleanedUpdates.triggerTag = updates.triggerTag.trim();
+    }
+
+    const [updated] = await db
+      .update(triggers)
+      .set(cleanedUpdates)
+      .where(eq(triggers.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteTrigger(id: string): Promise<boolean> {
+    const deleted = await db
+      .delete(triggers)
+      .where(eq(triggers.id, id))
+      .returning();
+    return deleted.length > 0;
   }
 }
 
