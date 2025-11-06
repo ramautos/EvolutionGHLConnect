@@ -35,7 +35,7 @@ import type { Subaccount, WhatsappInstance } from "@shared/schema";
 import { QRCodeSVG } from "qrcode.react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import geminiLogo from "@assets/gemini-color_1762127968113.png";
+import openaiLogo from "@assets/openai-old-logo_1762396242467.webp";
 import elevenLabsLogo from "@assets/ElevenLabs_1762127966161.png";
 
 export default function SubaccountDetails() {
@@ -902,12 +902,12 @@ export default function SubaccountDetails() {
               <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                 <div className="flex items-center gap-3">
                   <img 
-                    src={geminiLogo} 
-                    alt="Gemini" 
+                    src={openaiLogo} 
+                    alt="OpenAI" 
                     className="w-8 h-8 rounded object-cover"
                   />
                   <div>
-                    <div className="font-medium text-sm">Gemini</div>
+                    <div className="font-medium text-sm">OpenAI</div>
                     <div className="text-xs text-muted-foreground">Transcripciones</div>
                   </div>
                 </div>
