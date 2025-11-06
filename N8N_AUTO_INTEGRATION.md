@@ -54,7 +54,7 @@ Agrega estas variables en **Replit → Secrets**:
 
 ```env
 N8N_API_URL=https://n8nqr.cloude.es
-N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxx...
+N8N_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NjkzZDU1Yy0xOTY1LTQ5MjQtYThkNi0zYTgyZDcyNjU3NzMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYyNDE1NjQ0LCJleHAiOjIwMTQ2MDMyMDB9.alv8uiFUVMVkCEWivhbYdeW9TK9KlZkJTQbYzCCDkMg
 N8N_TEMPLATE_WORKFLOW_ID=tnWqUmYez8IvPKeC
 ```
 
