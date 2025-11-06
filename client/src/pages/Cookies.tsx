@@ -23,7 +23,6 @@ export default function Cookies() {
           </Link>
         </div>
       </header>
-
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-primary/5 via-chart-2/5 to-background">
         <div className="container mx-auto px-6 lg:px-12 max-w-4xl text-center">
@@ -42,7 +41,6 @@ export default function Cookies() {
           </p>
         </div>
       </section>
-
       {/* Content */}
       <section className="py-16">
         <div className="container mx-auto px-6 lg:px-12 max-w-4xl">
@@ -235,7 +233,7 @@ export default function Cookies() {
                         </p>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">Replit (Hosting)</h4>
+                        <h4 className="font-semibold text-foreground mb-2">Server (Hosting)</h4>
                         <p className="text-sm">
                           Cookies de infraestructura para servir la aplicación.
                         </p>
