@@ -204,20 +204,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const user = req.user as any;
-    
+
     // Obtener información de la empresa
     let companyName = null;
+    let companyManualBilling = false;
     if (user.companyId) {
       const company = await storage.getCompany(user.companyId);
       companyName = company?.name || null;
+      companyManualBilling = company?.manualBilling || false;
     }
-    
+
     // No enviar datos sensibles al cliente, pero indicar si tiene contraseña
     const { passwordHash: _, googleId: __, ...userWithoutSensitive } = user;
     const userResponse = {
       ...userWithoutSensitive,
       hasPassword: !!user.passwordHash, // Indicar si tiene contraseña local
       companyName, // Agregar nombre de la empresa
+      companyManualBilling, // Agregar flag de cobro manual
     };
     res.json(userResponse);
   });

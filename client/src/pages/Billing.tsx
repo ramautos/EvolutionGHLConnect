@@ -92,16 +92,15 @@ export default function Billing() {
     enabled: !!user?.id,
   });
 
-  // Obtener company info para verificar si es cobro manual
-  const { data: company } = useQuery<any>({
-    queryKey: ["/api/companies", (user as any)?.companyId],
-    enabled: !!(user as any)?.companyId,
-  });
+  // Usar companyManualBilling directamente del usuario (viene en /api/auth/me)
+  const isManualBilling = (user as any)?.companyManualBilling || false;
 
   // Obtener billing info de la company (solo si es cobro manual)
   const { data: billingInfo } = useQuery<any>({
     queryKey: ["/api/companies", (user as any)?.companyId, "billing-info"],
-    enabled: !!(user as any)?.companyId && company?.manualBilling,
+    enabled: !!(user as any)?.companyId && isManualBilling,
+    staleTime: 2 * 60 * 1000, // 2 minutos (más frecuente porque son datos de billing)
+    cacheTime: 5 * 60 * 1000, // 5 minutos
   });
 
   const checkoutMutation = useMutation({
@@ -156,7 +155,7 @@ export default function Billing() {
   }
 
   // Vista de Cobro Manual para Agencias
-  if (company?.manualBilling && billingInfo) {
+  if (isManualBilling && billingInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px]" />
