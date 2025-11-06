@@ -23,7 +23,6 @@ export default function Terms() {
           </Link>
         </div>
       </header>
-
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-chart-2/5 via-primary/5 to-background">
         <div className="container mx-auto px-6 lg:px-12 max-w-4xl text-center">
@@ -42,7 +41,6 @@ export default function Terms() {
           </p>
         </div>
       </section>
-
       {/* Content */}
       <section className="py-16">
         <div className="container mx-auto px-6 lg:px-12 max-w-4xl">
@@ -240,7 +238,7 @@ export default function Terms() {
                       WhatsApp AI se proporciona <strong>"tal cual"</strong> sin garantías. No nos hacemos responsables de:
                     </p>
                     <ul className="list-disc pl-6 space-y-2">
-                      <li>Interrupciones de servicio por mantenimiento o terceros (Evolution API, WhatsApp, GHL)</li>
+                      <li>Interrupciones de servicio por mantenimiento o terceros ( WhatsApp, GHL)</li>
                       <li>Pérdida de datos causada por fallas de terceros</li>
                       <li>Bloqueos de números de WhatsApp por incumplimiento de políticas</li>
                       <li>Daños indirectos, lucro cesante o pérdida de ingresos</li>
