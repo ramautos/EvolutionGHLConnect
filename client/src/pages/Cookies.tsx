@@ -94,33 +94,18 @@ export default function Cookies() {
                         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                           <Shield className="w-4 h-4 text-white" />
                         </div>
-                        <h3 className="font-bold text-foreground text-lg">2.1 Cookies Esenciales (Necesarias)</h3>
+                        <h3 className="font-bold text-foreground text-lg">2.1 Cookies Esenciales</h3>
                       </div>
                       <p className="mb-3">
-                        Requeridas para el funcionamiento básico de la plataforma. <strong>No se pueden desactivar</strong>.
+                        Son necesarias para que la plataforma funcione correctamente. <strong>No se pueden desactivar</strong>.
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">connect.sid</strong> - Cookie de sesión HttpOnly para autenticación (Passport.js)
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">csrf_token</strong> - Protección contra ataques CSRF
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">theme_preference</strong> - Recordar tema claro/oscuro
-                          </div>
-                        </div>
-                      </div>
+                      <ul className="list-disc pl-6 space-y-2">
+                        <li>Mantienen tu sesión activa mientras usas la plataforma</li>
+                        <li>Protegen tu cuenta contra accesos no autorizados</li>
+                        <li>Recuerdan tus preferencias de visualización</li>
+                      </ul>
                       <div className="mt-3 text-sm bg-background/50 p-3 rounded-lg">
-                        <strong>Duración:</strong> Sesión (se elimina al cerrar navegador) o hasta cerrar sesión manualmente
+                        <strong>Duración:</strong> Se eliminan al cerrar sesión o tu navegador
                       </div>
                     </div>
 
@@ -133,30 +118,15 @@ export default function Cookies() {
                         <h3 className="font-bold text-foreground text-lg">2.2 Cookies de Funcionalidad</h3>
                       </div>
                       <p className="mb-3">
-                        Mejoran tu experiencia recordando preferencias y configuraciones.
+                        Mejoran tu experiencia recordando tus preferencias personales.
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-chart-2 mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">language</strong> - Idioma preferido (español/inglés)
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-chart-2 mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">sidebar_collapsed</strong> - Estado del menú lateral (expandido/colapsado)
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-chart-2 mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">dashboard_view</strong> - Vista de dashboard (tabla/tarjetas)
-                          </div>
-                        </div>
-                      </div>
+                      <ul className="list-disc pl-6 space-y-2">
+                        <li>Tu idioma preferido</li>
+                        <li>Si prefieres el tema claro u oscuro</li>
+                        <li>Cómo organizas tu panel de control</li>
+                      </ul>
                       <div className="mt-3 text-sm bg-background/50 p-3 rounded-lg">
-                        <strong>Duración:</strong> 1 año desde la última visita
+                        <strong>Duración:</strong> Hasta 1 año
                       </div>
                     </div>
 
@@ -169,30 +139,15 @@ export default function Cookies() {
                         <h3 className="font-bold text-foreground text-lg">2.3 Cookies de Análisis</h3>
                       </div>
                       <p className="mb-3">
-                        Nos ayudan a entender cómo usas la plataforma para mejorarla. <strong>Opcional - puedes desactivarlas</strong>.
+                        Nos ayudan a mejorar la plataforma entendiendo cómo la usas. <strong>Son opcionales y puedes desactivarlas</strong>.
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">_ga</strong> - Google Analytics (identificación de usuario anónimo)
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">_gid</strong> - Google Analytics (sesión de usuario)
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <CheckCircle className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                          <div>
-                            <strong className="text-foreground">analytics_consent</strong> - Consentimiento de análisis
-                          </div>
-                        </div>
-                      </div>
+                      <ul className="list-disc pl-6 space-y-2">
+                        <li>Qué páginas visitas más frecuentemente</li>
+                        <li>Qué funciones usas con mayor frecuencia</li>
+                        <li>Cuánto tiempo pasas en diferentes secciones</li>
+                      </ul>
                       <div className="mt-3 text-sm bg-background/50 p-3 rounded-lg">
-                        <strong>Duración:</strong> 2 años (_ga), 24 horas (_gid)
+                        <strong>Duración:</strong> Hasta 2 años
                       </div>
                     </div>
 
@@ -211,36 +166,16 @@ export default function Cookies() {
                   <h2 className="text-2xl font-bold mb-4">3. Cookies de Terceros</h2>
                   <div className="space-y-4 text-muted-foreground">
                     <p>
-                      Algunos servicios externos integrados en nuestra plataforma pueden establecer sus propias cookies:
+                      Trabajamos con servicios externos confiables que pueden usar sus propias cookies:
                     </p>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="bg-muted/30 p-4 rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">Stripe (Pagos)</h4>
-                        <p className="text-sm">
-                          Cookies para procesar pagos de forma segura y prevenir fraudes.
-                        </p>
-                      </div>
-                      <div className="bg-muted/30 p-4 rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">Google OAuth</h4>
-                        <p className="text-sm">
-                          Cookies para autenticación con tu cuenta de Google.
-                        </p>
-                      </div>
-                      <div className="bg-muted/30 p-4 rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">GoHighLevel</h4>
-                        <p className="text-sm">
-                          Cookies OAuth para sincronización con tu CRM.
-                        </p>
-                      </div>
-                      <div className="bg-muted/30 p-4 rounded-lg">
-                        <h4 className="font-semibold text-foreground mb-2">Server (Hosting)</h4>
-                        <p className="text-sm">
-                          Cookies de infraestructura para servir la aplicación.
-                        </p>
-                      </div>
-                    </div>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li><strong>Procesador de Pagos:</strong> Para gestionar tus suscripciones de forma segura</li>
+                      <li><strong>Servicios de Autenticación:</strong> Para que puedas iniciar sesión con tu cuenta de Google</li>
+                      <li><strong>Herramientas de CRM:</strong> Para sincronizar tus datos con GoHighLevel</li>
+                      <li><strong>Servicios de Análisis:</strong> Para entender cómo mejorar la plataforma</li>
+                    </ul>
                     <p className="mt-4 text-sm">
-                      Consulta las políticas de privacidad de estos servicios para más información sobre sus cookies.
+                      Estos servicios tienen sus propias políticas de privacidad que puedes consultar en sus sitios web.
                     </p>
                   </div>
                 </div>

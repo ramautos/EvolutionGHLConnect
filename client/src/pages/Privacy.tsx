@@ -70,15 +70,15 @@ export default function Privacy() {
                       <ul className="list-disc pl-6 space-y-1">
                         <li>Nombre completo y correo electrónico</li>
                         <li>Número de teléfono para notificaciones</li>
-                        <li>Contraseña cifrada (bcrypt)</li>
+                        <li>Contraseña (siempre protegida y encriptada)</li>
                       </ul>
                     </div>
                     <div>
                       <h3 className="font-semibold text-foreground mb-2">1.2 Información de Integración</h3>
                       <ul className="list-disc pl-6 space-y-1">
-                        <li>Tokens OAuth de GoHighLevel</li>
-                        <li>Location ID y datos de subcuentas GHL</li>
-                        <li>API Keys de ElevenLabs y Gemini (encriptadas)</li>
+                        <li>Credenciales de acceso a GoHighLevel</li>
+                        <li>Datos de tus cuentas y ubicaciones de CRM</li>
+                        <li>Claves de servicios de voz y transcripción (siempre encriptadas)</li>
                       </ul>
                     </div>
                     <div>
@@ -104,7 +104,7 @@ export default function Privacy() {
                   <div className="space-y-4 text-muted-foreground">
                     <ul className="list-disc pl-6 space-y-2">
                       <li><strong>Provisión del Servicio:</strong> Gestionar instancias de WhatsApp, sincronización con GoHighLevel, transcripciones de audio.</li>
-                      <li><strong>Autenticación y Seguridad:</strong> Validar tu identidad mediante Passport.js (Local + Google OAuth).</li>
+                      <li><strong>Autenticación y Seguridad:</strong> Validar tu identidad y proteger tu cuenta.</li>
                       <li><strong>Facturación:</strong> Procesar pagos con Stripe, gestionar planes (Starter, Professional, Business).</li>
                       <li><strong>Notificaciones:</strong> Enviar alertas de desconexión de WhatsApp vía SMS/email.</li>
                       <li><strong>Mejoras del Producto:</strong> Analizar uso anónimo para optimizar funcionalidades.</li>
@@ -127,19 +127,19 @@ export default function Privacy() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="bg-muted/30 p-4 rounded-lg">
                         <h4 className="font-semibold text-foreground mb-2">🔐 Cifrado</h4>
-                        <p className="text-sm">Contraseñas con bcrypt, API keys encriptadas, conexión HTTPS/TLS.</p>
+                        <p className="text-sm">Todas tus contraseñas y claves API están encriptadas y protegidas con cifrado de grado bancario.</p>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-lg">
                         <h4 className="font-semibold text-foreground mb-2">🗄️ Base de Datos</h4>
-                        <p className="text-sm">PostgreSQL (Neon) con backups automáticos y aislamiento de datos.</p>
+                        <p className="text-sm">Tus datos se almacenan de forma segura con copias de respaldo automáticas.</p>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-lg">
                         <h4 className="font-semibold text-foreground mb-2">🔑 Control de Acceso</h4>
-                        <p className="text-sm">RBAC (Role-Based Access Control) con roles user/admin.</p>
+                        <p className="text-sm">Sistema de permisos que asegura que solo tú puedas acceder a tu información.</p>
                       </div>
                       <div className="bg-muted/30 p-4 rounded-lg">
                         <h4 className="font-semibold text-foreground mb-2">🛡️ Sesiones</h4>
-                        <p className="text-sm">HttpOnly cookies con expiración automática.</p>
+                        <p className="text-sm">Tu sesión se mantiene segura y se cierra automáticamente por inactividad.</p>
                       </div>
                     </div>
                   </div>
@@ -160,13 +160,13 @@ export default function Privacy() {
                       <strong>NO vendemos</strong> tus datos personales. Solo compartimos información con:
                     </p>
                     <ul className="list-disc pl-6 space-y-2">
-                      <li><strong>Proveedores de Servicios:</strong> Stripe (pagos), Neon (database), Evolution API (WhatsApp), ElevenLabs, Gemini.</li>
-                      <li><strong>GoHighLevel:</strong> Datos de Location ID y tokens OAuth para sincronización CRM.</li>
+                      <li><strong>Proveedores de Servicios:</strong> Procesador de pagos, almacenamiento seguro, servicios de WhatsApp, voz y transcripción.</li>
+                      <li><strong>GoHighLevel:</strong> Información necesaria para sincronizar tu CRM.</li>
                       <li><strong>Autoridades Legales:</strong> Cuando lo requiera la ley (orden judicial, citación).</li>
                     </ul>
                     <p className="mt-4 bg-primary/10 p-4 rounded-lg border border-primary/20">
-                      ⚠️ <strong>Importante:</strong> API keys de terceros (ElevenLabs, Gemini) NUNCA son expuestas al cliente. 
-                      Solo retornamos flags booleanos (<code>hasElevenLabsKey</code>, <code>hasGeminiKey</code>).
+                      ⚠️ <strong>Importante:</strong> Tus claves API nunca son expuestas. 
+                      Solo verificamos si están configuradas, pero nunca las mostramos.
                     </p>
                   </div>
                 </div>
