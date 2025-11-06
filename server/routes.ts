@@ -6,6 +6,7 @@ import { storage, DatabaseStorage } from "./storage";
 import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
+import { n8nService } from "./n8n-service";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { db } from "./db";
 import { subaccounts, oauthStates, companies, whatsappInstances } from "@shared/schema";
@@ -2964,6 +2965,51 @@ ${ghlErrorDetails}
       // Si es cobro manual, permitir crear instancia sin validaciones de billing
       if (isManualBilling) {
         const instance = await storage.createWhatsappInstance(validatedData);
+
+        // ============================================
+        // INTEGRACIÓN AUTOMÁTICA CON N8N (COBRO MANUAL)
+        // ============================================
+        try {
+          const locationId = validatedData.locationId;
+
+          // Contar instancias con este locationId
+          const instancesWithSameLocation = await db
+            .select()
+            .from(whatsappInstances)
+            .where(eq(whatsappInstances.locationId, locationId));
+
+          // Si es la primera instancia, crear workflow en n8n
+          if (instancesWithSameLocation.length === 1) {
+            console.log(`🔵 Primera instancia para locationId ${locationId} (cobro manual), creando workflow en n8n...`);
+
+            const webhookUrl = await n8nService.createWorkflowForLocation(locationId);
+
+            if (webhookUrl) {
+              await db
+                .update(whatsappInstances)
+                .set({ webhookUrl })
+                .where(eq(whatsappInstances.id, instance.id));
+
+              instance.webhookUrl = webhookUrl;
+              console.log(`✅ Workflow n8n creado y webhook configurado para ${locationId}`);
+            }
+          } else {
+            // Reutilizar webhook existente
+            const existingInstance = instancesWithSameLocation.find(inst => inst.webhookUrl && inst.id !== instance.id);
+            if (existingInstance?.webhookUrl) {
+              await db
+                .update(whatsappInstances)
+                .set({ webhookUrl: existingInstance.webhookUrl })
+                .where(eq(whatsappInstances.id, instance.id));
+
+              instance.webhookUrl = existingInstance.webhookUrl;
+              console.log(`✅ Webhook reutilizado: ${existingInstance.webhookUrl}`);
+            }
+          }
+        } catch (n8nError) {
+          console.error("❌ Error en integración con n8n (cobro manual):", n8nError);
+        }
+
         res.json({
           instance,
           manualBilling: true,
@@ -2996,6 +3042,48 @@ ${ghlErrorDetails}
       // Si está en período de prueba, permitir crear instancia sin restricciones
       if (isInTrial) {
         const instance = await storage.createWhatsappInstance(validatedData);
+
+        // ============================================
+        // INTEGRACIÓN AUTOMÁTICA CON N8N (TRIAL)
+        // ============================================
+        try {
+          const locationId = validatedData.locationId;
+
+          const instancesWithSameLocation = await db
+            .select()
+            .from(whatsappInstances)
+            .where(eq(whatsappInstances.locationId, locationId));
+
+          if (instancesWithSameLocation.length === 1) {
+            console.log(`🔵 Primera instancia para locationId ${locationId} (trial), creando workflow en n8n...`);
+
+            const webhookUrl = await n8nService.createWorkflowForLocation(locationId);
+
+            if (webhookUrl) {
+              await db
+                .update(whatsappInstances)
+                .set({ webhookUrl })
+                .where(eq(whatsappInstances.id, instance.id));
+
+              instance.webhookUrl = webhookUrl;
+              console.log(`✅ Workflow n8n creado y webhook configurado para ${locationId}`);
+            }
+          } else {
+            const existingInstance = instancesWithSameLocation.find(inst => inst.webhookUrl && inst.id !== instance.id);
+            if (existingInstance?.webhookUrl) {
+              await db
+                .update(whatsappInstances)
+                .set({ webhookUrl: existingInstance.webhookUrl })
+                .where(eq(whatsappInstances.id, instance.id));
+
+              instance.webhookUrl = existingInstance.webhookUrl;
+              console.log(`✅ Webhook reutilizado: ${existingInstance.webhookUrl}`);
+            }
+          }
+        } catch (n8nError) {
+          console.error("❌ Error en integración con n8n (trial):", n8nError);
+        }
+
         res.json({
           instance,
           inTrial: true,
@@ -3139,7 +3227,61 @@ ${ghlErrorDetails}
 
       // Crear la instancia
       const instance = await storage.createWhatsappInstance(validatedData);
-      
+
+      // ============================================
+      // INTEGRACIÓN AUTOMÁTICA CON N8N
+      // ============================================
+      // Si es la primera instancia de este locationId, crear workflow en n8n
+      try {
+        const locationId = validatedData.locationId;
+
+        // Contar cuántas instancias existen con este locationId (incluyendo la recién creada)
+        const instancesWithSameLocation = await db
+          .select()
+          .from(whatsappInstances)
+          .where(eq(whatsappInstances.locationId, locationId));
+
+        // Si es la primera instancia con este locationId, crear workflow en n8n
+        if (instancesWithSameLocation.length === 1) {
+          console.log(`🔵 Primera instancia para locationId ${locationId}, creando workflow en n8n...`);
+
+          const webhookUrl = await n8nService.createWorkflowForLocation(locationId);
+
+          if (webhookUrl) {
+            // Actualizar la instancia con el webhook URL
+            await db
+              .update(whatsappInstances)
+              .set({ webhookUrl })
+              .where(eq(whatsappInstances.id, instance.id));
+
+            // Actualizar el objeto instance para la respuesta
+            instance.webhookUrl = webhookUrl;
+
+            console.log(`✅ Workflow n8n creado y webhook configurado para ${locationId}`);
+          } else {
+            console.warn(`⚠️ No se pudo crear workflow n8n para ${locationId}, pero la instancia fue creada`);
+          }
+        } else {
+          // No es la primera instancia, usar el webhook existente
+          console.log(`ℹ️ Instancia adicional para locationId ${locationId}, reutilizando workflow existente`);
+
+          // Buscar el webhook de alguna instancia existente con el mismo locationId
+          const existingInstance = instancesWithSameLocation.find(inst => inst.webhookUrl && inst.id !== instance.id);
+          if (existingInstance?.webhookUrl) {
+            await db
+              .update(whatsappInstances)
+              .set({ webhookUrl: existingInstance.webhookUrl })
+              .where(eq(whatsappInstances.id, instance.id));
+
+            instance.webhookUrl = existingInstance.webhookUrl;
+            console.log(`✅ Webhook reutilizado: ${existingInstance.webhookUrl}`);
+          }
+        }
+      } catch (n8nError) {
+        console.error("❌ Error en integración con n8n:", n8nError);
+        // No bloqueamos la creación de la instancia si falla n8n
+      }
+
       // Responder con la instancia y la factura generada (si aplica)
       res.json({
         instance,
