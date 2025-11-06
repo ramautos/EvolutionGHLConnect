@@ -317,12 +317,12 @@ export default function Terms() {
                 Para consultas sobre estos términos, contáctanos en:
               </p>
               <a 
-                href="mailto:legal@whatsappai.com" 
+                href="mailto:soporte@cloude.es" 
                 className="inline-flex items-center gap-2 bg-chart-2 text-white px-6 py-3 rounded-xl font-semibold hover:bg-chart-2/90 transition-colors"
                 data-testid="link-email-legal"
               >
                 <FileText className="w-5 h-5" />
-                legal@whatsappai.com
+                soporte@cloude.es
               </a>
               <p className="text-sm text-muted-foreground mt-6">
                 Última actualización: 6 de noviembre de 2025

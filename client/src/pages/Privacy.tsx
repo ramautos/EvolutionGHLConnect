@@ -258,12 +258,12 @@ export default function Privacy() {
               </p>
               <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
                 <a 
-                  href="mailto:privacy@whatsappai.com" 
+                  href="mailto:soporte@cloude.es" 
                   className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors"
                   data-testid="link-email-privacy"
                 >
                   <Mail className="w-5 h-5" />
-                  privacy@whatsappai.com
+                  soporte@cloude.es
                 </a>
               </div>
               <p className="text-sm text-muted-foreground mt-6">

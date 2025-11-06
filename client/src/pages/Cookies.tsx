@@ -338,12 +338,12 @@ export default function Cookies() {
                 Si tienes dudas sobre nuestra política de cookies, contáctanos:
               </p>
               <a 
-                href="mailto:privacy@whatsappai.com" 
+                href="mailto:soporte@cloude.es" 
                 className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors"
                 data-testid="link-email-cookies"
               >
                 <Cookie className="w-5 h-5" />
-                privacy@whatsappai.com
+                soporte@cloude.es
               </a>
               <p className="text-sm text-muted-foreground mt-6">
                 Última actualización: 6 de noviembre de 2025
