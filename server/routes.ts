@@ -2515,11 +2515,14 @@ ${ghlErrorDetails}
   app.post("/api/subaccounts/:locationId/triggers", isAuthenticated, async (req, res) => {
     try {
       const { locationId } = req.params;
+      console.log(`🔍 [DEBUG] POST /api/subaccounts/${locationId}/triggers - User ID: ${(req.user as any)?.id}`);
       const validatedData = createTriggerSchema.parse(req.body);
 
       const subaccount = await storage.getSubaccountByLocationId(locationId);
+      console.log(`🔍 [DEBUG] getSubaccountByLocationId('${locationId}') returned:`, subaccount ? `ID: ${subaccount.id}, Role: ${subaccount.role}` : 'undefined');
       
       if (!subaccount) {
+        console.log(`❌ [ERROR] Subaccount not found for locationId: ${locationId}`);
         res.status(404).json({ error: "Subaccount not found" });
         return;
       }
