@@ -29,6 +29,7 @@ import LocationsDashboard from "@/pages/LocationsDashboard";
 import AuthSuccess from "@/pages/AuthSuccess";
 import ClaimSubaccount from "@/pages/ClaimSubaccount";
 import GhlIframe from "@/pages/GhlIframe";
+import InstallSubaccount from "@/pages/InstallSubaccount";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -176,6 +177,9 @@ function Router() {
 
       {/* GHL Iframe - SSO Authentication (no requiere ProtectedRoute, usa SSO) */}
       <Route path="/ghl-iframe" component={GhlIframe} />
+
+      {/* Install Subaccount - Public route for sold subaccounts */}
+      <Route path="/install/:token" component={InstallSubaccount} />
 
       <Route component={NotFound} />
     </Switch>

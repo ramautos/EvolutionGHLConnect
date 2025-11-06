@@ -475,10 +475,11 @@ Token expires in 1 hour
   // GoHighLevel OAuth Callback (renamed to avoid GHL detection in URL)
   app.get("/api/auth/oauth/callback", async (req, res) => {
     try {
-      const { code } = req.query;
+      const { code, state } = req.query;
 
       console.log("🔵 OAuth Callback received:", {
         code: code ? `${String(code).substring(0, 10)}...` : "missing",
+        state: state ? String(state).substring(0, 30) + '...' : "none",
         protocol: req.protocol,
         host: req.get('host'),
         fullUrl: `${req.protocol}://${req.get('host')}${req.path}`
@@ -488,6 +489,17 @@ Token expires in 1 hour
         console.error("❌ Missing authorization code");
         res.status(400).json({ error: "Missing authorization code" });
         return;
+      }
+
+      // Parsear state si existe (para instalaciones vendidas)
+      let stateData: { type?: string; token?: string } | null = null;
+      if (state && typeof state === "string") {
+        try {
+          stateData = JSON.parse(decodeURIComponent(state));
+          console.log("🔵 State parsed:", stateData);
+        } catch (e) {
+          console.warn("⚠️ Failed to parse state, continuing with normal flow");
+        }
       }
 
       // Intercambiar código por token
@@ -645,6 +657,72 @@ ${ghlErrorDetails}
         }
       }
 
+      // SI ES UNA INSTALACIÓN VENDIDA, activar la subcuenta
+      if (stateData?.type === 'sold_subaccount' && stateData?.token) {
+        console.log("🛒 Instalación vendida detectada, activando subcuenta...");
+
+        try {
+          // Buscar subcuenta por token
+          const soldSubaccountResult = await db
+            .select()
+            .from(subaccounts)
+            .where(eq(subaccounts.accessToken, stateData.token))
+            .limit(1);
+
+          if (soldSubaccountResult.length === 0) {
+            console.error("❌ Token de subcuenta vendida no encontrado");
+            res.status(400).send(`
+              <html>
+                <head><title>Error</title></head>
+                <body style="font-family: sans-serif; padding: 20px; text-align: center;">
+                  <h2>❌ Error</h2>
+                  <p>No se encontró la subcuenta vendida. Por favor, contacta con tu agencia.</p>
+                </body>
+              </html>
+            `);
+            return;
+          }
+
+          const soldSubaccount = soldSubaccountResult[0];
+          const locationId = tokenResponse.locationId || installerDetails.location?.id;
+          const ghlCompanyId = tokenResponse.companyId || installerDetails.company.id;
+
+          // Actualizar subcuenta con datos reales de GHL y activarla
+          await db
+            .update(subaccounts)
+            .set({
+              locationId: locationId || soldSubaccount.locationId,
+              ghlCompanyId: ghlCompanyId,
+              locationName: installerDetails.location?.name || soldSubaccount.name,
+              city: installerDetails.location?.address?.city || null,
+              state: installerDetails.location?.address?.state || null,
+              isActive: true, // ¡Activar la subcuenta!
+              phone: installerDetails.location?.phone || null,
+            })
+            .where(eq(subaccounts.id, soldSubaccount.id));
+
+          console.log(`✅ Subcuenta vendida activada: ${soldSubaccount.name}`);
+
+          // Redirigir al login con mensaje de éxito
+          res.redirect(`/login?installed=true&message=Instalación completada exitosamente. Por favor, inicia sesión con tu email: ${soldSubaccount.email}`);
+          return;
+        } catch (error) {
+          console.error("❌ Error activando subcuenta vendida:", error);
+          res.status(500).send(`
+            <html>
+              <head><title>Error</title></head>
+              <body style="font-family: sans-serif; padding: 20px; text-align: center;">
+                <h2>❌ Error</h2>
+                <p>Hubo un error al activar tu subcuenta. Por favor, contacta con tu agencia.</p>
+                <p><small>Error: ${error instanceof Error ? error.message : 'Unknown error'}</small></p>
+              </body>
+            </html>
+          `);
+          return;
+        }
+      }
+
+      // Flujo normal (no es instalación vendida)
       // Redirigir al dashboard de locations con éxito, incluyendo companyId
       const companyId = tokenResponse.companyId || installerDetails.company.id;
       res.redirect(`/locations?ghl_installed=true&company_id=${companyId}`);
@@ -2320,8 +2398,9 @@ ${ghlErrorDetails}
       // Crear suscripción con 5 instancias incluidas
       await storage.createSubscription(soldSubaccount.id, 0); // 0 días de trial (siempre activa)
 
-      // Generar link único
-      const installLink = `${process.env.REPLIT_DEV_DOMAIN || "https://whatsapp.cloude.es"}/install/${accessToken}`;
+      // Generar link único - siempre usar dominio principal
+      const baseUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
+      const installLink = `${baseUrl}/install/${accessToken}`;
 
       res.json({
         success: true,
@@ -2334,6 +2413,57 @@ ${ghlErrorDetails}
     } catch (error: any) {
       console.error("Error al vender subcuenta:", error);
       res.status(500).json({ error: "Error al crear subcuenta vendida", details: error.message });
+    }
+  });
+
+  // Verificar token de subcuenta vendida (público - no requiere autenticación)
+  app.get("/api/subaccounts/verify-token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        res.status(400).json({ valid: false, error: "Token no proporcionado" });
+        return;
+      }
+
+      // Buscar subcuenta por accessToken
+      const subaccount = await db
+        .select()
+        .from(subaccounts)
+        .where(eq(subaccounts.accessToken, token))
+        .limit(1);
+
+      if (subaccount.length === 0) {
+        res.json({ valid: false, error: "Token no encontrado" });
+        return;
+      }
+
+      const sub = subaccount[0];
+
+      // Verificar que sea una subcuenta vendida
+      if (!sub.isSold) {
+        res.json({ valid: false, error: "Este token no corresponde a una subcuenta vendida" });
+        return;
+      }
+
+      // Verificar que no esté ya activada
+      if (sub.isActive) {
+        res.json({ valid: false, error: "Esta subcuenta ya ha sido activada" });
+        return;
+      }
+
+      // Token válido
+      res.json({
+        valid: true,
+        subaccount: {
+          id: sub.id,
+          name: sub.name,
+          email: sub.email,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error al verificar token:", error);
+      res.status(500).json({ valid: false, error: "Error al verificar token" });
     }
   });
 
