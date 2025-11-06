@@ -79,7 +79,6 @@ export default function Privacy() {
                         <li>Tokens OAuth de GoHighLevel</li>
                         <li>Location ID y datos de subcuentas GHL</li>
                         <li>API Keys de ElevenLabs y Gemini (encriptadas)</li>
-                        <li>Configuración de webhooks</li>
                       </ul>
                     </div>
                     <div>
