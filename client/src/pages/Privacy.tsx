@@ -86,8 +86,6 @@ export default function Privacy() {
                       <ul className="list-disc pl-6 space-y-1">
                         <li>Números de WhatsApp conectados</li>
                         <li>Estado de conexión (conectado/desconectado)</li>
-                        <li>Metadatos de mensajes (no contenido)</li>
-                        <li>QR codes temporales para vinculación</li>
                       </ul>
                     </div>
                   </div>
