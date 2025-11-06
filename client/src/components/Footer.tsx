@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Footer() {
   return (
@@ -64,9 +65,15 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             <div>© 2025 WhatsApp AI. Todos los derechos reservados.</div>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-foreground transition-colors" data-testid="link-privacy">Privacidad</a>
-              <a href="#" className="hover:text-foreground transition-colors" data-testid="link-terms">Términos</a>
-              <a href="#" className="hover:text-foreground transition-colors" data-testid="link-cookies">Cookies</a>
+              <Link href="/privacy">
+                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-privacy">Privacidad</a>
+              </Link>
+              <Link href="/terms">
+                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-terms">Términos</a>
+              </Link>
+              <Link href="/cookies">
+                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-cookies">Cookies</a>
+              </Link>
             </div>
           </div>
         </div>

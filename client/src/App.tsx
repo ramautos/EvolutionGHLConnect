@@ -30,6 +30,9 @@ import AuthSuccess from "@/pages/AuthSuccess";
 import ClaimSubaccount from "@/pages/ClaimSubaccount";
 import GhlIframe from "@/pages/GhlIframe";
 import InstallSubaccount from "@/pages/InstallSubaccount";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
+import Cookies from "@/pages/Cookies";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -180,6 +183,11 @@ function Router() {
 
       {/* Install Subaccount - Public route for sold subaccounts */}
       <Route path="/install/:token" component={InstallSubaccount} />
+
+      {/* Legal Pages - Public routes */}
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
+      <Route path="/cookies" component={Cookies} />
 
       <Route component={NotFound} />
     </Switch>
