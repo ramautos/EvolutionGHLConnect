@@ -3533,6 +3533,9 @@ ${ghlErrorDetails}
             // Detectar si la instancia fue eliminada desde WhatsApp
             const errorMessage = error instanceof Error ? error.message : String(error);
             
+            // TEMPORALMENTE DESACTIVADO para propósitos de diseño/prueba
+            // TODO: Reactivar este código cuando Evolution API esté configurado
+            /*
             if (errorMessage.includes('404') || errorMessage.includes('not found')) {
               console.log(`🗑️ Auto-sync: Instance ${instance.evolutionInstanceName} no longer exists in Evolution API - deleting from database`);
               
@@ -3548,8 +3551,9 @@ ${ghlErrorDetails}
                 console.error(`Failed to delete orphaned instance ${instance.id}:`, deleteError);
               }
             } else {
+            */
               console.error(`Error checking instance ${instance.evolutionInstanceName}:`, error);
-            }
+            // }
           }
         }
       }
