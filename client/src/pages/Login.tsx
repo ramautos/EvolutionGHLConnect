@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, Chrome } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
+import googleLogo from "@assets/png-clipart-google-search-google-account-google-s-google-play-google-company-text-thumbnail_1762396802267.png";
 
 export default function Login() {
   const { toast } = useToast();
@@ -163,7 +164,7 @@ export default function Login() {
                 disabled={isLoading}
                 data-testid="button-google-login"
               >
-                <Chrome className="mr-2 h-4 w-4" />
+                <img src={googleLogo} alt="Google" className="mr-2 h-4 w-4" />
                 Google
               </Button>
 
