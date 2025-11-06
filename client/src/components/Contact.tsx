@@ -58,7 +58,7 @@ export default function Contact() {
       <div className="container mx-auto px-6 lg:px-12">
         <div className="text-center mb-16 space-y-4">
           <h2 className="text-4xl lg:text-5xl font-bold" style={{ fontFamily: 'var(--font-accent)' }}>
-            <span className="bg-gradient-to-r from-primary via-chart-2 to-primary bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary via-chart-2 to-primary bg-clip-text text-[#2b2c37]">
               Contáctanos
             </span>
           </h2>
