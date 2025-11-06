@@ -67,6 +67,9 @@ interface Company {
   address: string | null;
   notes: string | null;
   stripeCustomerId: string | null;
+  manualBilling: boolean;
+  pricePerSubaccount: string | null;
+  pricePerExtraInstance: string | null;
   isActive: boolean;
   createdAt: string;
   userCount: number;
@@ -80,6 +83,9 @@ const editCompanySchema = z.object({
   phoneNumber: z.string().optional(),
   country: z.string().optional(),
   address: z.string().optional(),
+  manualBilling: z.boolean().optional(),
+  pricePerSubaccount: z.string().optional(),
+  pricePerExtraInstance: z.string().optional(),
 });
 
 type EditCompanyForm = z.infer<typeof editCompanySchema>;
@@ -183,6 +189,9 @@ export default function CompaniesManagement() {
       phoneNumber: company.phoneNumber || "",
       country: company.country || "",
       address: company.address || "",
+      manualBilling: company.manualBilling || false,
+      pricePerSubaccount: company.pricePerSubaccount || "10.00",
+      pricePerExtraInstance: company.pricePerExtraInstance || "5.00",
     });
     setEditDialogOpen(true);
   };
@@ -571,6 +580,85 @@ export default function CompaniesManagement() {
                   </FormItem>
                 )}
               />
+
+              {/* Configuración de Cobro Manual */}
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  Cobro Manual
+                </h4>
+
+                <FormField
+                  control={form.control}
+                  name="manualBilling"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Activar Cobro Manual</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Las subcuentas no verán menú de billing y estarán siempre activas
+                        </div>
+                      </div>
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="h-4 w-4"
+                          data-testid="checkbox-manual-billing"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pricePerSubaccount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio por Subcuenta (USD)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="10.00"
+                          data-testid="input-price-subaccount"
+                        />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">
+                        Precio base que cobras a la agencia por cada subcuenta
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="pricePerExtraInstance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Precio por Instancia Adicional (USD)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="5.00"
+                          data-testid="input-price-instance"
+                        />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground">
+                        Precio por instancia adicional (a partir de la 6ta instancia)
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <DialogFooter>
                 <Button 
                   type="button" 

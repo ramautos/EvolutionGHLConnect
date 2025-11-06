@@ -92,6 +92,18 @@ export default function Billing() {
     enabled: !!user?.id,
   });
 
+  // Obtener company info para verificar si es cobro manual
+  const { data: company } = useQuery<any>({
+    queryKey: ["/api/companies", (user as any)?.companyId],
+    enabled: !!(user as any)?.companyId,
+  });
+
+  // Obtener billing info de la company (solo si es cobro manual)
+  const { data: billingInfo } = useQuery<any>({
+    queryKey: ["/api/companies", (user as any)?.companyId, "billing-info"],
+    enabled: !!(user as any)?.companyId && company?.manualBilling,
+  });
+
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, priceId }: { planId: string; priceId: string }) => {
       return await apiRequest("POST", "/api/create-checkout-session", { planId, priceId });
@@ -139,6 +151,114 @@ export default function Billing() {
             </Button>
           </CardFooter>
         </Card>
+      </div>
+    );
+  }
+
+  // Vista de Cobro Manual para Agencias
+  if (company?.manualBilling && billingInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px]" />
+
+        <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight">
+                Facturación - {billingInfo.company.name}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Resumen de costos de tus subcuentas
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setLocation("/dashboard")}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver
+            </Button>
+          </div>
+
+          {/* Resumen de Costos */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Resumen de Facturación
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="p-4 rounded-lg bg-muted">
+                  <div className="text-sm text-muted-foreground mb-1">Subcuentas</div>
+                  <p className="text-3xl font-bold">{billingInfo.pricing.totalSubaccounts}</p>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    ${billingInfo.pricing.pricePerSubaccount} c/u
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-muted">
+                  <div className="text-sm text-muted-foreground mb-1">Instancias Extras</div>
+                  <p className="text-3xl font-bold">{billingInfo.pricing.totalExtraInstances}</p>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    ${billingInfo.pricing.pricePerExtraInstance} c/u
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-muted">
+                  <div className="text-sm text-muted-foreground mb-1">Subtotal</div>
+                  <p className="text-2xl font-bold">
+                    ${(billingInfo.pricing.totalSubaccountCost + billingInfo.pricing.totalExtraInstancesCost).toFixed(2)}
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg bg-primary text-primary-foreground">
+                  <div className="text-sm opacity-90 mb-1">Total Mensual</div>
+                  <p className="text-3xl font-bold">${billingInfo.pricing.totalCost.toFixed(2)}</p>
+                  <div className="text-xs opacity-75 mt-1">USD/mes</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detalle de Subcuentas */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Subcuentas</CardTitle>
+              <CardDescription>
+                Cada subcuenta incluye 5 instancias de WhatsApp. Instancias adicionales tienen costo extra.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {billingInfo.subaccounts.map((sub: any) => (
+                  <div key={sub.id} className="flex items-center justify-between p-4 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{sub.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {sub.instanceCount} instancia{sub.instanceCount !== 1 ? 's' : ''}
+                          {sub.extraInstances > 0 && (
+                            <span className="text-orange-600 ml-2">
+                              (+{sub.extraInstances} extra{sub.extraInstances !== 1 ? 's' : ''})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">
+                        ${(parseFloat(billingInfo.pricing.pricePerSubaccount) + (sub.extraInstances * parseFloat(billingInfo.pricing.pricePerExtraInstance))).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {sub.extraInstances > 0
+                          ? `$${billingInfo.pricing.pricePerSubaccount} base + $${(sub.extraInstances * parseFloat(billingInfo.pricing.pricePerExtraInstance)).toFixed(2)} extras`
+                          : `$${billingInfo.pricing.pricePerSubaccount} base`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

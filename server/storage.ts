@@ -15,6 +15,7 @@ export interface IStorage {
   updateCompany(id: string, updates: UpdateCompany): Promise<SelectCompany | undefined>;
   deleteCompany(id: string): Promise<boolean>;
   getCompanyStats(companyId: string): Promise<any>;
+  getCompanyBillingInfo(companyId: string): Promise<any>;
   getDashboardStats(): Promise<any>;
   
   // ============================================
@@ -233,6 +234,61 @@ export class DatabaseStorage implements IStorage {
       .groupBy(companies.id);
 
     return stats || { subaccountCount: 0, instanceCount: 0, activeInstanceCount: 0 };
+  }
+
+  async getCompanyBillingInfo(companyId: string): Promise<any> {
+    // Obtener información de billing para una empresa con cobro manual
+    const company = await this.getCompany(companyId);
+    if (!company) {
+      return null;
+    }
+
+    // Obtener todas las subcuentas (excluyendo las de autenticación LOCAL_*)
+    const companySubaccounts = await db
+      .select()
+      .from(subaccounts)
+      .where(eq(subaccounts.companyId, companyId));
+
+    const realSubaccounts = companySubaccounts.filter(
+      sub => !sub.locationId.startsWith('LOCAL_') && !sub.locationId.startsWith('GOOGLE_')
+    );
+
+    // Para cada subcuenta, contar instancias
+    const subaccountsWithInstances = await Promise.all(
+      realSubaccounts.map(async (subaccount) => {
+        const instances = await this.getWhatsappInstances(subaccount.id);
+        return {
+          ...subaccount,
+          instanceCount: instances.length,
+          extraInstances: Math.max(0, instances.length - 5), // 5 instancias incluidas
+        };
+      })
+    );
+
+    // Calcular costos
+    const pricePerSubaccount = parseFloat(company.pricePerSubaccount || "10.00");
+    const pricePerExtraInstance = parseFloat(company.pricePerExtraInstance || "5.00");
+
+    const totalSubaccountCost = realSubaccounts.length * pricePerSubaccount;
+    const totalExtraInstancesCost = subaccountsWithInstances.reduce(
+      (sum, sub) => sum + (sub.extraInstances * pricePerExtraInstance),
+      0
+    );
+    const totalCost = totalSubaccountCost + totalExtraInstancesCost;
+
+    return {
+      company,
+      subaccounts: subaccountsWithInstances,
+      pricing: {
+        pricePerSubaccount,
+        pricePerExtraInstance,
+        totalSubaccounts: realSubaccounts.length,
+        totalSubaccountCost,
+        totalExtraInstances: subaccountsWithInstances.reduce((sum, sub) => sum + sub.extraInstances, 0),
+        totalExtraInstancesCost,
+        totalCost,
+      },
+    };
   }
 
   async getDashboardStats(): Promise<any> {

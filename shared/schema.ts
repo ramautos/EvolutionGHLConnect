@@ -35,7 +35,12 @@ export const companies = pgTable("companies", {
   // Stripe integration (a nivel de empresa para facturación consolidada)
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
-  
+
+  // Manual Billing Configuration
+  manualBilling: boolean("manual_billing").notNull().default(false),
+  pricePerSubaccount: text("price_per_subaccount").default("10.00"), // Precio base por subcuenta (editable por admin)
+  pricePerExtraInstance: text("price_per_extra_instance").default("5.00"), // Precio por instancia adicional (6+)
+
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -250,6 +255,9 @@ export const updateCompanySchema = z.object({
   country: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
+  manualBilling: z.boolean().optional(),
+  pricePerSubaccount: z.string().optional(),
+  pricePerExtraInstance: z.string().optional(),
 });
 
 export type InsertCompany = z.infer<typeof insertCompanySchema>;

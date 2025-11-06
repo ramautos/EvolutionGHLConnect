@@ -1179,6 +1179,85 @@ ${ghlErrorDetails}
   // RUTAS DE ADMIN
   // ============================================
 
+  // Obtener company por ID (autenticado - para verificar manualBilling)
+  app.get("/api/companies/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const company = await storage.getCompany(id);
+
+      if (!company) {
+        res.status(404).json({ error: "Company not found" });
+        return;
+      }
+
+      res.json(company);
+    } catch (error) {
+      console.error("Error getting company:", error);
+      res.status(500).json({ error: "Failed to get company" });
+    }
+  });
+
+  // Actualizar company (solo admin)
+  app.patch("/api/admin/companies/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateCompanySchema.parse(req.body);
+
+      const updatedCompany = await storage.updateCompany(id, validatedData);
+
+      if (!updatedCompany) {
+        res.status(404).json({ error: "Company not found" });
+        return;
+      }
+
+      console.log(`✅ Company updated: ${updatedCompany.name} (manualBilling: ${updatedCompany.manualBilling})`);
+      res.json(updatedCompany);
+    } catch (error: any) {
+      console.error("Error updating company:", error);
+      if (error.name === "ZodError") {
+        res.status(400).json({ error: "Invalid data", details: error.errors });
+        return;
+      }
+      res.status(500).json({ error: "Failed to update company" });
+    }
+  });
+
+  // Obtener billing info de una company (autenticado - para que agencias vean sus costos)
+  app.get("/api/companies/:companyId/billing-info", isAuthenticated, async (req, res) => {
+    try {
+      const { companyId } = req.params;
+      const user = req.user as any;
+
+      // Verificar que el usuario pertenece a esta company o es admin
+      const userSubaccount = await storage.getSubaccount(user.id);
+      if (!userSubaccount) {
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      const isAdmin = userSubaccount.role === "admin" || userSubaccount.role === "system_admin";
+      const belongsToCompany = userSubaccount.companyId === companyId;
+
+      if (!isAdmin && !belongsToCompany) {
+        res.status(403).json({ error: "No tienes permiso para ver esta información" });
+        return;
+      }
+
+      // Obtener billing info
+      const billingInfo = await storage.getCompanyBillingInfo(companyId);
+
+      if (!billingInfo) {
+        res.status(404).json({ error: "Company not found" });
+        return;
+      }
+
+      res.json(billingInfo);
+    } catch (error) {
+      console.error("Error getting company billing info:", error);
+      res.status(500).json({ error: "Failed to get billing info" });
+    }
+  });
+
   // Listar todos los usuarios (solo admin)
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {
@@ -2676,6 +2755,24 @@ ${ghlErrorDetails}
       const subaccount = await storage.getSubaccount(validatedData.subaccountId);
       if (!subaccount) {
         res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar si la company tiene cobro manual habilitado
+      let isManualBilling = false;
+      if (subaccount.companyId) {
+        const company = await storage.getCompany(subaccount.companyId);
+        isManualBilling = company?.manualBilling || false;
+      }
+
+      // Si es cobro manual, permitir crear instancia sin validaciones de billing
+      if (isManualBilling) {
+        const instance = await storage.createWhatsappInstance(validatedData);
+        res.json({
+          instance,
+          manualBilling: true,
+          invoiceGenerated: false,
+        });
         return;
       }
 

@@ -99,6 +99,12 @@ export default function SubaccountDetails() {
     enabled: !!subaccountId,
   });
 
+  // Obtener company info para verificar manualBilling
+  const { data: company } = useQuery<any>({
+    queryKey: ["/api/companies", subaccount?.companyId],
+    enabled: !!subaccount?.companyId,
+  });
+
   // Mutation para crear instancia
   const createInstanceMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -632,8 +638,8 @@ export default function SubaccountDetails() {
       {/* Main Content */}
       <main className="container py-8">
         <div className="space-y-8 max-w-6xl mx-auto">
-          {/* Trial Banner */}
-          {subscription && subscription.inTrial && (
+          {/* Trial Banner - Solo mostrar si NO es cobro manual */}
+          {subscription && subscription.inTrial && !company?.manualBilling && (
             <Card className={`border-2 ${trialStatus === "warning" ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "border-blue-500 bg-blue-50 dark:bg-blue-950/20"}`}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -671,7 +677,8 @@ export default function SubaccountDetails() {
             </Card>
           )}
 
-          {subscription && !subscription.inTrial && (
+          {/* Banner de Planes - Solo mostrar si NO es cobro manual */}
+          {subscription && !subscription.inTrial && !company?.manualBilling && (
             <Card className="border-2 border-gray-500 bg-gray-50 dark:bg-gray-950/20">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
