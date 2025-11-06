@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
   Table,
@@ -600,12 +601,10 @@ export default function CompaniesManagement() {
                         </div>
                       </div>
                       <FormControl>
-                        <input
-                          type="checkbox"
+                        <Switch
                           checked={field.value}
-                          onChange={field.onChange}
-                          className="h-4 w-4"
-                          data-testid="checkbox-manual-billing"
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-manual-billing"
                         />
                       </FormControl>
                     </FormItem>

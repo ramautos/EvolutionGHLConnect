@@ -407,7 +407,11 @@ export class DatabaseStorage implements IStorage {
       .from(subaccounts)
       .where(and(
         eq(subaccounts.companyId, companyId),
-        eq(subaccounts.isActive, true)
+        // Incluir subcuentas activas O subcuentas vendidas (aunque estén inactivas)
+        or(
+          eq(subaccounts.isActive, true),
+          eq(subaccounts.isSold, true)
+        )
       ));
 
     // Filtrar subcuentas locales (creadas en registro, no son ubicaciones de GHL)
