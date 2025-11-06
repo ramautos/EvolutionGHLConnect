@@ -71,7 +71,6 @@ export default function Privacy() {
                         <li>Nombre completo y correo electrónico</li>
                         <li>Número de teléfono para notificaciones</li>
                         <li>Contraseña cifrada (bcrypt)</li>
-                        <li>Datos de perfil de Google OAuth 2.0 (si aplica)</li>
                       </ul>
                     </div>
                     <div>
