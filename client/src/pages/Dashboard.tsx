@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -62,22 +62,13 @@ function DashboardContent() {
     enabled: !!user?.id,
   });
 
-  // Obtener todas las instancias de todas las subcuentas del usuario en paralelo
-  const instanceQueriesResults = useQueries({
-    queries: subaccounts.map(subaccount => ({
-      queryKey: ["/api/instances/subaccount", subaccount.id],
-      enabled: !!subaccount.id && !subaccountsLoading,
-    })),
+  // OPTIMIZADO: Obtener TODAS las instancias del usuario en UNA SOLA petición
+  const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
+    queryKey: ["/api/instances/user", user?.id],
+    enabled: !!user?.id,
+    staleTime: 30 * 1000, // 30 segundos
+    cacheTime: 5 * 60 * 1000, // 5 minutos
   });
-
-  // Combinar todas las instancias en un solo array y calcular loading state
-  const instances = useMemo(() => {
-    return instanceQueriesResults
-      .map(result => result.data || [])
-      .flat() as WhatsappInstance[];
-  }, [instanceQueriesResults]);
-  
-  const instancesLoading = subaccountsLoading || instanceQueriesResults.some(q => q.isLoading);
 
   const handleLogout = async () => {
     try {

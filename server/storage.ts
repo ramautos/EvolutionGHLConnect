@@ -243,34 +243,35 @@ export class DatabaseStorage implements IStorage {
       return null;
     }
 
-    // Obtener todas las subcuentas (excluyendo las de autenticación LOCAL_*)
-    const companySubaccounts = await db
-      .select()
-      .from(subaccounts)
-      .where(eq(subaccounts.companyId, companyId));
-
-    const realSubaccounts = companySubaccounts.filter(
-      sub => !sub.locationId.startsWith('LOCAL_') && !sub.locationId.startsWith('GOOGLE_')
-    );
-
-    // Para cada subcuenta, contar instancias
-    const subaccountsWithInstances = await Promise.all(
-      realSubaccounts.map(async (subaccount) => {
-        const instances = await this.getWhatsappInstances(subaccount.id);
-        return {
-          ...subaccount,
-          instanceCount: instances.length,
-          extraInstances: Math.max(0, instances.length - 5), // 5 instancias incluidas
-        };
+    // OPTIMIZADO: Obtener subcuentas con conteo de instancias en UNA SOLA QUERY usando JOIN
+    const subaccountsData = await db
+      .select({
+        subaccount: subaccounts,
+        instanceCount: drizzleSql<number>`COUNT(${whatsappInstances.id})`,
       })
-    );
+      .from(subaccounts)
+      .leftJoin(whatsappInstances, eq(whatsappInstances.subaccountId, subaccounts.id))
+      .where(eq(subaccounts.companyId, companyId))
+      .groupBy(subaccounts.id);
+
+    // Filtrar subcuentas locales (de autenticación)
+    const realSubaccounts = subaccountsData
+      .filter(item =>
+        !item.subaccount.locationId.startsWith('LOCAL_') &&
+        !item.subaccount.locationId.startsWith('GOOGLE_')
+      )
+      .map(item => ({
+        ...item.subaccount,
+        instanceCount: Number(item.instanceCount),
+        extraInstances: Math.max(0, Number(item.instanceCount) - 5), // 5 instancias incluidas
+      }));
 
     // Calcular costos
     const pricePerSubaccount = parseFloat(company.pricePerSubaccount || "10.00");
     const pricePerExtraInstance = parseFloat(company.pricePerExtraInstance || "5.00");
 
     const totalSubaccountCost = realSubaccounts.length * pricePerSubaccount;
-    const totalExtraInstancesCost = subaccountsWithInstances.reduce(
+    const totalExtraInstancesCost = realSubaccounts.reduce(
       (sum, sub) => sum + (sub.extraInstances * pricePerExtraInstance),
       0
     );
@@ -278,13 +279,13 @@ export class DatabaseStorage implements IStorage {
 
     return {
       company,
-      subaccounts: subaccountsWithInstances,
+      subaccounts: realSubaccounts,
       pricing: {
         pricePerSubaccount,
         pricePerExtraInstance,
         totalSubaccounts: realSubaccounts.length,
         totalSubaccountCost,
-        totalExtraInstances: subaccountsWithInstances.reduce((sum, sub) => sum + sub.extraInstances, 0),
+        totalExtraInstances: realSubaccounts.reduce((sum, sub) => sum + sub.extraInstances, 0),
         totalExtraInstancesCost,
         totalCost,
       },

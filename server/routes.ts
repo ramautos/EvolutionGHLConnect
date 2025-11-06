@@ -8,8 +8,8 @@ import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { db } from "./db";
-import { subaccounts, oauthStates, companies } from "@shared/schema";
-import { eq, and, sql, not, or } from "drizzle-orm";
+import { subaccounts, oauthStates, companies, whatsappInstances } from "@shared/schema";
+import { eq, and, sql, not, or, inArray } from "drizzle-orm";
 import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -2972,6 +2972,41 @@ ${ghlErrorDetails}
       const instances = await storage.getWhatsappInstances(req.params.subaccountId);
       res.json(instances);
     } catch (error) {
+      res.status(500).json({ error: "Failed to get instances" });
+    }
+  });
+
+  // OPTIMIZADO: Obtener TODAS las instancias de TODAS las subcuentas del usuario en una sola query
+  app.get("/api/instances/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = req.user as any;
+
+      // Verificar que el usuario solo pueda ver sus propias instancias (o sea admin)
+      const isAdmin = user.role === "admin" || user.role === "system_admin";
+      if (!isAdmin && user.id !== userId) {
+        res.status(403).json({ error: "No autorizado" });
+        return;
+      }
+
+      // Obtener subcuentas del usuario
+      const userSubaccounts = await storage.getSubaccountsByCompany(user.companyId);
+
+      if (userSubaccounts.length === 0) {
+        res.json([]);
+        return;
+      }
+
+      // Obtener TODAS las instancias de TODAS las subcuentas en UNA query con WHERE IN
+      const subaccountIds = userSubaccounts.map(s => s.id);
+      const instances = await db
+        .select()
+        .from(whatsappInstances)
+        .where(inArray(whatsappInstances.subaccountId, subaccountIds));
+
+      res.json(instances);
+    } catch (error) {
+      console.error("Error getting user instances:", error);
       res.status(500).json({ error: "Failed to get instances" });
     }
   });
