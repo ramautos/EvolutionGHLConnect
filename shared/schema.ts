@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, json, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, json, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -52,12 +52,12 @@ export const companies = pgTable("companies", {
 export const subaccounts = pgTable("subaccounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   companyId: varchar("company_id").references(() => companies.id, { onDelete: "cascade" }),
-  
+
   // GoHighLevel Integration (opcionales para registro manual)
   locationId: text("location_id").unique(),
   locationName: text("location_name"), // Nombre de la subcuenta en GoHighLevel
   ghlCompanyId: text("ghl_company_id"),
-  
+
   // Información básica
   name: text("name").notNull(),
   email: text("email").notNull().unique(), // Email para login
@@ -65,30 +65,35 @@ export const subaccounts = pgTable("subaccounts", {
   city: text("city"),
   state: text("state"),
   address: text("address"),
-  
+
   // Autenticación (fusionado desde users)
   passwordHash: text("password_hash"),
   googleId: text("google_id"),
   role: roleEnum("role").notNull().default("user"),
   lastLoginAt: timestamp("last_login_at"),
-  
+
   // Configuración de API para Transcripciones y Audio
   elevenLabsApiKey: text("eleven_labs_api_key"),
   geminiApiKey: text("gemini_api_key"),
-  
+
   // Notificaciones de desconexión de WhatsApp
   notificationPhone: text("notification_phone"),
-  
+
   // Control de estado
   isActive: boolean("is_active").notNull().default(true),
   billingEnabled: boolean("billing_enabled").notNull().default(true),
   manuallyActivated: boolean("manually_activated").notNull().default(true),
-  
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   installedAt: timestamp("installed_at"),
   uninstalledAt: timestamp("uninstalled_at"),
-});
+}, (table) => ({
+  // ÍNDICES CRÍTICOS PARA PERFORMANCE
+  companyIdIdx: index("subaccounts_company_id_idx").on(table.companyId),
+  isActiveIdx: index("subaccounts_is_active_idx").on(table.isActive),
+  roleIdx: index("subaccounts_role_idx").on(table.role),
+}));
 
 // ============================================
 // TRIGGERS TABLE - Triggers ilimitados por subcuenta
@@ -96,14 +101,17 @@ export const subaccounts = pgTable("subaccounts", {
 export const triggers = pgTable("triggers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
-  
+
   // Configuración del trigger
   triggerName: text("trigger_name").notNull(),
   triggerTag: text("trigger_tag").notNull(),
-  
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // ÍNDICE PARA PERFORMANCE
+  subaccountIdIdx: index("triggers_subaccount_id_idx").on(table.subaccountId),
+}));
 
 // ============================================
 // WHATSAPP INSTANCES TABLE - Instancias de WhatsApp
@@ -112,26 +120,31 @@ export const whatsappInstances = pgTable("whatsapp_instances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   subaccountId: varchar("subaccount_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
   locationId: text("location_id").notNull(),
-  
+
   // Nombres
   customName: text("custom_name"),
   evolutionInstanceName: text("evolution_instance_name").notNull(),
-  
+
   // Conexión
   phoneNumber: text("phone_number"),
   status: text("status").notNull().default("created"),
   qrCode: text("qr_code"),
-  
+
   // Configuración
   webhookUrl: text("webhook_url"),
   apiKey: text("api_key"),
-  
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   connectedAt: timestamp("connected_at"),
   disconnectedAt: timestamp("disconnected_at"),
   lastActivityAt: timestamp("last_activity_at"),
-});
+}, (table) => ({
+  // ÍNDICES CRÍTICOS PARA PERFORMANCE
+  subaccountIdIdx: index("whatsapp_instances_subaccount_id_idx").on(table.subaccountId),
+  locationIdIdx: index("whatsapp_instances_location_id_idx").on(table.locationId),
+  statusIdx: index("whatsapp_instances_status_idx").on(table.status),
+}));
 
 // ============================================
 // SUBSCRIPTIONS TABLE - Planes por subcuenta
@@ -179,7 +192,11 @@ export const invoices = pgTable("invoices", {
   stripeInvoiceId: text("stripe_invoice_id"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // ÍNDICES PARA PERFORMANCE
+  subaccountIdIdx: index("invoices_subaccount_id_idx").on(table.subaccountId),
+  statusIdx: index("invoices_status_idx").on(table.status),
+}));
 
 // ============================================
 // WEBHOOK CONFIG TABLE - Configuración de webhook (admin-only)
