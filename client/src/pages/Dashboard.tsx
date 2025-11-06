@@ -4,11 +4,12 @@ import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AddSubaccountModal from "@/components/AddSubaccountModal";
+import SellSubaccountModal from "@/components/SellSubaccountModal";
 import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ function DashboardContent() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
+  const [sellSubaccountOpen, setSellSubaccountOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Si el usuario es admin o system_admin, redirigir al panel de admin
@@ -103,6 +105,10 @@ function DashboardContent() {
   const handleSubaccountSuccess = () => {
     // Recargar subcuentas
     queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+  };
+
+  const handleSellSubaccount = () => {
+    setSellSubaccountOpen(true);
   };
 
   const getInstancesForSubaccount = (subaccountId: string) => {
@@ -214,13 +220,25 @@ function DashboardContent() {
                 Gestiona tus ubicaciones de GoHighLevel y sus conexiones de WhatsApp
               </p>
             </div>
-            <Button
-              onClick={handleAddSubaccount}
-              data-testid="button-add-subaccount"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Agregar Subcuenta
-            </Button>
+            <div className="flex gap-2">
+              {(user as any)?.companyManualBilling && (
+                <Button
+                  onClick={handleSellSubaccount}
+                  variant="outline"
+                  data-testid="button-sell-subaccount"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Vender Subcuenta
+                </Button>
+              )}
+              <Button
+                onClick={handleAddSubaccount}
+                data-testid="button-add-subaccount"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Subcuenta
+              </Button>
+            </div>
           </div>
 
           {/* Search Bar */}
@@ -312,16 +330,28 @@ function DashboardContent() {
                 const subaccountInstances = getInstancesForSubaccount(subaccount.id);
 
                 return (
-                  <Card key={subaccount.id} data-testid={`card-subaccount-${subaccount.id}`} className="hover-elevate">
+                  <Card
+                    key={subaccount.id}
+                    data-testid={`card-subaccount-${subaccount.id}`}
+                    className={`hover-elevate ${(subaccount as any).isSold ? 'border-2 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
+                  >
                     <CardHeader>
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Building2 className="w-5 h-5 text-muted-foreground" />
                           <CardTitle className="text-lg">{subaccount.locationName || subaccount.name}</CardTitle>
                         </div>
-                        <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
-                          {status.label}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {(subaccount as any).isSold && (
+                            <Badge variant="outline" className="border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-950">
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              Vendida
+                            </Badge>
+                          )}
+                          <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
+                            {status.label}
+                          </Badge>
+                        </div>
                       </div>
                       <CardDescription className="line-clamp-2 mb-3">
                         Location ID: {subaccount.locationId}
@@ -417,6 +447,12 @@ function DashboardContent() {
         open={addSubaccountOpen}
         onClose={() => setAddSubaccountOpen(false)}
         onSuccess={handleSubaccountSuccess}
+      />
+
+      {/* Sell Subaccount Modal */}
+      <SellSubaccountModal
+        open={sellSubaccountOpen}
+        onOpenChange={setSellSubaccountOpen}
       />
     </div>
   );

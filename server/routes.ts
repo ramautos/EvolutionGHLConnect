@@ -2274,6 +2274,69 @@ ${ghlErrorDetails}
     }
   });
 
+  // Vender Subcuenta - Generar subcuenta manual con link único
+  app.post("/api/subaccounts/sell", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { subaccountName, customerName, customerEmail } = req.body;
+
+      // Validar datos
+      if (!subaccountName || !customerName || !customerEmail) {
+        res.status(400).json({ error: "Faltan datos requeridos" });
+        return;
+      }
+
+      // Verificar que la company tenga cobro manual activado
+      const company = await storage.getCompany(user.companyId);
+      if (!company || !company.manualBilling) {
+        res.status(403).json({ error: "Tu empresa no tiene habilitado el cobro manual" });
+        return;
+      }
+
+      // Generar token único para el link de instalación
+      const crypto = await import("crypto");
+      const accessToken = crypto.randomBytes(32).toString('hex');
+
+      // Generar locationId único para la subcuenta vendida
+      const soldLocationId = `SOLD_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+
+      // Crear subcuenta vendida
+      const soldSubaccount = await storage.createSubaccount({
+        companyId: user.companyId,
+        name: subaccountName,
+        email: customerEmail,
+        locationId: soldLocationId,
+        ghlCompanyId: null,
+        passwordHash: null, // No tiene password hasta que instale
+        role: "user",
+        isActive: false, // Inactiva hasta que instale desde el link
+        isSold: true,
+        accessToken,
+        soldByAgencyId: user.id, // Guardar quién la vendió
+        billingEnabled: false, // No paga billing (la agencia paga)
+        manuallyActivated: false,
+      });
+
+      // Crear suscripción con 5 instancias incluidas
+      await storage.createSubscription(soldSubaccount.id, 0); // 0 días de trial (siempre activa)
+
+      // Generar link único
+      const installLink = `${process.env.REPLIT_DEV_DOMAIN || "https://whatsapp.cloude.es"}/install/${accessToken}`;
+
+      res.json({
+        success: true,
+        subaccount: soldSubaccount,
+        installLink,
+        message: "Subcuenta vendida creada exitosamente. Comparte el link con tu cliente.",
+      });
+
+      console.log(`✅ Subcuenta vendida creada: ${subaccountName} por agencia ${user.email}`);
+    } catch (error: any) {
+      console.error("Error al vender subcuenta:", error);
+      res.status(500).json({ error: "Error al crear subcuenta vendida", details: error.message });
+    }
+  });
+
   // Crear subcuenta desde GoHighLevel OAuth
   app.post("/api/subaccounts/from-ghl", isAuthenticated, async (req, res) => {
     try {

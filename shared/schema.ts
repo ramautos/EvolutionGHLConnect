@@ -84,6 +84,11 @@ export const subaccounts = pgTable("subaccounts", {
   billingEnabled: boolean("billing_enabled").notNull().default(true),
   manuallyActivated: boolean("manually_activated").notNull().default(true),
 
+  // Subcuentas Vendidas (Manual Sales)
+  isSold: boolean("is_sold").notNull().default(false), // Marca si es subcuenta vendida
+  accessToken: text("access_token"), // Token único para link de instalación
+  soldByAgencyId: varchar("sold_by_agency_id").references(() => subaccounts.id), // Agencia que la vendió
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   installedAt: timestamp("installed_at"),
@@ -93,6 +98,8 @@ export const subaccounts = pgTable("subaccounts", {
   companyIdIdx: index("subaccounts_company_id_idx").on(table.companyId),
   isActiveIdx: index("subaccounts_is_active_idx").on(table.isActive),
   roleIdx: index("subaccounts_role_idx").on(table.role),
+  accessTokenIdx: index("subaccounts_access_token_idx").on(table.accessToken),
+  isSoldIdx: index("subaccounts_is_sold_idx").on(table.isSold),
 }));
 
 // ============================================
