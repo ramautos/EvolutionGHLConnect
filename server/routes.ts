@@ -2316,6 +2316,14 @@ ${ghlErrorDetails}
     try {
       const user = req.user as any;
 
+      // DEBUG: Log para identificar problema de subcuentas vacías
+      console.log("🔍 DEBUG /api/subaccounts/user/:userId");
+      console.log("   User ID:", user.id);
+      console.log("   User Email:", user.email);
+      console.log("   User Role:", user.role);
+      console.log("   User CompanyId:", user.companyId);
+      console.log("   Requested UserId:", req.params.userId);
+
       // Verificar que el usuario esté consultando sus propias subcuentas
       // (a menos que sea admin)
       if (user.role !== "admin" && user.id !== req.params.userId) {
@@ -2323,8 +2331,17 @@ ${ghlErrorDetails}
         return;
       }
 
+      // Si el usuario NO tiene companyId, retornar array vacío
+      if (!user.companyId) {
+        console.log("   ⚠️ Usuario sin companyId - retornando array vacío");
+        res.json([]);
+        return;
+      }
+
       // Obtener subcuentas por companyId del usuario
+      console.log("   📊 Obteniendo subcuentas para companyId:", user.companyId);
       const subaccounts = await storage.getSubaccountsByCompany(user.companyId);
+      console.log("   ✅ Subcuentas encontradas:", subaccounts.length);
 
       // Obtener información de la empresa propietaria
       const company = await storage.getCompany(user.companyId);
