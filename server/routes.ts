@@ -1627,6 +1627,105 @@ ${ghlErrorDetails}
     }
   });
 
+  // Obtener información específica por locationId
+  app.get("/api/v1/location/:locationId/info", isApiAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { locationId } = req.params;
+
+      // Buscar la subcuenta con ese locationId
+      const targetSubaccount = await storage.getSubaccountByLocationId(locationId);
+
+      if (!targetSubaccount) {
+        res.status(404).json({
+          error: "Location no encontrado",
+          message: `No se encontró ninguna subcuenta con locationId: ${locationId}`
+        });
+        return;
+      }
+
+      // Verificar que el usuario tiene acceso a este locationId
+      const hasAccess =
+        targetSubaccount.id === user.id || // Es el mismo usuario
+        targetSubaccount.companyId === user.companyId; // Misma company
+
+      if (!hasAccess) {
+        res.status(403).json({
+          error: "Acceso denegado",
+          message: "No tienes permiso para acceder a este locationId"
+        });
+        return;
+      }
+
+      // Obtener instancias de WhatsApp de este locationId
+      const instances = await storage.getWhatsappInstancesByLocationId(locationId);
+
+      // Obtener información de la company si existe
+      let company = null;
+      if (targetSubaccount.companyId) {
+        company = await storage.getCompany(targetSubaccount.companyId);
+      }
+
+      // Construir respuesta con información del location específico
+      const response = {
+        success: true,
+        location: {
+          locationId: targetSubaccount.locationId,
+          locationName: targetSubaccount.locationName,
+          subaccount: {
+            id: targetSubaccount.id,
+            email: targetSubaccount.email,
+            name: targetSubaccount.name,
+            phone: targetSubaccount.phone,
+            isActive: targetSubaccount.isActive,
+            createdAt: targetSubaccount.createdAt,
+          },
+
+          // API Keys de este location
+          apiKeys: {
+            openai: targetSubaccount.openaiApiKey || null,
+            elevenlabs: targetSubaccount.elevenLabsApiKey || null,
+            gemini: targetSubaccount.geminiApiKey || null,
+          },
+
+          // Company info
+          company: company ? {
+            id: company.id,
+            name: company.name,
+            manualBilling: company.manualBilling || false,
+          } : null,
+        },
+
+        // Instancias de WhatsApp de este locationId
+        instances: instances.map(inst => ({
+          id: inst.id,
+          customName: inst.customName,
+          evolutionInstanceName: inst.evolutionInstanceName,
+          status: inst.status,
+          phoneNumber: inst.phoneNumber,
+          qrCode: inst.qrCode,
+          webhookUrl: inst.webhookUrl,
+          createdAt: inst.createdAt,
+        })),
+
+        // Metadata
+        metadata: {
+          totalInstances: instances.length,
+          connectedInstances: instances.filter(i => i.status === 'connected').length,
+          timestamp: new Date().toISOString(),
+        }
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error getting location info:", error);
+      res.status(500).json({
+        error: "Error al obtener información",
+        message: "Ocurrió un error al obtener la información del location"
+      });
+    }
+  });
+
   // DEPRECATED - Webhook config endpoints
   // app.get("/api/admin/webhook-config", isAdmin, async (req, res) => { ... });
   // app.patch("/api/admin/webhook-config", isAdmin, async (req, res) => { ... });

@@ -347,6 +347,90 @@ export default function AdminAPI() {
             </div>
           </div>
 
+          {/* GET /api/v1/location/:locationId/info */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              📍 Obtener Información por Location ID
+            </h3>
+            <div className="rounded-lg border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="default">GET</Badge>
+                <code className="text-sm">/api/v1/location/:locationId/info</code>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Retorna información específica de un locationId (subcuenta)
+              </p>
+
+              <div className="mt-3">
+                <p className="text-sm font-medium mb-2">Respuesta incluye:</p>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                  <li>Información del location (locationId, locationName)</li>
+                  <li>Datos de la subcuenta asociada</li>
+                  <li>API Keys del location (OpenAI, ElevenLabs, Gemini)</li>
+                  <li>Instancias de WhatsApp del location</li>
+                  <li>Metadata (totales, conectadas)</li>
+                </ul>
+              </div>
+
+              <div className="mt-3 bg-blue-50 dark:bg-blue-950 p-3 rounded text-sm">
+                <p className="font-medium mb-2">Ejemplo de uso:</p>
+                <code className="text-xs">
+                  curl -H "Authorization: Bearer ghl_xxxxx" \<br />
+                  &nbsp;&nbsp;https://whatsapp.cloude.es/api/v1/location/LOC_ABC123/info
+                </code>
+              </div>
+
+              <div className="mt-3 bg-muted p-3 rounded text-xs font-mono overflow-x-auto">
+{`{
+  "success": true,
+  "location": {
+    "locationId": "LOC_ABC123",
+    "locationName": "Mi Negocio",
+    "subaccount": {
+      "id": "sub_456",
+      "email": "negocio@email.com",
+      "name": "Juan Pérez",
+      "isActive": true
+    },
+    "apiKeys": {
+      "openai": "sk-...",
+      "elevenlabs": "...",
+      "gemini": "..."
+    },
+    "company": {
+      "id": "comp_123",
+      "name": "Mi Empresa"
+    }
+  },
+  "instances": [
+    {
+      "id": "inst_789",
+      "customName": "WhatsApp Principal",
+      "status": "connected",
+      "phoneNumber": "+573009876543",
+      "webhookUrl": "https://n8nqr.cloude.es/webhook/LOC_ABC123"
+    }
+  ],
+  "metadata": {
+    "totalInstances": 1,
+    "connectedInstances": 1,
+    "timestamp": "2025-01-10T20:30:00.000Z"
+  }
+}`}
+              </div>
+
+              <div className="mt-3 rounded-lg bg-orange-50 dark:bg-orange-950 p-3 text-sm">
+                <p className="font-medium mb-1 text-orange-900 dark:text-orange-100">
+                  🔒 Control de Acceso
+                </p>
+                <p className="text-orange-800 dark:text-orange-200 text-xs">
+                  Solo puedes acceder a locations de tu misma empresa. Si intentas acceder
+                  a un locationId de otra empresa, recibirás un error 403 Forbidden.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Ejemplos de Uso */}
           <div className="rounded-lg bg-purple-50 dark:bg-purple-950 p-4 space-y-3">
             <h4 className="font-medium flex items-center gap-2">
