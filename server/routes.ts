@@ -7,7 +7,7 @@ import { ghlStorage } from "./ghl-storage";
 import { ghlApi } from "./ghl-api";
 import { evolutionAPI } from "./evolution-api";
 import { n8nService } from "./n8n-service";
-import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
+import { setupPassport, isAuthenticated, isAdmin, isApiAuthenticated, hashPassword } from "./auth";
 import { db } from "./db";
 import { subaccounts, oauthStates, companies, whatsappInstances } from "@shared/schema";
 import { eq, and, sql, not, or, inArray } from "drizzle-orm";
@@ -1527,6 +1527,103 @@ ${ghlErrorDetails}
     } catch (error) {
       console.error("Error deleting API token:", error);
       res.status(500).json({ error: "Failed to delete API token" });
+    }
+  });
+
+  // ============================================
+  // API V1 - ENDPOINTS PÚBLICOS CON TOKEN
+  // ============================================
+
+  // Obtener TODA la información del usuario autenticado
+  app.get("/api/v1/user/info", isApiAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+
+      // Obtener subcuentas del usuario (company)
+      const userSubaccounts = user.companyId
+        ? await storage.getSubaccountsByCompany(user.companyId)
+        : [];
+
+      // Obtener todas las instancias de WhatsApp
+      const instances = await storage.getWhatsappInstances(user.id);
+
+      // Obtener información de la company si existe
+      let company = null;
+      if (user.companyId) {
+        company = await storage.getCompany(user.companyId);
+      }
+
+      // Construir respuesta con TODA la información
+      const response = {
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          locationId: user.locationId,
+          locationName: user.locationName,
+          isActive: user.isActive,
+          createdAt: user.createdAt,
+
+          // API Keys
+          apiKeys: {
+            openai: user.openaiApiKey || null,
+            elevenlabs: user.elevenLabsApiKey || null,
+            gemini: user.geminiApiKey || null,
+          },
+
+          // Company info
+          company: company ? {
+            id: company.id,
+            name: company.name,
+            manualBilling: company.manualBilling || false,
+            pricePerSubaccount: company.pricePerSubaccount || null,
+            pricePerExtraInstance: company.pricePerExtraInstance || null,
+          } : null,
+        },
+
+        // Subcuentas de la company
+        subaccounts: userSubaccounts.map(sub => ({
+          id: sub.id,
+          name: sub.name,
+          email: sub.email,
+          locationId: sub.locationId,
+          locationName: sub.locationName,
+          isActive: sub.isActive,
+          isSold: (sub as any).isSold || false,
+        })),
+
+        // Instancias de WhatsApp
+        instances: instances.map(inst => ({
+          id: inst.id,
+          customName: inst.customName,
+          evolutionInstanceName: inst.evolutionInstanceName,
+          locationId: inst.locationId,
+          status: inst.status,
+          phoneNumber: inst.phoneNumber,
+          qrCode: inst.qrCode,
+          webhookUrl: inst.webhookUrl,
+          createdAt: inst.createdAt,
+        })),
+
+        // Metadata
+        metadata: {
+          totalSubaccounts: userSubaccounts.length,
+          totalInstances: instances.length,
+          connectedInstances: instances.filter(i => i.status === 'connected').length,
+          timestamp: new Date().toISOString(),
+        }
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error getting user info:", error);
+      res.status(500).json({
+        error: "Error al obtener información",
+        message: "Ocurrió un error al obtener la información del usuario"
+      });
     }
   });
 

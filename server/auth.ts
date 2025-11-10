@@ -208,6 +208,71 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
   res.status(401).json({ message: "No autorizado. Por favor inicia sesión." });
 };
 
+// Middleware de autenticación con API Token (para endpoints de API externa)
+export const isApiAuthenticated: RequestHandler = async (req, res, next) => {
+  try {
+    // Obtener token del header Authorization: Bearer ghl_...
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({
+        error: "No autorizado",
+        message: "Se requiere un token de API en el header Authorization: Bearer <token>"
+      });
+      return;
+    }
+
+    const token = authHeader.substring(7); // Remover "Bearer "
+
+    // Validar token en la base de datos
+    const apiToken = await storage.getApiTokenByToken(token);
+
+    if (!apiToken) {
+      res.status(401).json({
+        error: "Token inválido",
+        message: "El token proporcionado no existe o ha sido revocado"
+      });
+      return;
+    }
+
+    // Verificar si el token ha expirado
+    if (apiToken.expiresAt && new Date(apiToken.expiresAt) < new Date()) {
+      res.status(401).json({
+        error: "Token expirado",
+        message: "El token ha expirado. Por favor genera uno nuevo"
+      });
+      return;
+    }
+
+    // Obtener el usuario asociado al token
+    const user = await storage.getSubaccount(apiToken.userId);
+
+    if (!user) {
+      res.status(401).json({
+        error: "Usuario no encontrado",
+        message: "El usuario asociado al token no existe"
+      });
+      return;
+    }
+
+    // Actualizar lastUsedAt del token (sin await para no bloquear)
+    storage.updateApiTokenLastUsed(apiToken.id).catch(err =>
+      console.error('Error updating token last used:', err)
+    );
+
+    // Agregar usuario al request
+    req.user = user;
+
+    next();
+  } catch (error) {
+    console.error('API authentication error:', error);
+    res.status(500).json({
+      error: "Error de autenticación",
+      message: "Ocurrió un error al validar el token"
+    });
+  }
+};
+
 // Helper: verificar si es administrador del sistema
 export const isSystemAdmin = (user: any): boolean => {
   return user && user.role === "system_admin";
