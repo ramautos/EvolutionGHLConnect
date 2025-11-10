@@ -1,6 +1,6 @@
 import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, triggers, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState, type Trigger, type InsertTrigger } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
+import { eq, and, or, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
 import { evolutionAPI } from "./evolution-api";
 
 export interface IStorage {
