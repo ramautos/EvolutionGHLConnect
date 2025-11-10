@@ -327,7 +327,12 @@ function DashboardContent() {
                   Conectar con GoHighLevel
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <a href="https://marketplace.gohighlevel.com" target="_blank" rel="noopener noreferrer">
+                  <a 
+                    href="https://marketplace.gohighlevel.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    data-testid="link-ghl-marketplace"
+                  >
                     Ir al Marketplace de GHL
                   </a>
                 </Button>
