@@ -38,6 +38,9 @@ export default function AdminPanel() {
   const [subaccountToDelete, setSubaccountToDelete] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  const [instanceToDelete, setInstanceToDelete] = useState<string | null>(null);
+  const [deleteInstanceDialogOpen, setDeleteInstanceDialogOpen] = useState(false);
+
   // Get companyId from URL query params
   const searchParams = new URLSearchParams(window.location.search);
   const companyIdFilter = searchParams.get('companyId');
@@ -79,6 +82,29 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: error.message || "No se pudo eliminar la subcuenta",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteInstanceMutation = useMutation({
+    mutationFn: async (instanceId: string) => {
+      const res = await apiRequest("DELETE", `/api/instances/${instanceId}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Instancia eliminada",
+        description: "La instancia ha sido eliminada exitosamente de Evolution API y la base de datos",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/instances"] });
+      setDeleteInstanceDialogOpen(false);
+      setInstanceToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al eliminar instancia",
+        description: error.message || "No se pudo eliminar la instancia",
         variant: "destructive",
       });
     },
@@ -138,6 +164,17 @@ export default function AdminPanel() {
   const confirmDeleteSubaccount = () => {
     if (subaccountToDelete) {
       deleteSubaccountMutation.mutate(subaccountToDelete);
+    }
+  };
+
+  const handleDeleteInstance = (instanceId: string) => {
+    setInstanceToDelete(instanceId);
+    setDeleteInstanceDialogOpen(true);
+  };
+
+  const confirmDeleteInstance = () => {
+    if (instanceToDelete) {
+      deleteInstanceMutation.mutate(instanceToDelete);
     }
   };
 
@@ -387,12 +424,13 @@ export default function AdminPanel() {
                       <TableHead>Email</TableHead>
                       <TableHead>Número</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {instances.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No hay instancias creadas aún
                         </TableCell>
                       </TableRow>
@@ -409,6 +447,16 @@ export default function AdminPanel() {
                           <TableCell>{inst.subaccountEmail || "—"}</TableCell>
                           <TableCell>{inst.phoneNumber || "—"}</TableCell>
                           <TableCell>{getStatusBadge(inst.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteInstance(inst.id)}
+                              data-testid={`button-delete-instance-${inst.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -444,6 +492,36 @@ export default function AdminPanel() {
                 </>
               ) : (
                 "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Instance Confirmation Dialog */}
+      <AlertDialog open={deleteInstanceDialogOpen} onOpenChange={setDeleteInstanceDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar instancia de WhatsApp?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la instancia
+              de Evolution API y de la base de datos. El número de WhatsApp se desconectará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-instance">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteInstance}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-instance"
+            >
+              {deleteInstanceMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar Instancia"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
