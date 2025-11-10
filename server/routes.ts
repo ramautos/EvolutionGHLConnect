@@ -2979,8 +2979,31 @@ ${ghlErrorDetails}
         isManualBilling = company?.manualBilling || false;
       }
 
-      // Si es cobro manual, permitir crear instancia sin validaciones de billing
+      // Si es cobro manual, aplicar límite de 5 instancias por subcuenta
       if (isManualBilling) {
+        // Contar instancias existentes para esta subcuenta
+        const existingInstancesForSubaccount = await db
+          .select()
+          .from(whatsappInstances)
+          .where(eq(whatsappInstances.subaccountId, validatedData.subaccountId));
+
+        const currentInstanceCount = existingInstancesForSubaccount.length;
+        const INCLUDED_INSTANCES = 5;
+        const EXTRA_INSTANCE_COST = 5; // $5 USD por instancia extra
+
+        // Calcular si esta nueva instancia excede el límite
+        const isExtraInstance = currentInstanceCount >= INCLUDED_INSTANCES;
+        const extraInstanceNumber = isExtraInstance ? (currentInstanceCount - INCLUDED_INSTANCES + 1) : 0;
+
+        console.log(`📊 Cobro Manual - Subcuenta ${validatedData.subaccountId}:`);
+        console.log(`   Instancias actuales: ${currentInstanceCount}`);
+        console.log(`   Instancias incluidas: ${INCLUDED_INSTANCES}`);
+        console.log(`   Es instancia extra: ${isExtraInstance ? 'Sí' : 'No'}`);
+        if (isExtraInstance) {
+          console.log(`   Instancia extra #${extraInstanceNumber} - Costo adicional: $${EXTRA_INSTANCE_COST} USD`);
+        }
+
+        // Crear la instancia (siempre permitido en cobro manual)
         const instance = await storage.createWhatsappInstance(validatedData);
 
         // ============================================
@@ -3031,6 +3054,14 @@ ${ghlErrorDetails}
           instance,
           manualBilling: true,
           invoiceGenerated: false,
+          billingInfo: {
+            totalInstances: currentInstanceCount + 1,
+            includedInstances: INCLUDED_INSTANCES,
+            extraInstances: Math.max(0, currentInstanceCount + 1 - INCLUDED_INSTANCES),
+            extraInstanceCost: EXTRA_INSTANCE_COST,
+            isExtraInstance,
+            extraInstanceNumber,
+          }
         });
         return;
       }
