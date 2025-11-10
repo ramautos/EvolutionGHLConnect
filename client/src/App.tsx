@@ -17,7 +17,6 @@ import SubaccountDetails from "@/pages/SubaccountDetails";
 import AdminPanel from "@/pages/AdminPanel";
 import AdminDashboard from "@/pages/AdminDashboard";
 import CompaniesManagement from "@/pages/CompaniesManagement";
-import AdminWebhook from "@/pages/AdminWebhook";
 import AdminAPI from "@/pages/AdminAPI";
 import AdminSettings from "@/pages/AdminSettings";
 import Billing from "@/pages/Billing";
@@ -117,13 +116,6 @@ function Router() {
               </div>
               <div className="text-muted-foreground">En desarrollo...</div>
             </div>
-          </AdminLayout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/webhook">
-        <ProtectedRoute requireAdmin={true}>
-          <AdminLayout>
-            <AdminWebhook />
           </AdminLayout>
         </ProtectedRoute>
       </Route>

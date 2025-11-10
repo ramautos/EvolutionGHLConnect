@@ -5,7 +5,6 @@ import {
   Settings,
   TrendingUp,
   Users,
-  Webhook,
   Building,
   BarChart3,
   FileText,
@@ -54,12 +53,7 @@ const menuItems = [
 
 const configItems = [
   {
-    title: "Webhook",
-    icon: Webhook,
-    url: "/admin/webhook",
-  },
-  {
-    title: "API",
+    title: "API Tokens",
     icon: FileText,
     url: "/admin/api",
   },
