@@ -8,6 +8,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 10, 2025
+- **Dashboard Onboarding Message**: Implemented comprehensive empty state guidance when no GoHighLevel subaccounts exist
+  - Replaces confusing "No tienes subcuentas" with step-by-step installation guide
+  - Three-step visual onboarding: Install app → Authorize access → Subaccounts appear
+  - Dual CTAs: "Conectar con GoHighLevel" (OAuth flow) and "Ir al Marketplace de GHL" (direct marketplace link)
+  - Highlights 7-day trial period to encourage adoption
+  - Designed with clear hierarchy, numbered steps, and accessible language for non-technical users
+  - Architect-approved implementation with proper data-testid attributes for testing
+- **Architecture Confirmation**: Validated LOCAL_* subaccount filtering system is working correctly
+  - LOCAL_* subaccounts (authentication only) correctly hidden from dashboard
+  - Real GHL subaccounts (from webhook installation) correctly visible
+  - Empty dashboard state indicates users haven't installed GHL app, not a system bug
+
 ### November 5, 2025
 - **Unlimited Triggers System**: Migrated from single trigger per subaccount to unlimited triggers
   - New dedicated `triggers` table with FK cascade to subaccounts
