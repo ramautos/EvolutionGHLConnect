@@ -206,15 +206,32 @@ export const invoices = pgTable("invoices", {
 }));
 
 // ============================================
-// WEBHOOK CONFIG TABLE - Configuración de webhook (admin-only)
+// API TOKENS TABLE - Tokens de acceso a la API para usuarios
 // ============================================
-export const webhookConfig = pgTable("webhook_config", {
+export const apiTokens = pgTable("api_tokens", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  webhookUrl: text("webhook_url").notNull(),
+  userId: varchar("user_id").notNull().references(() => subaccounts.id, { onDelete: "cascade" }),
+  tokenName: text("token_name").notNull(), // Nombre descriptivo del token
+  token: text("token").notNull().unique(), // El token en sí (generado con crypto)
+  lastUsedAt: timestamp("last_used_at"),
+  expiresAt: timestamp("expires_at"), // null = no expira
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("api_tokens_user_id_idx").on(table.userId),
+  tokenIdx: index("api_tokens_token_idx").on(table.token),
+}));
+
+// ============================================
+// WEBHOOK CONFIG TABLE - DEPRECATED - No se usa actualmente
+// ============================================
+// export const webhookConfig = pgTable("webhook_config", {
+//   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+//   webhookUrl: text("webhook_url").notNull(),
+//   isActive: boolean("is_active").notNull().default(true),
+//   createdAt: timestamp("created_at").defaultNow(),
+//   updatedAt: timestamp("updated_at").defaultNow(),
+// });
 
 // ============================================
 // SYSTEM CONFIG TABLE - Configuración general del sistema (admin-only)
@@ -446,21 +463,36 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
-// Webhook Config
-export const insertWebhookConfigSchema = createInsertSchema(webhookConfig).omit({
+// API Tokens
+export const insertApiTokenSchema = createInsertSchema(apiTokens).omit({
   id: true,
+  token: true, // El token se genera automáticamente
   createdAt: true,
-  updatedAt: true,
+  lastUsedAt: true,
 });
 
-export const updateWebhookConfigSchema = z.object({
-  webhookUrl: z.string().url("URL de webhook inválida").optional(),
-  isActive: z.boolean().optional(),
+export const createApiTokenSchema = z.object({
+  tokenName: z.string().min(1, "Nombre del token es requerido").max(100),
+  expiresAt: z.string().datetime().optional().nullable(), // ISO 8601 string
 });
 
-export type WebhookConfig = typeof webhookConfig.$inferSelect;
-export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
-export type UpdateWebhookConfig = z.infer<typeof updateWebhookConfigSchema>;
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type InsertApiToken = z.infer<typeof insertApiTokenSchema>;
+export type CreateApiToken = z.infer<typeof createApiTokenSchema>;
+
+// Webhook Config - DEPRECATED
+// export const insertWebhookConfigSchema = createInsertSchema(webhookConfig).omit({
+//   id: true,
+//   createdAt: true,
+//   updatedAt: true,
+// });
+// export const updateWebhookConfigSchema = z.object({
+//   webhookUrl: z.string().url("URL de webhook inválida").optional(),
+//   isActive: z.boolean().optional(),
+// });
+// export type WebhookConfig = typeof webhookConfig.$inferSelect;
+// export type InsertWebhookConfig = z.infer<typeof insertWebhookConfigSchema>;
+// export type UpdateWebhookConfig = z.infer<typeof updateWebhookConfigSchema>;
 
 // System Config
 export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({

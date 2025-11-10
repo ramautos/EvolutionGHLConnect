@@ -1,4 +1,4 @@
-import { companies, subaccounts, whatsappInstances, subscriptions, invoices, webhookConfig, systemConfig, oauthStates, triggers, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type WebhookConfig, type InsertWebhookConfig, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState, type Trigger, type InsertTrigger } from "@shared/schema";
+import { companies, subaccounts, whatsappInstances, subscriptions, invoices, apiTokens, systemConfig, oauthStates, triggers, type SelectCompany, type InsertCompany, type UpdateCompany, type Subaccount, type InsertSubaccount, type WhatsappInstance, type InsertWhatsappInstance, type CreateSubaccount, type CreateWhatsappInstance, type Subscription, type InsertSubscription, type Invoice, type InsertInvoice, type ApiToken, type CreateApiToken, type SystemConfig, type InsertSystemConfig, type UpdateSystemConfig, type OAuthState, type InsertOAuthState, type Trigger, type InsertTrigger } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, sql as drizzleSql, count, sum, isNotNull, not } from "drizzle-orm";
 import { evolutionAPI } from "./evolution-api";
@@ -63,12 +63,21 @@ export interface IStorage {
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   
   // ============================================
-  // WEBHOOK CONFIG OPERATIONS (Admin-only)
+  // API TOKENS OPERATIONS
   // ============================================
-  getWebhookConfig(): Promise<WebhookConfig | undefined>;
-  createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig>;
-  updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined>;
-  
+  getApiTokens(userId: string): Promise<ApiToken[]>;
+  getApiTokenByToken(token: string): Promise<ApiToken | undefined>;
+  createApiToken(userId: string, tokenData: CreateApiToken): Promise<ApiToken>;
+  deleteApiToken(tokenId: string, userId: string): Promise<boolean>;
+  updateApiTokenLastUsed(tokenId: string): Promise<void>;
+
+  // ============================================
+  // WEBHOOK CONFIG OPERATIONS (Admin-only) - DEPRECATED
+  // ============================================
+  // getWebhookConfig(): Promise<WebhookConfig | undefined>;
+  // createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig>;
+  // updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined>;
+
   // ============================================
   // SYSTEM CONFIG OPERATIONS (Admin-only)
   // ============================================
@@ -710,33 +719,94 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
-  // WEBHOOK CONFIG OPERATIONS (Admin-only)
+  // API TOKENS OPERATIONS
   // ============================================
 
-  async getWebhookConfig(): Promise<WebhookConfig | undefined> {
-    const [config] = await db
+  async getApiTokens(userId: string): Promise<ApiToken[]> {
+    const tokens = await db
       .select()
-      .from(webhookConfig)
-      .limit(1);
-    return config || undefined;
+      .from(apiTokens)
+      .where(eq(apiTokens.userId, userId))
+      .orderBy(apiTokens.createdAt);
+    return tokens;
   }
 
-  async createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig> {
+  async getApiTokenByToken(token: string): Promise<ApiToken | undefined> {
+    const [apiToken] = await db
+      .select()
+      .from(apiTokens)
+      .where(and(
+        eq(apiTokens.token, token),
+        eq(apiTokens.isActive, true)
+      ))
+      .limit(1);
+    return apiToken || undefined;
+  }
+
+  async createApiToken(userId: string, tokenData: CreateApiToken): Promise<ApiToken> {
+    // Generar token seguro con crypto
+    const tokenValue = `ghl_${Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url')}`;
+
     const [created] = await db
-      .insert(webhookConfig)
-      .values(config)
+      .insert(apiTokens)
+      .values({
+        userId,
+        tokenName: tokenData.tokenName,
+        token: tokenValue,
+        expiresAt: tokenData.expiresAt ? new Date(tokenData.expiresAt) : null,
+        isActive: true,
+      })
       .returning();
+
     return created;
   }
 
-  async updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined> {
-    const [updated] = await db
-      .update(webhookConfig)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(webhookConfig.id, id))
-      .returning();
-    return updated || undefined;
+  async deleteApiToken(tokenId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(apiTokens)
+      .where(and(
+        eq(apiTokens.id, tokenId),
+        eq(apiTokens.userId, userId)
+      ));
+
+    return result.rowCount ? result.rowCount > 0 : false;
   }
+
+  async updateApiTokenLastUsed(tokenId: string): Promise<void> {
+    await db
+      .update(apiTokens)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiTokens.id, tokenId));
+  }
+
+  // ============================================
+  // WEBHOOK CONFIG OPERATIONS (Admin-only) - DEPRECATED
+  // ============================================
+
+  // async getWebhookConfig(): Promise<WebhookConfig | undefined> {
+  //   const [config] = await db
+  //     .select()
+  //     .from(webhookConfig)
+  //     .limit(1);
+  //   return config || undefined;
+  // }
+
+  // async createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig> {
+  //   const [created] = await db
+  //     .insert(webhookConfig)
+  //     .values(config)
+  //     .returning();
+  //   return created;
+  // }
+
+  // async updateWebhookConfig(id: string, updates: Partial<WebhookConfig>): Promise<WebhookConfig | undefined> {
+  //   const [updated] = await db
+  //     .update(webhookConfig)
+  //     .set({ ...updates, updatedAt: new Date() })
+  //     .where(eq(webhookConfig.id, id))
+  //     .returning();
+  //   return updated || undefined;
+  // }
 
   // ============================================
   // SYSTEM CONFIG OPERATIONS (Admin-only)

@@ -11,7 +11,7 @@ import { setupPassport, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { db } from "./db";
 import { subaccounts, oauthStates, companies, whatsappInstances } from "@shared/schema";
 import { eq, and, sql, not, or, inArray } from "drizzle-orm";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, updateWebhookConfigSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, createApiTokenSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -1468,58 +1468,71 @@ ${ghlErrorDetails}
     }
   });
 
-  // Obtener configuración de webhook (solo admin)
-  app.get("/api/admin/webhook-config", isAdmin, async (req, res) => {
+  // ============================================
+  // API TOKENS ENDPOINTS
+  // ============================================
+
+  // Obtener todos los tokens del usuario
+  app.get("/api/tokens", isAuthenticated, async (req, res) => {
     try {
-      let config = await storage.getWebhookConfig();
-      
-      // Si no existe, crear una configuración por defecto
-      if (!config) {
-        config = await storage.createWebhookConfig({
-          webhookUrl: "",
-          isActive: false,
-        });
-      }
-      
-      res.json(config);
+      const user = req.user as any;
+      const tokens = await storage.getApiTokens(user.id);
+
+      // No enviar el token completo por seguridad, solo los primeros caracteres
+      const safeTokens = tokens.map(t => ({
+        ...t,
+        token: `${t.token.substring(0, 12)}...`,
+      }));
+
+      res.json(safeTokens);
     } catch (error) {
-      console.error("Error getting webhook config:", error);
-      res.status(500).json({ error: "Failed to get webhook configuration" });
+      console.error("Error getting API tokens:", error);
+      res.status(500).json({ error: "Failed to get API tokens" });
     }
   });
 
-  // Actualizar configuración de webhook (solo admin)
-  app.patch("/api/admin/webhook-config", isAdmin, async (req, res) => {
+  // Crear nuevo token
+  app.post("/api/tokens", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = updateWebhookConfigSchema.parse(req.body);
-      
-      let config = await storage.getWebhookConfig();
-      
-      if (!config) {
-        // Si no existe, crear una nueva
-        config = await storage.createWebhookConfig({
-          webhookUrl: validatedData.webhookUrl || "",
-          isActive: validatedData.isActive ?? false,
-        });
-      } else {
-        // Actualizar existente
-        config = await storage.updateWebhookConfig(config.id, validatedData);
-        if (!config) {
-          res.status(500).json({ error: "Failed to update webhook config" });
-          return;
-        }
-      }
-      
-      res.json(config);
+      const user = req.user as any;
+      const validatedData = createApiTokenSchema.parse(req.body);
+
+      const token = await storage.createApiToken(user.id, validatedData);
+
+      res.json(token); // Enviamos el token completo SOLO en la creación
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
-        console.error("Error updating webhook config:", error);
-        res.status(500).json({ error: "Failed to update webhook configuration" });
+        console.error("Error creating API token:", error);
+        res.status(500).json({ error: "Failed to create API token" });
       }
     }
   });
+
+  // Eliminar token
+  app.delete("/api/tokens/:tokenId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { tokenId } = req.params;
+
+      const deleted = await storage.deleteApiToken(tokenId, user.id);
+
+      if (!deleted) {
+        res.status(404).json({ error: "Token not found" });
+        return;
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting API token:", error);
+      res.status(500).json({ error: "Failed to delete API token" });
+    }
+  });
+
+  // DEPRECATED - Webhook config endpoints
+  // app.get("/api/admin/webhook-config", isAdmin, async (req, res) => { ... });
+  // app.patch("/api/admin/webhook-config", isAdmin, async (req, res) => { ... });
 
   // ============================================
   // SYSTEM CONFIG ROUTES (Admin-only)
@@ -3822,62 +3835,10 @@ ${ghlErrorDetails}
   });
 
   // ============================================
-  // WEBHOOK DE MENSAJES (Público - llamado por Evolution API/n8n)
+  // WEBHOOK DE MENSAJES - DEPRECATED
   // ============================================
-  
-  // Recibir mensaje y reenviarlo a webhook configurado
-  app.post("/api/webhook/message", async (req, res) => {
-    try {
-      const { locationId, message, from, instanceName } = req.body;
-      
-      if (!locationId || !message) {
-        res.status(400).json({ error: "locationId and message are required" });
-        return;
-      }
-
-      // Obtener configuración de webhook
-      const webhookConfig = await storage.getWebhookConfig();
-      
-      if (!webhookConfig || !webhookConfig.isActive || !webhookConfig.webhookUrl) {
-        console.log("Webhook not configured or inactive");
-        res.status(200).json({ success: true, message: "Webhook not configured" });
-        return;
-      }
-
-      // Preparar datos para enviar al webhook
-      const webhookPayload = {
-        locationId,
-        message,
-        from,
-        instanceName,
-        timestamp: new Date().toISOString(),
-      };
-
-      // Enviar al webhook configurado
-      try {
-        const response = await fetch(webhookConfig.webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(webhookPayload),
-        });
-
-        if (!response.ok) {
-          console.error(`Webhook failed with status: ${response.status}`);
-        } else {
-          console.log(`✅ Message forwarded to webhook for locationId: ${locationId}`);
-        }
-      } catch (webhookError) {
-        console.error("Error forwarding to webhook:", webhookError);
-      }
-
-      res.json({ success: true, message: "Message processed" });
-    } catch (error) {
-      console.error("Error processing webhook message:", error);
-      res.status(500).json({ error: "Failed to process message" });
-    }
-  });
+  // Este endpoint ya no se usa. Los webhooks ahora se manejan directamente por n8n.
+  // app.post("/api/webhook/message", async (req, res) => { ... });
 
   // Polling automático cada 5 segundos para sincronización
   setInterval(async () => {
