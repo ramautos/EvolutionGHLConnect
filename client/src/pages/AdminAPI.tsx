@@ -1,285 +1,449 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2, Copy, Trash2, Plus, Key } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface ApiToken {
+  id: string;
+  tokenName: string;
+  token: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
 
 export default function AdminAPI() {
+  const { toast } = useToast();
+  const [tokenName, setTokenName] = useState("");
+  const [newToken, setNewToken] = useState<string | null>(null);
+  const [tokenToDelete, setTokenToDelete] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Obtener tokens
+  const { data: tokens = [], isLoading } = useQuery<ApiToken[]>({
+    queryKey: ["/api/tokens"],
+  });
+
+  // Crear token
+  const createTokenMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tokens", {
+        tokenName: tokenName.trim(),
+        expiresAt: null,
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setNewToken(data.token);
+      setTokenName("");
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+      toast({
+        title: "Token creado",
+        description: "Copia el token ahora. No podrás verlo de nuevo.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo crear el token",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Eliminar token
+  const deleteTokenMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
+      const res = await apiRequest("DELETE", `/api/tokens/${tokenId}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tokens"] });
+      setDeleteDialogOpen(false);
+      setTokenToDelete(null);
+      toast({
+        title: "Token eliminado",
+        description: "El token ha sido revocado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar el token",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Token copiado al portapapeles",
+    });
+  };
+
+  const handleDeleteToken = (tokenId: string) => {
+    setTokenToDelete(tokenId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (tokenToDelete) {
+      deleteTokenMutation.mutate(tokenToDelete);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Documentación de API</h1>
+        <h1 className="text-3xl font-bold tracking-tight">API Tokens & Documentación</h1>
         <p className="text-muted-foreground mt-1">
-          Endpoints disponibles para integración con el sistema
+          Gestiona tus tokens de API y consulta la documentación de endpoints
         </p>
       </div>
 
+      {/* Gestión de Tokens */}
       <Card>
         <CardHeader>
-          <CardTitle>Documentación de API</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="w-5 h-5" />
+            API Tokens
+          </CardTitle>
           <CardDescription>
-            Endpoints disponibles para consultar información del sistema
+            Crea y gestiona tokens para acceder a la API desde aplicaciones externas
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Authentication Endpoints */}
+          {/* Crear Token */}
+          <div className="space-y-3">
+            <Label htmlFor="token-name">Crear Nuevo Token</Label>
+            <div className="flex gap-2">
+              <Input
+                id="token-name"
+                placeholder="Nombre del token (ej: Mi App de Python)"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                disabled={createTokenMutation.isPending}
+              />
+              <Button
+                onClick={() => createTokenMutation.mutate()}
+                disabled={!tokenName.trim() || createTokenMutation.isPending}
+              >
+                {createTokenMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Token
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Mostrar Token Recién Creado */}
+          {newToken && (
+            <div className="rounded-lg bg-green-50 dark:bg-green-950 p-4 space-y-2">
+              <h4 className="font-medium text-green-900 dark:text-green-100">
+                ✅ Token creado exitosamente
+              </h4>
+              <p className="text-sm text-green-800 dark:text-green-200">
+                Copia este token ahora. Por seguridad, no podrás verlo de nuevo.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={newToken}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => copyToClipboard(newToken)}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setNewToken(null)}
+              >
+                Entendido, cerrar
+              </Button>
+            </div>
+          )}
+
+          {/* Lista de Tokens */}
+          <div className="space-y-2">
+            <Label>Tus Tokens</Label>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : tokens.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 border rounded-lg">
+                No tienes tokens creados. Crea uno para empezar a usar la API.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {tokens.map((token) => (
+                  <div
+                    key={token.id}
+                    className="flex items-center justify-between p-4 rounded-lg border"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{token.tokenName}</p>
+                      <p className="text-sm text-muted-foreground font-mono">
+                        {token.token}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Creado: {new Date(token.createdAt).toLocaleDateString()}
+                        {token.lastUsedAt && (
+                          <span className="ml-3">
+                            Último uso: {new Date(token.lastUsedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteToken(token.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Documentación de API */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Documentación de API v1</CardTitle>
+          <CardDescription>
+            Endpoints disponibles para acceder a tu información mediante API Tokens
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* API Token Authentication */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              🔐 Autenticación
+              🔐 Autenticación con Token
             </h3>
-            <div className="space-y-2 pl-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">POST</Badge>
-                  <code className="text-sm">/api/auth/login</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Iniciar sesión con email y contraseña</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ email: string, password: string }"}
-                </div>
+            <div className="rounded-lg border p-4 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Todos los endpoints de API v1 requieren un token de autenticación en el header:
+              </p>
+              <div className="bg-muted p-3 rounded text-xs font-mono">
+                Authorization: Bearer ghl_tu_token_aqui
               </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">POST</Badge>
-                  <code className="text-sm">/api/auth/logout</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Cerrar sesión</p>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/auth/me</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener información del usuario actual</p>
+              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded text-sm">
+                <p className="font-medium mb-2">Ejemplo con curl:</p>
+                <code className="text-xs">
+                  curl -H "Authorization: Bearer ghl_xxxxx" \<br />
+                  &nbsp;&nbsp;https://whatsapp.cloude.es/api/v1/user/info
+                </code>
               </div>
             </div>
           </div>
 
-          {/* Subaccounts Endpoints */}
+          {/* GET /api/v1/user/info */}
           <div className="space-y-3">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              🏢 Subcuentas
+              📊 Obtener Información Completa del Usuario
             </h3>
-            <div className="space-y-2 pl-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/admin/subaccounts</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener todas las subcuentas (solo admin)</p>
+            <div className="rounded-lg border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="default">GET</Badge>
+                <code className="text-sm">/api/v1/user/info</code>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Retorna TODA la información del usuario autenticado con el token
+              </p>
+
+              <div className="mt-3">
+                <p className="text-sm font-medium mb-2">Respuesta incluye:</p>
+                <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                  <li>Datos del usuario (id, email, name, phone, role)</li>
+                  <li>API Keys (OpenAI, ElevenLabs, Gemini)</li>
+                  <li>Información de la empresa (si existe)</li>
+                  <li>Subcuentas de la empresa</li>
+                  <li>Instancias de WhatsApp (status, phoneNumber, webhookUrl)</li>
+                  <li>Metadata (totales, instancias conectadas, timestamp)</li>
+                </ul>
               </div>
 
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/subaccounts/:id</code>
+              <div className="mt-3 bg-muted p-3 rounded text-xs font-mono overflow-x-auto">
+{`{
+  "success": true,
+  "user": {
+    "id": "usr_123",
+    "email": "tu@email.com",
+    "name": "Tu Nombre",
+    "phone": "+573001234567",
+    "role": "user",
+    "locationId": "LOC_ABC123",
+    "apiKeys": {
+      "openai": "sk-...",
+      "elevenlabs": "...",
+      "gemini": "..."
+    },
+    "company": {
+      "id": "comp_123",
+      "name": "Mi Empresa",
+      "manualBilling": false
+    }
+  },
+  "subaccounts": [
+    {
+      "id": "sub_456",
+      "name": "Subcuenta 1",
+      "locationId": "LOC_XYZ",
+      "isActive": true
+    }
+  ],
+  "instances": [
+    {
+      "id": "inst_789",
+      "customName": "WhatsApp Soporte",
+      "status": "connected",
+      "phoneNumber": "+573009876543",
+      "webhookUrl": "https://n8nqr.cloude.es/webhook/LOC_ABC123"
+    }
+  ],
+  "metadata": {
+    "totalSubaccounts": 2,
+    "totalInstances": 3,
+    "connectedInstances": 2,
+    "timestamp": "2025-01-10T20:30:00.000Z"
+  }
+}`}
+              </div>
+            </div>
+          </div>
+
+          {/* Ejemplos de Uso */}
+          <div className="rounded-lg bg-purple-50 dark:bg-purple-950 p-4 space-y-3">
+            <h4 className="font-medium flex items-center gap-2">
+              💡 Ejemplos de Uso
+            </h4>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-medium mb-1">Python:</p>
+                <div className="bg-muted p-3 rounded font-mono text-xs overflow-x-auto">
+{`import requests
+
+token = "ghl_tu_token_aqui"
+headers = {"Authorization": f"Bearer {token}"}
+
+response = requests.get(
+    "https://whatsapp.cloude.es/api/v1/user/info",
+    headers=headers
+)
+
+data = response.json()
+print(f"Instancias conectadas: {data['metadata']['connectedInstances']}")`}
                 </div>
-                <p className="text-sm text-muted-foreground">Obtener una subcuenta por ID</p>
               </div>
 
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">PATCH</Badge>
-                  <code className="text-sm">/api/admin/subaccounts/:id/billing</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Activar/desactivar billing de subcuenta (solo admin)</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ billingEnabled: boolean }"}
+              <div>
+                <p className="font-medium mb-1">JavaScript (Node.js):</p>
+                <div className="bg-muted p-3 rounded font-mono text-xs overflow-x-auto">
+{`const token = "ghl_tu_token_aqui";
+
+const response = await fetch(
+  "https://whatsapp.cloude.es/api/v1/user/info",
+  {
+    headers: {
+      "Authorization": \`Bearer \${token}\`
+    }
+  }
+);
+
+const data = await response.json();
+console.log("API Keys:", data.user.apiKeys);`}
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">PATCH</Badge>
-                  <code className="text-sm">/api/admin/subaccounts/:id/activation</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Activar/desactivar subcuenta manualmente (solo admin)</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ manuallyActivated: boolean }"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">PATCH</Badge>
-                  <code className="text-sm">/api/subaccounts/:locationId/crm-settings</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Actualizar Calendar ID y OpenAI API Key</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ openaiApiKey?: string, calendarId?: string }"}
+              <div>
+                <p className="font-medium mb-1">cURL:</p>
+                <div className="bg-muted p-3 rounded font-mono text-xs overflow-x-auto">
+{`curl -H "Authorization: Bearer ghl_tu_token_aqui" \\
+  https://whatsapp.cloude.es/api/v1/user/info`}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Instances Endpoints */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              💬 Instancias de WhatsApp
-            </h3>
-            <div className="space-y-2 pl-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/instances/subaccount/:subaccountId</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener instancias de una subcuenta</p>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/admin/instances</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener todas las instancias del sistema (solo admin)</p>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">POST</Badge>
-                  <code className="text-sm">/api/instances</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Crear nueva instancia de WhatsApp</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ subaccountId: string, customName?: string }"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="destructive">DELETE</Badge>
-                  <code className="text-sm">/api/instances/:id</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Eliminar una instancia</p>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">POST</Badge>
-                  <code className="text-sm">/api/instances/:id/send-message</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Enviar mensaje de WhatsApp (para n8n)</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ number: string, text: string }"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Nota: La instancia debe estar conectada. El número puede incluir código de país.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Subscription Endpoints */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              💳 Suscripciones y Facturación
-            </h3>
-            <div className="space-y-2 pl-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/subaccounts/:subaccountId/subscription</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener información de suscripción y trial</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Response: {"{ plan, inTrial, trialEndsAt, basePrice, includedInstances, extraSlots }"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">PATCH</Badge>
-                  <code className="text-sm">/api/subaccounts/:subaccountId/subscription</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Cambiar plan de suscripción</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ plan: 'starter' | 'basic' | 'pro' }"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/subaccounts/:subaccountId/invoices</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener facturas de una subcuenta</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Webhook Endpoints */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              🔗 Webhook
-            </h3>
-            <div className="space-y-2 pl-4">
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="default">GET</Badge>
-                  <code className="text-sm">/api/admin/webhook-config</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Obtener configuración del webhook (solo admin)</p>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">PATCH</Badge>
-                  <code className="text-sm">/api/admin/webhook-config</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Actualizar configuración del webhook (solo admin)</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ webhookUrl: string, isActive: boolean }"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">POST</Badge>
-                  <code className="text-sm">/api/webhook/message</code>
-                </div>
-                <p className="text-sm text-muted-foreground">Recibir mensajes (endpoint público)</p>
-                <div className="bg-muted p-3 rounded text-xs font-mono">
-                  Body: {"{ locationId, message, from, instanceName, timestamp }"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Important Notes */}
+          {/* Notas Importantes */}
           <div className="rounded-lg bg-yellow-50 dark:bg-yellow-950 p-4 space-y-2">
             <h4 className="font-medium flex items-center gap-2">
               ⚠️ Notas Importantes
             </h4>
             <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-5">
-              <li>Todos los endpoints requieren autenticación excepto los marcados como públicos</li>
-              <li>Los endpoints marcados como "solo admin" requieren que el usuario tenga role="admin"</li>
-              <li>Las respuestas incluyen códigos HTTP estándar (200, 400, 401, 403, 500)</li>
-              <li>Los trial duran 15 días con instancias ilimitadas</li>
-              <li>Planes disponibles: starter ($10), basic ($19), pro ($29) + $5 por instancia adicional</li>
+              <li>Guarda tu token en un lugar seguro. No se puede recuperar después de crearlo.</li>
+              <li>No compartas tu token. Cualquiera con el token puede acceder a tu información.</li>
+              <li>Si crees que tu token fue comprometido, elimínalo inmediatamente y crea uno nuevo.</li>
+              <li>Los tokens no expiran por defecto, pero puedes eliminarlos en cualquier momento.</li>
+              <li>El header Authorization debe incluir "Bearer " antes del token.</li>
             </ul>
-          </div>
-
-          {/* n8n Integration Info */}
-          <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 space-y-3">
-            <h4 className="font-medium flex items-center gap-2">
-              🔗 Integración con n8n
-            </h4>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Flujo completo de mensajería:</p>
-              <div className="space-y-1 pl-4">
-                <p>1. <strong>Recibir mensajes:</strong> WhatsApp → Evolution API → <code className="bg-muted px-1">/api/webhook/message</code> → n8n</p>
-                <p>2. <strong>Enviar mensajes:</strong> n8n → <code className="bg-muted px-1">/api/instances/:id/send-message</code> → Evolution API → WhatsApp</p>
-              </div>
-              <p className="mt-2">
-                <strong>Configuración automática:</strong> Cada instancia se configura automáticamente con el webhook de Evolution API.
-                No requiere configuración manual.
-              </p>
-              <p>
-                <strong>Formato del webhook:</strong> Los mensajes recibidos incluyen <code className="bg-muted px-1">locationId</code> para enrutamiento en n8n.
-              </p>
-            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog de Confirmación para Eliminar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar token?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El token será revocado inmediatamente
+              y las aplicaciones que lo usen dejarán de funcionar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteTokenMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar Token"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
