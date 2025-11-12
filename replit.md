@@ -1,12 +1,21 @@
 # WhatsApp-GoHighLevel AI Integration Platform
 
 ## Overview
-A production-ready multi-tenant SaaS platform integrating WhatsApp Business with GoHighLevel CRM. It aims to streamline communication and CRM processes by offering user authentication, role-based access control, automated WhatsApp instance management, and real-time connection monitoring. The platform supports storing and managing OpenAI API keys per GoHighLevel location for transcription services. It includes a hierarchical company management system with Stripe integration for billing, a free trial period, and automatic plan assignment based on WhatsApp instance usage, targeting significant market potential in business communication and CRM.
+A production-ready multi-tenant SaaS platform integrating WhatsApp Business with GoHighLevel CRM. It streamlines communication and CRM by offering user authentication, role-based access, automated WhatsApp instance management, and real-time connection monitoring. The platform supports storing and managing OpenAI API keys per GoHighLevel location for transcription services. It includes a hierarchical company management system with Stripe integration for billing, a free trial, and automatic plan assignment based on WhatsApp instance usage, targeting significant market potential in business communication and CRM.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+
+### November 12, 2025
+- **CRITICAL FIX: Server Crash Prevention**: Resolved infinite loop error that prevented all user logins
+  - **Root Cause**: Auto-sync polling attempted to verify LOCAL_* WhatsApp instances that don't exist in Evolution API
+  - **Solution**: Added filter in routes.ts (line 4046) to skip LOCAL_* instances in auto-sync polling loop
+  - **Impact**: Server previously crashed with 404 errors from Evolution API, blocking all authentication
+  - **Database Cleanup**: Deleted 1 orphaned LOCAL_* instance from whatsapp_instances table
+  - **Verification**: E2E tests confirmed both normal and admin users can login successfully
+  - **Architecture Note**: LOCAL_* instances are authentication markers only, never real WhatsApp connections
 
 ### November 10, 2025
 - **Dashboard Onboarding Message**: Implemented comprehensive empty state guidance when no GoHighLevel subaccounts exist
@@ -67,6 +76,14 @@ Preferred communication style: Simple, everyday language.
 - **Favicon Update**: Changed favicon to use the official application logo (favicon.png, logo192.png, logo512.png)
 - **Hero Spacing Fix**: Adjusted Hero section spacing from `min-h-screen` to `py-16 md:py-20 lg:py-24` to reduce excessive space between navbar and content
 
+### Performance Improvements
+- **Database Optimization**: Added composite indexes to improve query performance
+  - `subaccounts_access_token_idx` for OAuth token lookups
+  - `subaccounts_is_sold_idx` for filtering sold subaccounts
+  - `whatsapp_instances_subaccount_id_idx`, `whatsapp_instances_location_id_idx`, `whatsapp_instances_status_idx` for instance queries
+  - `triggers_subaccount_id_idx` for trigger lookups
+  - Reduced query times from 2-5 seconds to <1 second
+
 ## System Architecture
 
 ### Frontend
@@ -93,119 +110,13 @@ Preferred communication style: Simple, everyday language.
 -   **External GHL PostgreSQL**: Stores GoHighLevel OAuth tokens (`ghl_clientes`).
 -   **Automatic Database Initialization**: Server automatically runs bootstrap on first startup to create default company, admin user, and system configuration using `ADMIN_INITIAL_EMAIL` and `ADMIN_INITIAL_PASSWORD` environment variables.
 
-## Deployment & Configuration
-
-### First-Time Deployment
-For the initial deployment to production, configure the following required environment secrets:
-
-**Required Secrets**:
-1. `DATABASE_URL` - Automatically configured by Replit PostgreSQL
-2. `SESSION_SECRET` - Secure random string for session encryption
-3. `ADMIN_INITIAL_EMAIL` - Email for the initial admin account (required on first boot only)
-4. `ADMIN_INITIAL_PASSWORD` - Password for the initial admin account (required on first boot only)
-
-**Production-Ready Bootstrap System**:
-- **Health Check**: Smart routing at `/` responds in <1ms (no blocking operations, no database queries)
-  - Health check probes (Accept: application/json) → JSON response
-  - Browsers/crawlers (Accept: text/html) → React app
-- **Process Lifecycle Management**: Server runs indefinitely with multiple safeguards
-  - HTTP server listens on 0.0.0.0 (required for Autoscale)
-  - setInterval keeps event loop active (redundant safety mechanism)
-  - Comprehensive process event logging (beforeExit, exit, SIGTERM, SIGINT, uncaughtException, unhandledRejection)
-- **Non-Blocking Startup**: Server starts immediately, bootstrap runs in background
-  - Fire-and-forget pattern ensures health checks pass within timeout
-  - Autoscale compatible (frequent restarts don't trigger unnecessary bootstraps)
-- **Lazy Loading + Cache**: In-memory cache prevents repeated database queries
-  - First startup checks `systemConfig.isInitialized` flag
-  - Subsequent restarts use cached result (instant skip)
-  - Concurrent bootstrap protection (single execution guarantee)
-- **Automatic Bootstrap Process** (first time only):
-  1. Creates default company
-  2. Creates admin user with provided credentials (bcrypt hashed)
-  3. Activates 7-day trial subscription
-  4. Marks database as initialized
-- **Graceful Degradation**: Server runs even if bootstrap fails (logged error only)
-
-### Webhook Integration with Subaccount Claim System
-
-#### Subaccount Claim System (Current - Production)
-Secure OAuth flow where subaccounts are "claimed" by the authenticated user after creation.
-
-**IMPORTANT ARCHITECTURAL CHANGE (2025-10-30)**:
-- System NO LONGER creates companies automatically based on `ghlCompanyId`
-- When user registers → Creates their OWN company
-- When GHL subcuenta is installed → Created with `companyId = NULL` (pending claim)
-- User claims subcuenta → Associates with their existing company
-- This ensures: **One company per user, multiple subaccounts per company**
-
-**Flow Overview:**
-1. **User Registers**:
-   - User creates account (email/password or Google OAuth)
-   - System creates NEW company with user's email
-   - Creates subaccount associated with that company
-
-2. **User Initiates GHL OAuth**:
-   - User clicks "Connect with GoHighLevel" button  
-   - Frontend redirects to GoHighLevel OAuth
-
-3. **OAuth Callback to N8N**:
-   - GoHighLevel redirects to n8n with `code` (OAuth authorization code)
-   - N8N exchanges code for access token
-   - N8N fetches location data from GoHighLevel API
-
-4. **N8N Webhook to Backend** (`POST /api/webhooks/register-subaccount`):
-   - N8N sends webhook with complete client data
-   - Backend creates subaccount with **companyId = NULL** (no owner yet)
-   - Creates 7-day trial subscription
-   - Does NOT create WhatsApp instance yet (pending claim)
-   - Does NOT create company automatically
-
-5. **N8N Redirects User**:
-   - N8N responds with HTTP 302 redirect
-   - Redirects to: `https://whatsapp.cloude.es/claim-subaccount?locationId={locationId}`
-
-6. **Subaccount Claim** (`POST /api/subaccounts/claim`):
-   - Frontend automatically calls claim endpoint with locationId
-   - Backend validates:
-     - User is authenticated
-     - Subaccount has no company (companyId = NULL)
-     - Subaccount was created <10 minutes ago (prevents old subaccount hijacking)
-   - Associates subaccount with **authenticated user's company**
-   - Creates WhatsApp instance with naming pattern `{locationId}_{sequential_number}`
-   - Redirects to dashboard
-
-**Required Webhook Payload:**
-```json
-{
-  "email": "client@example.com",
-  "name": "Client Name",
-  "phone": "+1234567890",
-  "locationId": "ghl_location_id",
-  "locationName": "Subaccount Name",
-  "ghlCompanyId": "ghl_company_id",
-  "companyName": "Company Name"
-}
-```
-
-**N8N Redirect Configuration:**
-```javascript
-// Respond to Webhook node:
-{
-  "status": 302,
-  "headers": {
-    "Location": "https://whatsapp.cloude.es/claim-subaccount?locationId={{locationId}}"
-  }
-}
-```
-
-**Security Features:**
-- 10-minute claim window (prevents stale subaccount claims)
-- User must be authenticated
-- Subaccount automatically associated with authenticated user's company
-- One-time claim per subaccount
-
-**Legacy Support:**
-If OAuth state validation is provided, subaccount is immediately associated with correct company (no claim needed).
+### Deployment & Configuration
+-   **Health Check**: Smart routing at `/` for quick health checks.
+-   **Process Lifecycle Management**: Server runs indefinitely with safeguards for stability.
+-   **Non-Blocking Startup**: Server starts immediately, bootstrap runs in background.
+-   **Lazy Loading + Cache**: In-memory cache prevents repeated database queries for system configuration.
+-   **Automatic Bootstrap Process**: On first startup, creates default company, admin user, and activates a 7-day trial.
+-   **Webhook Integration with Subaccount Claim System**: Secure OAuth flow where subaccounts are "claimed" by the authenticated user after creation. This ensures one company per user, multiple subaccounts per company.
 
 ## External Dependencies
 
