@@ -4042,6 +4042,11 @@ ${ghlErrorDetails}
       const allInstances = await storage.getAllInstances();
       
       for (const instance of allInstances) {
+        // SKIP instancias LOCAL_* - estas son solo para testing y no existen en Evolution API
+        if (instance.evolutionInstanceName.startsWith('LOCAL_')) {
+          continue;
+        }
+        
         // Solo verificar instancias que podrían estar activas
         if (instance.status === "qr_generated" || instance.status === "connected" || instance.status === "disconnected") {
           try {
