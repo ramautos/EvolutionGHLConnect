@@ -2948,10 +2948,21 @@ ${ghlErrorDetails}
 
       // Verificar que la subcuenta pertenece al usuario
       const user = req.user as any;
+      
+      // Debug logging
+      console.log("🔍 DEBUG - API Settings Update:");
+      console.log("  User ID:", user.id);
+      console.log("  User Role:", user.role);
+      console.log("  Subaccount ID:", subaccount.id);
+      console.log("  Match:", subaccount.id === user.id);
+      
       if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        console.log("❌ FORBIDDEN: User not authorized");
         res.status(403).json({ error: "Forbidden" });
         return;
       }
+      
+      console.log("✅ Permission granted");
 
       const updates: Partial<any> = {};
       if (validatedData.elevenLabsApiKey !== undefined) {
