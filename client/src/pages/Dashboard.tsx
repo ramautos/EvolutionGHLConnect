@@ -280,8 +280,8 @@ function DashboardContent() {
               </p>
             </div>
             <div className="flex gap-2">
-              {/* Botones de desarrollo - Solo visible en dev para admins */}
-              {process.env.NODE_ENV === "development" && (user?.role === "admin" || user?.role === "system_admin") && (
+              {/* Botones de desarrollo - Solo visible en dev */}
+              {process.env.NODE_ENV === "development" && (
                 <>
                   <Button
                     onClick={handleSeedDemo}

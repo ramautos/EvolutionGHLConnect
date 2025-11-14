@@ -4150,8 +4150,8 @@ ${ghlErrorDetails}
   // DESARROLLO - ENDPOINTS DE PRUEBA (solo dev)
   // ============================================
   
-  // Crear datos de demostración para desarrollo (solo admin en dev)
-  app.post("/api/dev/seed-demo", isAuthenticated, isAdmin, async (req, res) => {
+  // Crear datos de demostración para desarrollo (todos los usuarios autenticados en dev)
+  app.post("/api/dev/seed-demo", isAuthenticated, async (req, res) => {
     try {
       // Solo permitir en desarrollo
       if (process.env.NODE_ENV === "production") {
@@ -4175,8 +4175,8 @@ ${ghlErrorDetails}
     }
   });
 
-  // Limpiar datos de demostración (solo admin en dev)
-  app.post("/api/dev/clean-demo", isAuthenticated, isAdmin, async (req, res) => {
+  // Limpiar datos de demostración (todos los usuarios autenticados en dev)
+  app.post("/api/dev/clean-demo", isAuthenticated, async (req, res) => {
     try {
       // Solo permitir en desarrollo
       if (process.env.NODE_ENV === "production") {

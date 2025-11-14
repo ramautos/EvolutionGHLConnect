@@ -9,14 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### November 14, 2025
-- **Development Helper: Demo Data Seeder**: Added secure utility to create fake subaccounts for UI testing
+- **Development Helper: Demo Data Seeder**: Added utility to create fake subaccounts for UI testing
   - New endpoint `/api/dev/seed-demo` creates demo subaccounts with WhatsApp instances
   - Creates 2 demo subaccounts: regular and "sold" subaccount
   - Generates 3 WhatsApp instances with different states (connected, disconnected, qr_generated)
   - Idempotent: automatically cleans existing demo data before creating new
   - Complete cleanup: deletes all related data (instances, triggers, subscriptions)
-  - Security: Protected with `isAdmin` middleware - only admin/system_admin roles can access
-  - Frontend buttons only visible to admins in development environment
+  - Available to all authenticated users in development environment
+  - Each user can only create demo data for their own company (isolated)
   - Clean up with `/api/dev/clean-demo` endpoint removes all demo data and dependencies
   - Located in `server/dev/demoSeeder.ts` for reusability
   - Prevents accumulation of orphaned data in billing/subscription tables
