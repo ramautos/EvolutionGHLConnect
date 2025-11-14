@@ -29,6 +29,7 @@ import AuthSuccess from "@/pages/AuthSuccess";
 import ClaimSubaccount from "@/pages/ClaimSubaccount";
 import GhlIframe from "@/pages/GhlIframe";
 import InstallSubaccount from "@/pages/InstallSubaccount";
+import OAuthCallback from "@/pages/OAuthCallback";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Cookies from "@/pages/Cookies";
@@ -172,6 +173,9 @@ function Router() {
 
       {/* GHL Iframe - SSO Authentication (no requiere ProtectedRoute, usa SSO) */}
       <Route path="/ghl-iframe" component={GhlIframe} />
+
+      {/* OAuth Callback - Public route for popup OAuth flow */}
+      <Route path="/oauth/callback" component={OAuthCallback} />
 
       {/* Install Subaccount - Public route for sold subaccounts */}
       <Route path="/install/:token" component={InstallSubaccount} />
