@@ -677,7 +677,6 @@ export default function SubaccountDetails() {
           </div>
         </div>
       </header>
-
       {/* Main Content */}
       <main className="container py-8">
         <div className="space-y-8 max-w-6xl mx-auto">
@@ -1059,9 +1058,7 @@ export default function SubaccountDetails() {
                         <p className="text-sm text-foreground dark:text-white">
                           ⚠️ Alerta de Desconexión
                         </p>
-                        <p className="text-xs text-muted-foreground dark:text-gray-300">
-                          Tu instancia de WhatsApp "Ventas Principal" se ha desconectado.
-                        </p>
+                        <p className="text-xs text-muted-foreground dark:text-gray-300">Tu instancia de WhatsApp +1234567890 se ha desconectado.</p>
                         <p className="text-xs text-muted-foreground dark:text-gray-300">
                           Por favor, vuelve a conectar tu dispositivo para continuar recibiendo mensajes.
                         </p>
@@ -1187,7 +1184,6 @@ export default function SubaccountDetails() {
           </Card>
         </div>
       </main>
-
       {/* Dialog: Create Instance */}
       <Dialog open={createInstanceOpen} onOpenChange={setCreateInstanceOpen}>
         <DialogContent>
@@ -1228,7 +1224,6 @@ export default function SubaccountDetails() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Dialog: QR Code */}
       <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
         <DialogContent className="max-w-md">
@@ -1257,7 +1252,6 @@ export default function SubaccountDetails() {
           )}
         </DialogContent>
       </Dialog>
-
       {/* Dialog: ElevenLabs Settings */}
       <Dialog open={elevenLabsSettingsOpen} onOpenChange={setElevenLabsSettingsOpen}>
         <DialogContent>
@@ -1334,7 +1328,6 @@ export default function SubaccountDetails() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Dialog: OpenAI Settings */}
       <Dialog open={openaiSettingsOpen} onOpenChange={setOpenaiSettingsOpen}>
         <DialogContent>
@@ -1396,7 +1389,6 @@ export default function SubaccountDetails() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Dialog: Plans */}
       <Dialog open={plansDialogOpen} onOpenChange={setPlansDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1535,7 +1527,6 @@ export default function SubaccountDetails() {
           </div>
         </DialogContent>
       </Dialog>
-
       {/* Dialog para agregar trigger */}
       <Dialog open={addTriggerOpen} onOpenChange={setAddTriggerOpen}>
         <DialogContent>
