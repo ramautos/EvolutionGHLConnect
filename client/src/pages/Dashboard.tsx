@@ -326,16 +326,6 @@ function DashboardContent() {
                   <Plus className="w-5 h-5 mr-2" />
                   Conectar con GoHighLevel
                 </Button>
-                <Button variant="outline" size="lg" asChild>
-                  <a 
-                    href="https://marketplace.gohighlevel.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    data-testid="link-ghl-marketplace"
-                  >
-                    Ir al Marketplace de GHL
-                  </a>
-                </Button>
               </CardFooter>
             </Card>
           )}
