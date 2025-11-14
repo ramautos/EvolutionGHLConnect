@@ -52,6 +52,7 @@ export default function SubaccountDetails() {
   const [selectedInstance, setSelectedInstance] = useState<WhatsappInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [notificationPhone, setNotificationPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
@@ -289,7 +290,7 @@ export default function SubaccountDetails() {
 
   // Mutation para actualizar API Settings (ElevenLabs y Gemini)
   const updateApiSettingsMutation = useMutation({
-    mutationFn: async ({ elevenLabsKey, geminiKey }: { elevenLabsKey?: string; geminiKey?: string }) => {
+    mutationFn: async ({ elevenLabsKey, elevenLabsVoice, geminiKey }: { elevenLabsKey?: string; elevenLabsVoice?: string; geminiKey?: string }) => {
       if (!subaccount?.locationId) {
         throw new Error("Location ID no encontrado");
       }
@@ -301,12 +302,16 @@ export default function SubaccountDetails() {
         updates.elevenLabsApiKey = elevenLabsKey.trim();
       }
       
+      if (elevenLabsVoice && elevenLabsVoice.trim()) {
+        updates.elevenLabsVoiceId = elevenLabsVoice.trim();
+      }
+      
       if (geminiKey && geminiKey.trim()) {
         updates.geminiApiKey = geminiKey.trim();
       }
       
       if (Object.keys(updates).length === 0) {
-        throw new Error("Por favor proporciona al menos una API key para actualizar");
+        throw new Error("Por favor proporciona al menos un campo para actualizar");
       }
       
       const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, updates);
@@ -321,12 +326,13 @@ export default function SubaccountDetails() {
     onSuccess: () => {
       toast({
         title: "Configuración actualizada",
-        description: "Las API keys se guardaron exitosamente",
+        description: "La configuración se guardó exitosamente",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
       setApiSettingsOpen(false);
       // Limpiar los campos después de guardar
       setElevenLabsApiKey("");
+      setElevenLabsVoiceId("");
       setGeminiApiKey("");
     },
     onError: (error: any) => {
@@ -473,6 +479,7 @@ export default function SubaccountDetails() {
   const handleSaveApiSettings = () => {
     updateApiSettingsMutation.mutate({
       elevenLabsKey: elevenLabsApiKey,
+      elevenLabsVoice: elevenLabsVoiceId,
       geminiKey: geminiApiKey,
     });
   };
@@ -1204,6 +1211,21 @@ export default function SubaccountDetails() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Usada para servicios de voz y transcripción
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="elevenlabs-voice-id">Voice ID de ElevenLabs</Label>
+              <Input
+                id="elevenlabs-voice-id"
+                type="text"
+                placeholder="Ej: pNInz6obpgDQGcFmaJgB"
+                value={elevenLabsVoiceId}
+                onChange={(e) => setElevenLabsVoiceId(e.target.value)}
+                data-testid="input-elevenlabs-voice-id"
+              />
+              <p className="text-xs text-muted-foreground">
+                ID de la voz que se usará para generar audio
               </p>
             </div>
 

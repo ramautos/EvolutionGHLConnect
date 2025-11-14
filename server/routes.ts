@@ -2959,6 +2959,9 @@ ${ghlErrorDetails}
       if (validatedData.elevenLabsApiKey !== undefined) {
         updates.elevenLabsApiKey = validatedData.elevenLabsApiKey;
       }
+      if (validatedData.elevenLabsVoiceId !== undefined) {
+        updates.elevenLabsVoiceId = validatedData.elevenLabsVoiceId;
+      }
       if (validatedData.geminiApiKey !== undefined) {
         updates.geminiApiKey = validatedData.geminiApiKey;
       }

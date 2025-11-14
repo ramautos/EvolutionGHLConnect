@@ -74,6 +74,7 @@ export const subaccounts = pgTable("subaccounts", {
 
   // Configuración de API para Transcripciones y Audio
   elevenLabsApiKey: text("eleven_labs_api_key"),
+  elevenLabsVoiceId: text("eleven_labs_voice_id"),
   geminiApiKey: text("gemini_api_key"),
 
   // Notificaciones de desconexión de WhatsApp
@@ -357,6 +358,7 @@ export const updateSubaccountGeminiKeySchema = z.object({
 
 export const updateSubaccountApiSettingsSchema = z.object({
   elevenLabsApiKey: z.string().optional(),
+  elevenLabsVoiceId: z.string().optional(),
   geminiApiKey: z.string().optional(),
   notificationPhone: z.string().optional(),
   triggerName: z.string().optional(),

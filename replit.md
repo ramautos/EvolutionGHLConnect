@@ -9,6 +9,13 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### November 14, 2025
+- **ElevenLabs Voice ID Configuration**: Added Voice ID field to API configuration
+  - New field `elevenLabsVoiceId` in subaccounts table for storing voice ID
+  - UI input added in SubaccountDetails API Settings dialog
+  - Backend endpoint updated to save and return voice ID
+  - Voice ID can now be queried via `/api/subaccounts` endpoints
+  - Enables voice customization for audio generation features
+  
 - **Development Helper: Demo Data Seeder**: Added utility to create fake subaccounts for UI testing
   - New endpoint `/api/dev/seed-demo` creates demo subaccounts with WhatsApp instances
   - Creates 2 demo subaccounts: regular and "sold" subaccount
