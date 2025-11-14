@@ -11,7 +11,7 @@ import { setupPassport, isAuthenticated, isAdmin, isApiAuthenticated, hashPasswo
 import { db } from "./db";
 import { subaccounts, oauthStates, companies, whatsappInstances } from "@shared/schema";
 import { eq, and, sql, not, or, inArray } from "drizzle-orm";
-import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountGeminiKeySchema, updateSubaccountApiSettingsSchema, createApiTokenSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
+import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, createWhatsappInstanceSchema, updateWhatsappInstanceSchema, registerSubaccountSchema, loginSubaccountSchema, updateSubaccountProfileSchema, updateSubaccountPasswordSchema, updateSubaccountElevenLabsKeySchema, updateSubaccountOpenAIKeySchema, updateSubaccountApiSettingsSchema, createApiTokenSchema, updateSystemConfigSchema, sendWhatsappMessageSchema, updateSubscriptionSchema, createTriggerSchema, updateTriggerSchema } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
@@ -1572,7 +1572,6 @@ ${ghlErrorDetails}
           apiKeys: {
             openai: user.openaiApiKey || null,
             elevenlabs: user.elevenLabsApiKey || null,
-            gemini: user.geminiApiKey || null,
           },
 
           // Company info
@@ -1686,7 +1685,6 @@ ${ghlErrorDetails}
           apiKeys: {
             openai: targetSubaccount.openaiApiKey || null,
             elevenlabs: targetSubaccount.elevenLabsApiKey || null,
-            gemini: targetSubaccount.geminiApiKey || null,
           },
 
           // Company info
@@ -2559,13 +2557,13 @@ ${ghlErrorDetails}
       // Agregar información del propietario a cada subcuenta
       // SEGURIDAD: Eliminar API keys sensibles de la respuesta
       const subaccountsWithOwner = subaccounts.map(sub => {
-        const { elevenLabsApiKey, geminiApiKey, ...safeSubaccount } = sub;
+        const { elevenLabsApiKey, openaiApiKey, ...safeSubaccount } = sub;
         
         return {
           ...safeSubaccount,
           // Solo indicar si las keys están configuradas (no exponer el valor)
           hasElevenLabsKey: !!elevenLabsApiKey,
-          hasGeminiKey: !!geminiApiKey,
+          hasOpenaiKey: !!openaiApiKey,
           ownerCompany: company ? {
             id: company.id,
             name: company.name,
@@ -2908,11 +2906,11 @@ ${ghlErrorDetails}
     }
   });
 
-  // Actualizar API Key de Gemini por locationId
-  app.patch("/api/subaccounts/:locationId/gemini-key", async (req, res) => {
+  // Actualizar API Key de OpenAI por locationId
+  app.patch("/api/subaccounts/:locationId/openai-key", async (req, res) => {
     try {
       const { locationId } = req.params;
-      const validatedData = updateSubaccountGeminiKeySchema.parse(req.body);
+      const validatedData = updateSubaccountOpenAIKeySchema.parse(req.body);
 
       const subaccount = await storage.getSubaccountByLocationId(locationId);
       
@@ -2922,7 +2920,7 @@ ${ghlErrorDetails}
       }
 
       const updated = await storage.updateSubaccount(subaccount.id, {
-        geminiApiKey: validatedData.geminiApiKey,
+        openaiApiKey: validatedData.openaiApiKey,
       });
 
       res.json(updated);
@@ -2930,7 +2928,7 @@ ${ghlErrorDetails}
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
-        res.status(500).json({ error: "Failed to update Gemini API key" });
+        res.status(500).json({ error: "Failed to update OpenAI API key" });
       }
     }
   });
@@ -2962,8 +2960,8 @@ ${ghlErrorDetails}
       if (validatedData.elevenLabsVoiceId !== undefined) {
         updates.elevenLabsVoiceId = validatedData.elevenLabsVoiceId;
       }
-      if (validatedData.geminiApiKey !== undefined) {
-        updates.geminiApiKey = validatedData.geminiApiKey;
+      if (validatedData.openaiApiKey !== undefined) {
+        updates.openaiApiKey = validatedData.openaiApiKey;
       }
       if (validatedData.notificationPhone !== undefined) {
         updates.notificationPhone = validatedData.notificationPhone;

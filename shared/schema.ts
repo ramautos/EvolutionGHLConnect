@@ -75,7 +75,7 @@ export const subaccounts = pgTable("subaccounts", {
   // Configuración de API para Transcripciones y Audio
   elevenLabsApiKey: text("eleven_labs_api_key"),
   elevenLabsVoiceId: text("eleven_labs_voice_id"),
-  geminiApiKey: text("gemini_api_key"),
+  openaiApiKey: text("openai_api_key"),
 
   // Notificaciones de desconexión de WhatsApp
   notificationPhone: text("notification_phone"),
@@ -352,14 +352,14 @@ export const updateSubaccountElevenLabsKeySchema = z.object({
   elevenLabsApiKey: z.string().min(1, "API Key de Eleven Labs es requerida"),
 });
 
-export const updateSubaccountGeminiKeySchema = z.object({
-  geminiApiKey: z.string().min(1, "API Key de Gemini es requerida"),
+export const updateSubaccountOpenAIKeySchema = z.object({
+  openaiApiKey: z.string().min(1, "API Key de OpenAI es requerida"),
 });
 
 export const updateSubaccountApiSettingsSchema = z.object({
   elevenLabsApiKey: z.string().optional(),
   elevenLabsVoiceId: z.string().optional(),
-  geminiApiKey: z.string().optional(),
+  openaiApiKey: z.string().optional(),
   notificationPhone: z.string().optional(),
   triggerName: z.string().optional(),
   triggerTag: z.string().optional(),
@@ -373,7 +373,7 @@ export type CreateSubaccount = z.infer<typeof createSubaccountSchema>;
 export type UpdateSubaccountProfile = z.infer<typeof updateSubaccountProfileSchema>;
 export type UpdateSubaccountPassword = z.infer<typeof updateSubaccountPasswordSchema>;
 export type UpdateSubaccountElevenLabsKey = z.infer<typeof updateSubaccountElevenLabsKeySchema>;
-export type UpdateSubaccountGeminiKey = z.infer<typeof updateSubaccountGeminiKeySchema>;
+export type UpdateSubaccountOpenAIKey = z.infer<typeof updateSubaccountOpenAIKeySchema>;
 export type UpdateSubaccountApiSettings = z.infer<typeof updateSubaccountApiSettingsSchema>;
 
 // WhatsApp Instances

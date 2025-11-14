@@ -9,9 +9,22 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 ### November 14, 2025
+- **Separated API Configuration UI**: Split ElevenLabs and OpenAI into individual configuration cards
+  - Created dedicated ElevenLabs card with API Key and Voice ID fields
+  - Created dedicated OpenAI card for transcription API Key
+  - Each API now has its own configuration dialog for better UX
+  - Improved visual hierarchy with service logos and descriptions
+
+- **Changed Gemini to OpenAI**: Renamed all references from Gemini to OpenAI across the application
+  - Database field: `geminiApiKey` → `openaiApiKey`
+  - Schema: `updateSubaccountGeminiKeySchema` → `updateSubaccountOpenAIKeySchema`
+  - Endpoints: `/api/subaccounts/:locationId/gemini-key` → `/api/subaccounts/:locationId/openai-key`
+  - Frontend state variables and UI labels updated to reflect OpenAI
+  - Migration applied successfully with no data loss
+
 - **ElevenLabs Voice ID Configuration**: Added Voice ID field to API configuration
   - New field `elevenLabsVoiceId` in subaccounts table for storing voice ID
-  - UI input added in SubaccountDetails API Settings dialog
+  - UI input added in SubaccountDetails ElevenLabs Settings dialog
   - Backend endpoint updated to save and return voice ID
   - Voice ID can now be queried via `/api/subaccounts` endpoints
   - Enables voice customization for audio generation features

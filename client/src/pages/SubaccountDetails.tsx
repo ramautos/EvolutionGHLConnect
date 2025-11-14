@@ -47,17 +47,18 @@ export default function SubaccountDetails() {
 
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [apiSettingsOpen, setApiSettingsOpen] = useState(false);
+  const [elevenLabsSettingsOpen, setElevenLabsSettingsOpen] = useState(false);
+  const [openaiSettingsOpen, setOpenaiSettingsOpen] = useState(false);
   const [plansDialogOpen, setPlansDialogOpen] = useState(false);
   const [selectedInstance, setSelectedInstance] = useState<WhatsappInstance | null>(null);
   const [instanceName, setInstanceName] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState("");
-  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [notificationPhone, setNotificationPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"starter" | "profesional" | "business">("profesional");
   
   // Nuevo sistema de triggers con Dialog
@@ -288,26 +289,21 @@ export default function SubaccountDetails() {
     },
   });
 
-  // Mutation para actualizar API Settings (ElevenLabs y Gemini)
-  const updateApiSettingsMutation = useMutation({
-    mutationFn: async ({ elevenLabsKey, elevenLabsVoice, geminiKey }: { elevenLabsKey?: string; elevenLabsVoice?: string; geminiKey?: string }) => {
+  // Mutation para actualizar ElevenLabs Settings
+  const updateElevenLabsSettingsMutation = useMutation({
+    mutationFn: async ({ elevenLabsKey, elevenLabsVoice }: { elevenLabsKey?: string; elevenLabsVoice?: string }) => {
       if (!subaccount?.locationId) {
         throw new Error("Location ID no encontrado");
       }
       
       const updates: any = {};
       
-      // Solo incluir las keys que se proporcionaron (no vacías)
       if (elevenLabsKey && elevenLabsKey.trim()) {
         updates.elevenLabsApiKey = elevenLabsKey.trim();
       }
       
       if (elevenLabsVoice && elevenLabsVoice.trim()) {
         updates.elevenLabsVoiceId = elevenLabsVoice.trim();
-      }
-      
-      if (geminiKey && geminiKey.trim()) {
-        updates.geminiApiKey = geminiKey.trim();
       }
       
       if (Object.keys(updates).length === 0) {
@@ -318,22 +314,60 @@ export default function SubaccountDetails() {
       
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update API settings");
+        throw new Error(errorData.error || "Failed to update ElevenLabs settings");
       }
       
       return await res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Configuración actualizada",
-        description: "La configuración se guardó exitosamente",
+        title: "ElevenLabs actualizado",
+        description: "La configuración de ElevenLabs se guardó exitosamente",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
-      setApiSettingsOpen(false);
-      // Limpiar los campos después de guardar
+      setElevenLabsSettingsOpen(false);
       setElevenLabsApiKey("");
       setElevenLabsVoiceId("");
-      setGeminiApiKey("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar la configuración",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para actualizar OpenAI Settings
+  const updateOpenaiSettingsMutation = useMutation({
+    mutationFn: async ({ openaiKey }: { openaiKey: string }) => {
+      if (!subaccount?.locationId) {
+        throw new Error("Location ID no encontrado");
+      }
+      
+      if (!openaiKey || !openaiKey.trim()) {
+        throw new Error("Por favor proporciona la API Key de OpenAI");
+      }
+      
+      const res = await apiRequest("PATCH", `/api/subaccounts/${subaccount.locationId}/api-settings`, {
+        openaiApiKey: openaiKey.trim(),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update OpenAI settings");
+      }
+      
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "OpenAI actualizado",
+        description: "La API Key de OpenAI se guardó exitosamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      setOpenaiSettingsOpen(false);
+      setOpenaiApiKey("");
     },
     onError: (error: any) => {
       toast({
@@ -476,11 +510,16 @@ export default function SubaccountDetails() {
     },
   });
 
-  const handleSaveApiSettings = () => {
-    updateApiSettingsMutation.mutate({
+  const handleSaveElevenLabsSettings = () => {
+    updateElevenLabsSettingsMutation.mutate({
       elevenLabsKey: elevenLabsApiKey,
       elevenLabsVoice: elevenLabsVoiceId,
-      geminiKey: geminiApiKey,
+    });
+  };
+
+  const handleSaveOpenaiSettings = () => {
+    updateOpenaiSettingsMutation.mutate({
+      openaiKey: openaiApiKey,
     });
   };
 
@@ -862,77 +901,83 @@ export default function SubaccountDetails() {
             )}
           </div>
 
-          {/* API Configuration */}
+          {/* API Configuration - ElevenLabs */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Key className="w-5 h-5 text-muted-foreground" />
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={elevenLabsLogo} 
+                    alt="ElevenLabs" 
+                    className="w-10 h-10 rounded object-cover"
+                  />
                   <div>
-                    <CardTitle>Configuración de APIs</CardTitle>
-                    <CardDescription className="mt-1">
-                      Gestiona las credenciales de ElevenLabs y Gemini
-                    </CardDescription>
+                    <CardTitle className="text-lg">ElevenLabs</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Para envío de mensaje de voz</p>
                   </div>
                 </div>
                 <Button
-                  variant="outline"
+                  onClick={() => setElevenLabsSettingsOpen(true)}
                   size="sm"
-                  onClick={() => setApiSettingsOpen(true)}
-                  data-testid="button-api-settings"
+                  variant="outline"
+                  data-testid="button-config-elevenlabs"
                 >
                   <Edit2 className="w-4 h-4 mr-2" />
                   Configurar
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={elevenLabsLogo} 
-                    alt="ElevenLabs" 
-                    className="w-8 h-8 rounded object-cover"
-                  />
-                  <div>
-                    <div className="font-medium text-sm">ElevenLabs</div>
-                    <div className="text-xs text-muted-foreground">Para envío de mensaje de voz</div>
-                  </div>
-                </div>
-                <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
-                  {(subaccount as any).hasElevenLabsKey ? (
-                    <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Configurado
-                    </>
-                  ) : (
-                    "No configurado"
-                  )}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+            <CardContent>
+              <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
+                {(subaccount as any).hasElevenLabsKey ? (
+                  <>
+                    <Check className="w-3 h-3 mr-1" />
+                    Configurado
+                  </>
+                ) : (
+                  "No configurado"
+                )}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* API Configuration - OpenAI */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <img 
                     src={openaiLogo} 
                     alt="OpenAI" 
-                    className="w-8 h-8 rounded object-cover"
+                    className="w-10 h-10 rounded object-cover"
                   />
                   <div>
-                    <div className="font-medium text-sm">OpenAI</div>
-                    <div className="text-xs text-muted-foreground">Transcripciones</div>
+                    <CardTitle className="text-lg">OpenAI</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Transcripciones</p>
                   </div>
                 </div>
-                <Badge variant={(subaccount as any).hasGeminiKey ? "default" : "secondary"}>
-                  {(subaccount as any).hasGeminiKey ? (
-                    <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Configurado
-                    </>
-                  ) : (
-                    "No configurado"
-                  )}
-                </Badge>
+                <Button
+                  onClick={() => setOpenaiSettingsOpen(true)}
+                  size="sm"
+                  variant="outline"
+                  data-testid="button-config-openai"
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Configurar
+                </Button>
               </div>
+            </CardHeader>
+            <CardContent>
+              <Badge variant={(subaccount as any).hasOpenaiKey ? "default" : "secondary"}>
+                {(subaccount as any).hasOpenaiKey ? (
+                  <>
+                    <Check className="w-3 h-3 mr-1" />
+                    Configurado
+                  </>
+                ) : (
+                  "No configurado"
+                )}
+              </Badge>
             </CardContent>
           </Card>
 
@@ -1169,19 +1214,19 @@ export default function SubaccountDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: API Settings */}
-      <Dialog open={apiSettingsOpen} onOpenChange={setApiSettingsOpen}>
+      {/* Dialog: ElevenLabs Settings */}
+      <Dialog open={elevenLabsSettingsOpen} onOpenChange={setElevenLabsSettingsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Configuración de APIs</DialogTitle>
+            <DialogTitle>Configuración de ElevenLabs</DialogTitle>
             <DialogDescription>
-              Configura las API keys para ElevenLabs y Gemini. Solo se guardarán las keys que proporciones.
+              Configura tu API Key y Voice ID para servicios de voz
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="elevenlabs-key">ElevenLabs API Key</Label>
+                <Label htmlFor="elevenlabs-key">API Key</Label>
                 {(subaccount as any)?.hasElevenLabsKey && (
                   <Badge variant="default" className="text-xs">
                     <Check className="w-3 h-3 mr-1" />
@@ -1209,13 +1254,10 @@ export default function SubaccountDetails() {
                   {showElevenLabsKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Usada para servicios de voz y transcripción
-              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="elevenlabs-voice-id">Voice ID de ElevenLabs</Label>
+              <Label htmlFor="elevenlabs-voice-id">Voice ID</Label>
               <Input
                 id="elevenlabs-voice-id"
                 type="text"
@@ -1228,11 +1270,41 @@ export default function SubaccountDetails() {
                 ID de la voz que se usará para generar audio
               </p>
             </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setElevenLabsSettingsOpen(false)}
+              data-testid="button-cancel-elevenlabs-settings"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveElevenLabsSettings}
+              disabled={updateElevenLabsSettingsMutation.isPending}
+              data-testid="button-save-elevenlabs-settings"
+            >
+              {updateElevenLabsSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar Cambios
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
+      {/* Dialog: OpenAI Settings */}
+      <Dialog open={openaiSettingsOpen} onOpenChange={setOpenaiSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configuración de OpenAI</DialogTitle>
+            <DialogDescription>
+              Configura tu API Key para transcripciones y procesamiento de lenguaje
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="gemini-key">Gemini API Key</Label>
-                {(subaccount as any)?.hasGeminiKey && (
+                <Label htmlFor="openai-key">API Key</Label>
+                {(subaccount as any)?.hasOpenaiKey && (
                   <Badge variant="default" className="text-xs">
                     <Check className="w-3 h-3 mr-1" />
                     Ya configurada
@@ -1241,43 +1313,40 @@ export default function SubaccountDetails() {
               </div>
               <div className="relative">
                 <Input
-                  id="gemini-key"
-                  type={showGeminiKey ? "text" : "password"}
+                  id="openai-key"
+                  type={showOpenaiKey ? "text" : "password"}
                   placeholder="Ingresa nueva key o deja vacío para mantener"
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
-                  data-testid="input-gemini-key"
+                  value={openaiApiKey}
+                  onChange={(e) => setOpenaiApiKey(e.target.value)}
+                  data-testid="input-openai-key"
                   className="pr-10"
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  data-testid="button-toggle-gemini"
+                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                  data-testid="button-toggle-openai"
                 >
-                  {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Usada para procesamiento de lenguaje natural
-              </p>
             </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
-              onClick={() => setApiSettingsOpen(false)}
-              data-testid="button-cancel-api-settings"
+              onClick={() => setOpenaiSettingsOpen(false)}
+              data-testid="button-cancel-openai-settings"
             >
               Cancelar
             </Button>
             <Button
-              onClick={handleSaveApiSettings}
-              disabled={updateApiSettingsMutation.isPending}
-              data-testid="button-save-api-settings"
+              onClick={handleSaveOpenaiSettings}
+              disabled={updateOpenaiSettingsMutation.isPending}
+              data-testid="button-save-openai-settings"
             >
-              {updateApiSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {updateOpenaiSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Guardar Cambios
             </Button>
           </div>
