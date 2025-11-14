@@ -526,26 +526,16 @@ function DashboardContent() {
                       )}
                     </CardContent>
 
-                    <CardFooter className="flex gap-2">
+                    <CardFooter>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="w-full"
                         onClick={() => setLocation(`/subaccount/${subaccount.id}`)}
                         data-testid={`button-manage-${subaccount.id}`}
                       >
                         <Settings className="w-4 h-4 mr-2" />
                         Gestionar
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setLocation(`/subaccount/${subaccount.id}`)}
-                        data-testid={`button-whatsapp-${subaccount.id}`}
-                      >
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        WhatsApp
                       </Button>
                     </CardFooter>
                   </Card>
