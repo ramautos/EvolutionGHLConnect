@@ -524,6 +524,20 @@ export default function SubaccountDetails() {
   };
 
   const handleSaveNotificationPhone = () => {
+    console.log("🔍 Saving notification phone:");
+    console.log("  - Phone:", notificationPhone);
+    console.log("  - Subaccount:", subaccount);
+    console.log("  - LocationID:", subaccount?.locationId);
+    
+    if (!subaccount?.locationId) {
+      toast({
+        title: "Error",
+        description: "No se encontró el Location ID de la subcuenta",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateNotificationPhoneMutation.mutate(notificationPhone);
   };
 
