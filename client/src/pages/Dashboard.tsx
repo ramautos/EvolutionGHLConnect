@@ -275,53 +275,50 @@ function DashboardContent() {
 
           {/* Empty State */}
           {!subaccountsLoading && !instancesLoading && subaccounts.length === 0 && (
-            <Card className="border-2 border-primary/20">
-              <CardHeader className="text-center pb-4">
-                <div className="flex justify-center mb-4">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-chart-2/20 flex items-center justify-center">
-                    <Building2 className="w-10 h-10 text-primary" />
+            <Card className="border-2 border-primary/20 max-w-3xl mx-auto">
+              <CardHeader className="text-center pb-3">
+                <div className="flex justify-center mb-3">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-chart-2/20 flex items-center justify-center">
+                    <Building2 className="w-8 h-8 text-primary" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl mb-2">Bienvenido a WhatsApp AI</CardTitle>
-                <CardDescription className="max-w-2xl mx-auto text-base">
-                  Para comenzar a usar la plataforma, necesitas conectar tus ubicaciones de GoHighLevel
+                <CardTitle className="text-xl">Bienvenido a WhatsApp AI</CardTitle>
+                <CardDescription className="text-sm">
+                  Conecta tus ubicaciones de GoHighLevel para comenzar
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">1</span>
+              <CardContent className="space-y-3">
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2 mb-1">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">1</span>
                     Instala la app en GoHighLevel
                   </h3>
-                  <p className="text-muted-foreground text-sm pl-8">
-                    Ve a tu cuenta de GoHighLevel y busca nuestra aplicación en el Marketplace. 
-                    Haz clic en "Instalar" y selecciona las ubicaciones que deseas conectar.
+                  <p className="text-muted-foreground text-xs pl-7">
+                    Busca nuestra app en el Marketplace e instala en tus ubicaciones.
                   </p>
                 </div>
                 
-                <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">2</span>
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2 mb-1">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
                     Autoriza el acceso
                   </h3>
-                  <p className="text-muted-foreground text-sm pl-8">
-                    Cuando instales la app, se te pedirá autorizar el acceso. 
-                    Esto nos permite sincronizar tus contactos y gestionar WhatsApp automáticamente.
+                  <p className="text-muted-foreground text-xs pl-7">
+                    Permite sincronizar tus contactos y gestionar WhatsApp automáticamente.
                   </p>
                 </div>
                 
-                <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">3</span>
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2 mb-1">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs">3</span>
                     Tus ubicaciones aparecerán aquí
                   </h3>
-                  <p className="text-muted-foreground text-sm pl-8">
-                    Una vez instalada la app, tus ubicaciones de GoHighLevel aparecerán en este dashboard 
-                    con un período de prueba de 7 días para que pruebes todas las funcionalidades.
+                  <p className="text-muted-foreground text-xs pl-7">
+                    Accede a todas las funcionalidades con 7 días de prueba gratuita.
                   </p>
                 </div>
               </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center pt-6 border-t">
+              <CardFooter className="justify-center pt-4 border-t">
                 <Button onClick={handleAddSubaccount} size="lg" data-testid="button-add-first-subaccount">
                   <Plus className="w-5 h-5 mr-2" />
                   Conectar con GoHighLevel
