@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, json, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, json, pgEnum, index, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -88,7 +88,7 @@ export const subaccounts = pgTable("subaccounts", {
   // Subcuentas Vendidas (Manual Sales)
   isSold: boolean("is_sold").notNull().default(false), // Marca si es subcuenta vendida
   accessToken: text("access_token"), // Token único para link de instalación
-  soldByAgencyId: varchar("sold_by_agency_id").references(() => subaccounts.id), // Agencia que la vendió
+  soldByAgencyId: varchar("sold_by_agency_id").$type<string | null>(), // Agencia que la vendió (nullable si se elimina la agencia)
 
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
@@ -101,6 +101,12 @@ export const subaccounts = pgTable("subaccounts", {
   roleIdx: index("subaccounts_role_idx").on(table.role),
   accessTokenIdx: index("subaccounts_access_token_idx").on(table.accessToken),
   isSoldIdx: index("subaccounts_is_sold_idx").on(table.isSold),
+  // FOREIGN KEY para auto-referencia: subcuenta vendida por otra subcuenta (agencia)
+  soldByAgencyFk: foreignKey({
+    columns: [table.soldByAgencyId],
+    foreignColumns: [table.id],
+    name: "subaccounts_sold_by_agency_fk"
+  }).onDelete("set null"),
 }));
 
 // ============================================
