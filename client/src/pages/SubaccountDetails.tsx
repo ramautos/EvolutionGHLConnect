@@ -901,85 +901,88 @@ export default function SubaccountDetails() {
             )}
           </div>
 
-          {/* API Configuration - ElevenLabs */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={elevenLabsLogo} 
-                    alt="ElevenLabs" 
-                    className="w-10 h-10 rounded object-cover"
-                  />
-                  <div>
-                    <CardTitle className="text-lg">ElevenLabs</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">Para envío de mensaje de voz</p>
+          {/* API Configuration - Grid */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* ElevenLabs */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={elevenLabsLogo} 
+                      alt="ElevenLabs" 
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                    <div>
+                      <CardTitle className="text-lg">ElevenLabs</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">Para envío de mensaje de voz</p>
+                    </div>
                   </div>
+                  <Button
+                    onClick={() => setElevenLabsSettingsOpen(true)}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-config-elevenlabs"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Configurar
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => setElevenLabsSettingsOpen(true)}
-                  size="sm"
-                  variant="outline"
-                  data-testid="button-config-elevenlabs"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Configurar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
-                {(subaccount as any).hasElevenLabsKey ? (
-                  <>
-                    <Check className="w-3 h-3 mr-1" />
-                    Configurado
-                  </>
-                ) : (
-                  "No configurado"
-                )}
-              </Badge>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
+                  {(subaccount as any).hasElevenLabsKey ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" />
+                      Configurado
+                    </>
+                  ) : (
+                    "No configurado"
+                  )}
+                </Badge>
+              </CardContent>
+            </Card>
 
-          {/* API Configuration - OpenAI */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={openaiLogo} 
-                    alt="OpenAI" 
-                    className="w-10 h-10 rounded object-cover"
-                  />
-                  <div>
-                    <CardTitle className="text-lg">OpenAI</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">Transcripciones</p>
+            {/* OpenAI */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={openaiLogo} 
+                      alt="OpenAI" 
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                    <div>
+                      <CardTitle className="text-lg">OpenAI</CardTitle>
+                      <p className="text-xs text-muted-foreground mt-0.5">Transcripciones</p>
+                    </div>
                   </div>
+                  <Button
+                    onClick={() => setOpenaiSettingsOpen(true)}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-config-openai"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Configurar
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => setOpenaiSettingsOpen(true)}
-                  size="sm"
-                  variant="outline"
-                  data-testid="button-config-openai"
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Configurar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Badge variant={(subaccount as any).hasOpenaiKey ? "default" : "secondary"}>
-                {(subaccount as any).hasOpenaiKey ? (
-                  <>
-                    <Check className="w-3 h-3 mr-1" />
-                    Configurado
-                  </>
-                ) : (
-                  "No configurado"
-                )}
-              </Badge>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <Badge variant={(subaccount as any).hasOpenaiKey ? "default" : "secondary"}>
+                  {(subaccount as any).hasOpenaiKey ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" />
+                      Configurado
+                    </>
+                  ) : (
+                    "No configurado"
+                  )}
+                </Badge>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Notification Phone */}
           <Card>
