@@ -115,9 +115,8 @@ function DashboardContent() {
   // Mutation para crear datos de demostración
   const seedDemoMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/dev/seed-demo", {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/dev/seed-demo");
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
@@ -140,9 +139,8 @@ function DashboardContent() {
   // Mutation para limpiar datos de demostración
   const cleanDemoMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/dev/clean-demo", {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/dev/clean-demo");
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
