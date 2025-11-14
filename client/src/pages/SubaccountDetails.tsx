@@ -986,50 +986,91 @@ export default function SubaccountDetails() {
             <CardHeader>
               <CardTitle className="text-lg">Número de Notificación</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2 items-start">
-                <div className="flex-1">
-                  <Input
-                    type="tel"
-                    placeholder="+1234567890"
-                    value={isEditingPhone ? notificationPhone : ((subaccount as any)?.notificationPhone || "")}
-                    onChange={(e) => {
-                      setNotificationPhone(e.target.value);
-                      if (!isEditingPhone) setIsEditingPhone(true);
-                    }}
-                    onFocus={() => {
-                      if (!isEditingPhone) {
-                        setNotificationPhone((subaccount as any)?.notificationPhone || "");
-                        setIsEditingPhone(true);
-                      }
-                    }}
-                    data-testid="input-notification-phone"
-                    className="text-base h-11"
-                  />
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Left Column: Phone Input */}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="notification-phone" className="text-sm font-medium mb-2 block">
+                      Número de WhatsApp
+                    </Label>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input
+                          id="notification-phone"
+                          type="tel"
+                          placeholder="+1234567890"
+                          value={isEditingPhone ? notificationPhone : ((subaccount as any)?.notificationPhone || "")}
+                          onChange={(e) => {
+                            setNotificationPhone(e.target.value);
+                            if (!isEditingPhone) setIsEditingPhone(true);
+                          }}
+                          onFocus={() => {
+                            if (!isEditingPhone) {
+                              setNotificationPhone((subaccount as any)?.notificationPhone || "");
+                              setIsEditingPhone(true);
+                            }
+                          }}
+                          data-testid="input-notification-phone"
+                          className="text-base h-11"
+                        />
+                      </div>
+                      {isEditingPhone && (
+                        <Button
+                          onClick={handleSaveNotificationPhone}
+                          disabled={updateNotificationPhoneMutation.isPending}
+                          data-testid="button-save-notification-phone"
+                          className="h-11"
+                        >
+                          {updateNotificationPhoneMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Check className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Cuando un WhatsApp se desconecte, recibirás una notificación automática en este número.
+                    </p>
+                  </div>
                 </div>
-                {isEditingPhone && (
-                  <Button
-                    onClick={handleSaveNotificationPhone}
-                    disabled={updateNotificationPhoneMutation.isPending}
-                    data-testid="button-save-notification-phone"
-                    className="h-11"
-                  >
-                    {updateNotificationPhoneMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Check className="w-4 h-4" />
-                    )}
-                  </Button>
-                )}
-              </div>
-              <div className="bg-muted/30 border border-muted p-4 rounded-lg space-y-2">
-                <p className="text-sm font-medium flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-primary" />
-                  Ejemplo de uso:
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Si un WhatsApp se desconecta, a este número se le enviará una notificación de desconexión automáticamente.
-                </p>
+
+                {/* Right Column: WhatsApp Message Example */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium block">Ejemplo de notificación</Label>
+                  <div className="bg-[#e5ddd5] dark:bg-[#0b141a] p-4 rounded-lg">
+                    {/* WhatsApp message bubble */}
+                    <div className="max-w-[280px] bg-white dark:bg-[#005c4b] rounded-lg p-3 shadow-sm">
+                      <div className="flex items-start gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-foreground dark:text-white mb-1">
+                            Sistema WhatsApp
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-foreground dark:text-white">
+                          ⚠️ Alerta de Desconexión
+                        </p>
+                        <p className="text-xs text-muted-foreground dark:text-gray-300">
+                          Tu instancia de WhatsApp "Ventas Principal" se ha desconectado.
+                        </p>
+                        <p className="text-xs text-muted-foreground dark:text-gray-300">
+                          Por favor, vuelve a conectar tu dispositivo para continuar recibiendo mensajes.
+                        </p>
+                        <div className="flex justify-end mt-2">
+                          <span className="text-[10px] text-muted-foreground dark:text-gray-400">
+                            {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
