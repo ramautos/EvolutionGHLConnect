@@ -2948,7 +2948,7 @@ ${ghlErrorDetails}
 
       // Verificar que la subcuenta pertenece al usuario
       const user = req.user as any;
-      if (subaccount.id !== user.id && user.role !== "admin") {
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
         res.status(403).json({ error: "Forbidden" });
         return;
       }
@@ -3156,7 +3156,7 @@ ${ghlErrorDetails}
         email: subaccount.email,
         locationId: subaccount.locationId,
         elevenLabsApiKey: subaccount.elevenLabsApiKey,
-        geminiApiKey: subaccount.geminiApiKey,
+        openaiApiKey: subaccount.openaiApiKey,
         notificationPhone: subaccount.notificationPhone,
         companyId: subaccount.companyId,
         city: subaccount.city,

@@ -65,14 +65,14 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             <div>© 2025 WhatsApp AI. Todos los derechos reservados.</div>
             <div className="flex gap-6">
-              <Link href="/privacy">
-                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-privacy">Privacidad</a>
+              <Link href="/privacy" className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-privacy">
+                Privacidad
               </Link>
-              <Link href="/terms">
-                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-terms">Términos</a>
+              <Link href="/terms" className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-terms">
+                Términos
               </Link>
-              <Link href="/cookies">
-                <a className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-cookies">Cookies</a>
+              <Link href="/cookies" className="hover:text-foreground transition-colors cursor-pointer" data-testid="link-cookies">
+                Cookies
               </Link>
             </div>
           </div>
