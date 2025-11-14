@@ -987,14 +987,14 @@ export default function SubaccountDetails() {
           {/* Notification Phone */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Número de Notificación</CardTitle>
+              <CardTitle className="text-lg text-center">Número de Notificación</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Left Column: Phone Input */}
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="notification-phone" className="text-sm font-medium mb-2 block">
+                    <Label htmlFor="notification-phone" className="text-sm font-medium mb-2 block text-center">
                       Número de WhatsApp
                     </Label>
                     <div className="flex gap-2 items-start">
@@ -1041,7 +1041,7 @@ export default function SubaccountDetails() {
 
                 {/* Right Column: WhatsApp Message Example */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium block">Ejemplo de notificación</Label>
+                  <Label className="text-sm font-medium block text-center">Ejemplo de notificación</Label>
                   <div className="bg-[#e5ddd5] dark:bg-[#0b141a] p-4 rounded-lg">
                     {/* WhatsApp message bubble */}
                     <div className="max-w-[280px] bg-white dark:bg-[#005c4b] rounded-lg p-3 shadow-sm">
