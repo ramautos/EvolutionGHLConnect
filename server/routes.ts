@@ -15,6 +15,7 @@ import { insertCompanySchema, updateCompanySchema, createSubaccountSchema, creat
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import Stripe from "stripe";
+import { seedDemoData, cleanDemoData } from "./dev/demoSeeder";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
@@ -4144,6 +4145,60 @@ ${ghlErrorDetails}
       console.error("Error in status check interval:", error);
     }
   }, 5000);
+
+  // ============================================
+  // DESARROLLO - ENDPOINTS DE PRUEBA (solo dev)
+  // ============================================
+  
+  // Crear datos de demostración para desarrollo (solo admin en dev)
+  app.post("/api/dev/seed-demo", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Solo permitir en desarrollo
+      if (process.env.NODE_ENV === "production") {
+        res.status(403).json({ error: "Este endpoint solo está disponible en desarrollo" });
+        return;
+      }
+
+      // req.user ya es el objeto Subaccount completo
+      const currentUser = req.user as any;
+      
+      console.log("🌱 Seeding demo data for user:", currentUser.email);
+      const result = await seedDemoData(storage, currentUser);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error seeding demo data:", error);
+      res.status(500).json({ 
+        error: "Error al crear datos de demostración",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Limpiar datos de demostración (solo admin en dev)
+  app.post("/api/dev/clean-demo", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Solo permitir en desarrollo
+      if (process.env.NODE_ENV === "production") {
+        res.status(403).json({ error: "Este endpoint solo está disponible en desarrollo" });
+        return;
+      }
+
+      // req.user ya es el objeto Subaccount completo
+      const currentUser = req.user as any;
+      
+      console.log("🧹 Cleaning demo data for user:", currentUser.email);
+      const result = await cleanDemoData(storage, currentUser);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error cleaning demo data:", error);
+      res.status(500).json({ 
+        error: "Error al limpiar datos de demostración",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   return httpServer;
 }

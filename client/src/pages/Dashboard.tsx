@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useUser } from "@/contexts/UserContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -9,8 +9,9 @@ import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart, TestTube2, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +110,64 @@ function DashboardContent() {
 
   const handleSellSubaccount = () => {
     setSellSubaccountOpen(true);
+  };
+
+  // Mutation para crear datos de demostración
+  const seedDemoMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/dev/seed-demo", {
+        method: "POST",
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Datos de demostración creados",
+        description: `Se crearon ${data.subaccounts.length} subcuentas y ${data.instances.length} instancias de prueba`,
+      });
+      // Recargar datos
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron crear los datos de demostración",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para limpiar datos de demostración
+  const cleanDemoMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/dev/clean-demo", {
+        method: "POST",
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Datos de demostración eliminados",
+        description: data.message,
+      });
+      // Recargar datos
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron eliminar los datos de demostración",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSeedDemo = () => {
+    seedDemoMutation.mutate();
+  };
+
+  const handleCleanDemo = () => {
+    cleanDemoMutation.mutate();
   };
 
   const getInstancesForSubaccount = (subaccountId: string) => {
@@ -221,6 +280,32 @@ function DashboardContent() {
               </p>
             </div>
             <div className="flex gap-2">
+              {/* Botones de desarrollo - Solo visible en dev para admins */}
+              {process.env.NODE_ENV === "development" && (user?.role === "admin" || user?.role === "system_admin") && (
+                <>
+                  <Button
+                    onClick={handleSeedDemo}
+                    variant="outline"
+                    size="sm"
+                    disabled={seedDemoMutation.isPending}
+                    data-testid="button-seed-demo"
+                  >
+                    <TestTube2 className="w-4 h-4 mr-2" />
+                    {seedDemoMutation.isPending ? "Creando..." : "Datos Demo"}
+                  </Button>
+                  <Button
+                    onClick={handleCleanDemo}
+                    variant="outline"
+                    size="sm"
+                    disabled={cleanDemoMutation.isPending}
+                    data-testid="button-clean-demo"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {cleanDemoMutation.isPending ? "Limpiando..." : "Limpiar Demo"}
+                  </Button>
+                </>
+              )}
+              
               {(user as any)?.companyManualBilling && (
                 <Button
                   onClick={handleSellSubaccount}
