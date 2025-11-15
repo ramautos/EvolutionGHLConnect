@@ -3306,10 +3306,10 @@ ${ghlErrorDetails}
           await evolutionAPI.createInstance(instance.evolutionInstanceName);
           console.log(`✅ Instancia creada en Evolution API`);
 
-          // Configurar webhook por defecto
-          const defaultWebhook = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
-          console.log(`🔗 Configurando webhook: ${defaultWebhook}`);
-          await evolutionAPI.setWebhook(instance.evolutionInstanceName, defaultWebhook);
+          // Configurar webhook para recibir notificaciones de conexión en tiempo real
+          const webhookUrl = process.env.REPLIT_WEBHOOK_URL || 'https://whatsapp.cloude.es/api/webhooks/evolution';
+          console.log(`🔗 Configurando webhook: ${webhookUrl}`);
+          await evolutionAPI.setWebhook(instance.evolutionInstanceName, webhookUrl);
           console.log(`✅ Webhook configurado`);
 
           // Generar QR automáticamente
@@ -3431,10 +3431,10 @@ ${ghlErrorDetails}
           await evolutionAPI.createInstance(instance.evolutionInstanceName);
           console.log(`✅ Instancia creada en Evolution API`);
 
-          // Configurar webhook por defecto
-          const defaultWebhook = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
-          console.log(`🔗 Configurando webhook: ${defaultWebhook}`);
-          await evolutionAPI.setWebhook(instance.evolutionInstanceName, defaultWebhook);
+          // Configurar webhook para recibir notificaciones de conexión en tiempo real
+          const webhookUrl = process.env.REPLIT_WEBHOOK_URL || 'https://whatsapp.cloude.es/api/webhooks/evolution';
+          console.log(`🔗 Configurando webhook: ${webhookUrl}`);
+          await evolutionAPI.setWebhook(instance.evolutionInstanceName, webhookUrl);
           console.log(`✅ Webhook configurado`);
 
           // Generar QR automáticamente
@@ -3888,16 +3888,16 @@ ${ghlErrorDetails}
       console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
       await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-      // Configurar webhook AUTOMÁTICAMENTE apuntando DIRECTAMENTE a n8n
-      // Evolution API → n8n (sin pasar por el backend de Replit)
+      // Configurar webhook para recibir notificaciones de conexión en tiempo real
+      // Evolution API → Backend Replit (notificaciones WebSocket al frontend)
       try {
-        const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+        const webhookUrl = process.env.REPLIT_WEBHOOK_URL || 'https://whatsapp.cloude.es/api/webhooks/evolution';
         console.log(`🔗 Configurando webhook automático para ${whatsappInstance.evolutionInstanceName}`);
-        console.log(`📡 Webhook URL n8n: ${webhookUrl}`);
-        console.log(`📋 Todos los eventos van directamente a n8n`);
+        console.log(`📡 Webhook URL: ${webhookUrl}`);
+        console.log(`📋 Notificaciones en tiempo real vía WebSocket`);
 
         await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
-        console.log(`✅ Webhook configurado exitosamente apuntando a n8n`);
+        console.log(`✅ Webhook configurado exitosamente`);
       } catch (webhookError) {
         console.error('⚠️ Error configurando webhook:', webhookError);
         // Continuar aunque falle - el polling sigue como respaldo para detección de conexión
@@ -4394,6 +4394,63 @@ ${ghlErrorDetails}
       console.error("Error in status check interval:", error);
     }
   }, 5000);
+
+  // ============================================
+  // WEBHOOK DE EVOLUTION API - NOTIFICACIONES DE CONEXIÓN
+  // ============================================
+  
+  app.post("/api/webhooks/evolution", async (req, res) => {
+    try {
+      const { event, instance: instanceName, data } = req.body;
+      
+      console.log(`📥 Webhook recibida de Evolution API:`);
+      console.log(`   Event: ${event}`);
+      console.log(`   Instance: ${instanceName}`);
+      console.log(`   Data:`, JSON.stringify(data, null, 2));
+      
+      // Solo procesar eventos de conexión
+      if (event === "connection.update" && data?.state === "open") {
+        const phoneNumber = data.wuid || data.sender;
+        console.log(`✅ WhatsApp conectado: ${phoneNumber}`);
+        
+        // Buscar la instancia en la base de datos
+        const instances = await db
+          .select()
+          .from(whatsappInstances)
+          .where(eq(whatsappInstances.evolutionInstanceName, instanceName));
+        
+        if (instances.length > 0) {
+          const instance = instances[0];
+          
+          // Actualizar la instancia en la base de datos
+          await storage.updateWhatsappInstance(instance.id, {
+            status: "connected",
+            connectedAt: new Date(),
+            phoneNumber: phoneNumber || null,
+          });
+          
+          console.log(`✅ Instancia ${instance.id} actualizada a conectada`);
+          
+          // Emitir evento WebSocket al frontend
+          io.to(`instance-${instance.id}`).emit("instance-connected", {
+            instanceId: instance.id,
+            phoneNumber: phoneNumber,
+            connectedAt: new Date(),
+          });
+          
+          console.log(`🔔 Evento WebSocket emitido para instancia ${instance.id}`);
+        } else {
+          console.warn(`⚠️ No se encontró instancia con nombre ${instanceName}`);
+        }
+      }
+      
+      // Responder OK para que Evolution API no reintente
+      res.json({ success: true });
+    } catch (error) {
+      console.error("❌ Error procesando webhook de Evolution API:", error);
+      res.status(500).json({ error: "Error processing webhook" });
+    }
+  });
 
   // ============================================
   // DESARROLLO - ENDPOINTS DE PRUEBA (solo dev)

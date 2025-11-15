@@ -37,6 +37,8 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import openaiLogo from "@assets/openai-old-logo_1762396242467.webp";
 import elevenLabsLogo from "@assets/ElevenLabs_1762127966161.png";
+import { io } from "socket.io-client";
+import confetti from "canvas-confetti";
 
 export default function SubaccountDetails() {
   const { user } = useUser();
@@ -655,6 +657,58 @@ export default function SubaccountDetails() {
         return <Loader2 className="w-4 h-4 animate-spin" />;
     }
   };
+
+  // WebSocket listener para notificaciones de conexión en tiempo real
+  useEffect(() => {
+    // Solo conectarse cuando el modal del QR esté abierto y haya una instancia seleccionada
+    if (!qrModalOpen || !selectedInstance?.id) {
+      return;
+    }
+
+    console.log(`🔌 Conectando WebSocket para instancia ${selectedInstance.id}...`);
+    
+    // Conectar al WebSocket
+    const socket = io();
+
+    // Suscribirse a eventos de esta instancia específica
+    socket.emit("subscribe-instance", selectedInstance.id);
+    console.log(`✅ Suscrito a eventos de instancia ${selectedInstance.id}`);
+
+    // Escuchar el evento de conexión
+    socket.on("instance-connected", (data: { instanceId: string; phoneNumber: string; connectedAt: Date }) => {
+      console.log(`🎉 WhatsApp conectado!`, data);
+
+      // Verificar que sea la instancia correcta
+      if (data.instanceId === selectedInstance.id) {
+        // Cerrar el modal del QR
+        setQrModalOpen(false);
+
+        // Lanzar confeti 🎉
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+
+        // Mostrar notificación con el número conectado
+        const phoneDisplay = data.phoneNumber?.replace('@s.whatsapp.net', '') || 'desconocido';
+        toast({
+          title: "¡WhatsApp Conectado! 🎉",
+          description: `Número: ${phoneDisplay}`,
+          variant: "default",
+        });
+
+        // Actualizar la lista de instancias
+        queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
+      }
+    });
+
+    // Limpiar al desmontar o cuando cambie el modal/instancia
+    return () => {
+      console.log(`🔌 Desconectando WebSocket de instancia ${selectedInstance.id}`);
+      socket.disconnect();
+    };
+  }, [qrModalOpen, selectedInstance?.id, subaccountId, toast]);
 
   if (subaccountLoading || instancesLoading) {
     return (
