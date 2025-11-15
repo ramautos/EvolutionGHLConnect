@@ -3768,9 +3768,17 @@ ${ghlErrorDetails}
       console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
       await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-      // NOTA: No configuramos webhook aquí para no reemplazar el webhook de n8n
-      // que está configurado por defecto en Coolify para recibir mensajes.
-      // El frontend detectará la conexión mediante polling directo a Evolution API (cada 1s)
+      // Configurar webhook específico de esta instancia para CONNECTION_UPDATE y MESSAGES
+      // Esto se configura POR INSTANCIA, no afecta el webhook global de n8n
+      try {
+        const webhookUrl = `${process.env.SERVER_URL || 'https://whatsapp.cloude.es'}/api/webhooks/evolution`;
+        console.log(`🔗 Configurando webhook específico para instancia ${whatsappInstance.evolutionInstanceName}: ${webhookUrl}`);
+        await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
+        console.log(`✅ Webhook configurado exitosamente - eventos: CONNECTION_UPDATE, MESSAGES_UPSERT, MESSAGES_UPDATE`);
+      } catch (webhookError) {
+        console.error('⚠️ Error configurando webhook específico de instancia:', webhookError);
+        // Continuar aunque falle - el polling sigue funcionando como respaldo
+      }
 
       const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
