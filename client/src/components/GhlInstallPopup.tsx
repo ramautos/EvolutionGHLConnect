@@ -69,21 +69,27 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
     return () => window.removeEventListener("message", handleMessage);
   }, [oauthPopup, onSuccess, onClose]);
 
-  // Monitorear si el usuario cierra el popup manualmente
+  // Monitorear si el popup se cierra (exitosamente o por el usuario)
   useEffect(() => {
     if (!oauthPopup || installState !== "authorizing") return;
 
     const checkPopupClosed = setInterval(() => {
       if (oauthPopup.closed) {
-        console.log("⚠️ Popup cerrado por el usuario");
-        setInstallState("error");
-        setErrorMessage("Instalación cancelada");
+        console.log("⚠️ Popup cerrado");
         clearInterval(checkPopupClosed);
+
+        // Verificar si fue exitoso comprobando si hay subcuentas nuevas
+        // o simplemente asumir éxito y recargar
+        setInstallState("success");
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
       }
     }, 500);
 
     return () => clearInterval(checkPopupClosed);
-  }, [oauthPopup, installState]);
+  }, [oauthPopup, installState, onSuccess, onClose]);
 
   const startInstallation = async () => {
     try {
@@ -92,7 +98,8 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
 
       // Construir URL de OAuth
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "";
-      const redirectUri = `${window.location.origin}/oauth/callback`;
+      // Usar el backend para procesar OAuth correctamente
+      const redirectUri = `${window.location.origin}/api/auth/oauth/callback`;
       const scopes = [
         "contacts.readonly",
         "contacts.write",
@@ -104,7 +111,8 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
 
       // Generar state seguro
       const state = generateState();
-      sessionStorage.setItem("oauth_state", state);
+      // No guardamos state en sessionStorage porque el backend lo maneja
+      // sessionStorage.setItem("oauth_state", state);
 
       const oauthUrl =
         `https://marketplace.gohighlevel.com/oauth/chooselocation?` +

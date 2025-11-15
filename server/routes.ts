@@ -725,9 +725,68 @@ ${ghlErrorDetails}
       }
 
       // Flujo normal (no es instalación vendida)
-      // Redirigir al dashboard de locations con éxito, incluyendo companyId
       const companyId = tokenResponse.companyId || installerDetails.company.id;
-      res.redirect(`/locations?ghl_installed=true&company_id=${companyId}`);
+
+      // Si window.opener existe (es un popup), cerrar automáticamente
+      // De lo contrario, redirigir normalmente
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Instalación Exitosa</title>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+              }
+              .container {
+                text-align: center;
+                padding: 2rem;
+              }
+              .checkmark {
+                font-size: 4rem;
+                margin-bottom: 1rem;
+              }
+              h1 {
+                margin: 0 0 0.5rem 0;
+                font-size: 2rem;
+              }
+              p {
+                margin: 0;
+                opacity: 0.9;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="checkmark">✓</div>
+              <h1>¡Instalación Exitosa!</h1>
+              <p id="message">Cerrando ventana...</p>
+            </div>
+            <script>
+              // Si es un popup, cerrar automáticamente
+              if (window.opener && !window.opener.closed) {
+                console.log("✅ Popup detectado, cerrando en 2 segundos...");
+                setTimeout(() => {
+                  window.close();
+                }, 2000);
+              } else {
+                // Si no es popup, redirigir normalmente
+                document.getElementById('message').textContent = 'Redirigiendo al dashboard...';
+                setTimeout(() => {
+                  window.location.href = '/locations?ghl_installed=true&company_id=${companyId}';
+                }, 2000);
+              }
+            </script>
+          </body>
+        </html>
+      `);
     } catch (error) {
       console.error("Error in GHL OAuth callback:", error);
       res.status(500).json({ error: "OAuth callback failed" });
