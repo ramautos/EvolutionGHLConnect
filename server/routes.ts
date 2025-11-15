@@ -3751,38 +3751,40 @@ ${ghlErrorDetails}
         return;
       }
       
-      // Intentar obtener QR de instancia existente primero (más rápido)
-      let qrData;
+      // Verificar si la instancia ya existe
       let instanceExists = false;
-
       try {
         console.log(`🔍 Verificando si instancia ${whatsappInstance.evolutionInstanceName} existe...`);
         await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
         instanceExists = true;
-        console.log(`✅ Instancia existe, obteniendo QR directamente (rápido)`);
+        console.log(`✅ Instancia existe`);
       } catch (error) {
         console.log(`ℹ️ Instancia no existe, creando nueva...`);
       }
 
-      // Si NO existe, crear instancia y configurar webhook
+      // Crear instancia solo si NO existe
       if (!instanceExists) {
         console.log(`🆕 Creando instancia ${whatsappInstance.evolutionInstanceName}...`);
         await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
+        console.log(`✅ Instancia creada`);
 
-        // Configurar webhook AUTOMÁTICAMENTE apuntando DIRECTAMENTE a n8n
-        try {
-          const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
-          console.log(`🔗 Configurando webhook: ${webhookUrl}`);
-          await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
-          console.log(`✅ Webhook configurado`);
-        } catch (webhookError) {
-          console.error('⚠️ Error configurando webhook:', webhookError);
-        }
+        // Esperar 2 segundos para que Evolution API esté lista
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // Obtener QR (rápido si la instancia ya existía)
+      // SIEMPRE configurar webhook (nueva o existente)
+      try {
+        const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+        console.log(`🔗 Configurando webhook: ${webhookUrl}`);
+        await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
+        console.log(`✅ Webhook configurado`);
+      } catch (webhookError) {
+        console.error('⚠️ Error configurando webhook:', webhookError);
+      }
+
+      // Obtener QR code
       console.log(`📱 Obteniendo código QR...`);
-      qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
+      const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
       await storage.updateWhatsappInstance(req.params.id, {
         status: "qr_generated",
