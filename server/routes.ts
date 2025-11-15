@@ -3751,39 +3751,38 @@ ${ghlErrorDetails}
         return;
       }
       
-      // Eliminar instancia existente en Evolution API para prevenir sufijos _1, _2, etc.
+      // Intentar obtener QR de instancia existente primero (más rápido)
+      let qrData;
+      let instanceExists = false;
+
       try {
-        console.log(`🔍 Checking if instance ${whatsappInstance.evolutionInstanceName} exists in Evolution API...`);
+        console.log(`🔍 Verificando si instancia ${whatsappInstance.evolutionInstanceName} existe...`);
         await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
-        // Si llegamos aquí, la instancia existe - eliminarla primero
-        console.log(`🗑️ Instance ${whatsappInstance.evolutionInstanceName} exists, deleting before creating new one...`);
-        await evolutionAPI.deleteInstance(whatsappInstance.evolutionInstanceName);
-        console.log(`✅ Old instance deleted successfully`);
+        instanceExists = true;
+        console.log(`✅ Instancia existe, obteniendo QR directamente (rápido)`);
       } catch (error) {
-        // Si falla getInstanceState, la instancia no existe - esto está bien
-        console.log(`ℹ️ Instance ${whatsappInstance.evolutionInstanceName} doesn't exist yet (this is expected)`);
+        console.log(`ℹ️ Instancia no existe, creando nueva...`);
       }
 
-      // Crear nueva instancia limpia
-      console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
-      await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
+      // Si NO existe, crear instancia y configurar webhook
+      if (!instanceExists) {
+        console.log(`🆕 Creando instancia ${whatsappInstance.evolutionInstanceName}...`);
+        await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-      // Configurar webhook AUTOMÁTICAMENTE apuntando DIRECTAMENTE a n8n
-      // Evolution API → n8n (sin pasar por el backend de Replit)
-      try {
-        const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
-        console.log(`🔗 Configurando webhook automático para ${whatsappInstance.evolutionInstanceName}`);
-        console.log(`📡 Webhook URL n8n: ${webhookUrl}`);
-        console.log(`📋 Todos los eventos van directamente a n8n`);
-
-        await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
-        console.log(`✅ Webhook configurado exitosamente apuntando a n8n`);
-      } catch (webhookError) {
-        console.error('⚠️ Error configurando webhook:', webhookError);
-        // Continuar aunque falle - el polling sigue como respaldo para detección de conexión
+        // Configurar webhook AUTOMÁTICAMENTE apuntando DIRECTAMENTE a n8n
+        try {
+          const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+          console.log(`🔗 Configurando webhook: ${webhookUrl}`);
+          await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
+          console.log(`✅ Webhook configurado`);
+        } catch (webhookError) {
+          console.error('⚠️ Error configurando webhook:', webhookError);
+        }
       }
 
-      const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
+      // Obtener QR (rápido si la instancia ya existía)
+      console.log(`📱 Obteniendo código QR...`);
+      qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
       await storage.updateWhatsappInstance(req.params.id, {
         status: "qr_generated",
