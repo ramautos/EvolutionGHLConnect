@@ -39,6 +39,14 @@ export interface GhlInstallerDetails {
   location?: {
     id: string;
     name: string;
+    address?: {
+      city?: string;
+      state?: string;
+      country?: string;
+      postalCode?: string;
+      addressLine1?: string;
+    };
+    phone?: string;
   };
   user: {
     id: string;

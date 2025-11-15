@@ -4170,8 +4170,10 @@ ${ghlErrorDetails}
       const allInstances = await storage.getAllInstances();
       
       for (const instance of allInstances) {
-        // SKIP instancias LOCAL_* - estas son solo para testing y no existen en Evolution API
-        if (instance.evolutionInstanceName.startsWith('LOCAL_')) {
+        // SKIP instancias de demostración - estas son solo para testing/diseño y no existen en Evolution API
+        if (instance.evolutionInstanceName.startsWith('LOCAL_') || 
+            instance.evolutionInstanceName.startsWith('DEMO_') ||
+            instance.evolutionInstanceName.startsWith('SOLD_')) {
           continue;
         }
         
