@@ -150,17 +150,13 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
         const res = await apiRequest("GET", `/api/instances/${instanceId}/status`);
         const statusData = await res.json();
 
-        console.log(`📊 Polling check: state=${statusData.state}, status=${statusData.status}`);
+        console.log(`📊 Polling check: state=${statusData.state}, status=${statusData.status}, phoneNumber=${statusData.phoneNumber}`);
 
         // Si Evolution API reporta "open" significa que está conectado
         if (statusData.state === "open" && !phoneDetected) {
           console.log(`✅ Polling detectó conexión via Evolution API!`);
 
-          // Obtener datos completos de la instancia para el número de teléfono
-          const instanceRes = await apiRequest("GET", `/api/instances/${instanceId}`);
-          const instance = await instanceRes.json();
-
-          const phone = instance.phoneNumber || "Conectado";
+          const phone = statusData.phoneNumber || "Conectado";
           celebrateConnection(phone);
           clearInterval(pollingInterval);
           pollingIntervalRef.current = null;

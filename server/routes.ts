@@ -3693,6 +3693,21 @@ ${ghlErrorDetails}
     }
   });
 
+  // Get single instance by ID
+  app.get("/api/instances/:id", isAuthenticated, async (req, res) => {
+    try {
+      const instance = await storage.getWhatsappInstance(req.params.id);
+      if (!instance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+      res.json(instance);
+    } catch (error) {
+      console.error("Error fetching instance:", error);
+      res.status(500).json({ error: "Failed to fetch instance" });
+    }
+  });
+
   app.delete("/api/instances/:id", isAuthenticated, async (req, res) => {
     try {
       const instanceId = req.params.id;
@@ -3784,17 +3799,34 @@ ${ghlErrorDetails}
       
       try {
         const stateData = await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
-        
+
+        let phoneNumber = whatsappInstance.phoneNumber;
+
         if (stateData.instance.state === "open") {
-          await storage.updateWhatsappInstance(req.params.id, {
-            status: "connected",
-            connectedAt: new Date(),
-          });
+          // Obtener información completa de la instancia para el número de teléfono
+          try {
+            const instanceInfo = await evolutionAPI.getInstanceInfo(whatsappInstance.evolutionInstanceName);
+            phoneNumber = instanceInfo.number || instanceInfo.ownerJid || null;
+
+            await storage.updateWhatsappInstance(req.params.id, {
+              status: "connected",
+              connectedAt: new Date(),
+              phoneNumber: phoneNumber,
+            });
+          } catch (infoError) {
+            console.error("Error getting instance info:", infoError);
+            // Continuar sin phoneNumber si falla
+            await storage.updateWhatsappInstance(req.params.id, {
+              status: "connected",
+              connectedAt: new Date(),
+            });
+          }
         }
 
         res.json({
           state: stateData.instance.state,
           status: whatsappInstance.status,
+          phoneNumber: phoneNumber,
         });
       } catch (error) {
         res.json({
