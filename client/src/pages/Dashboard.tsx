@@ -6,6 +6,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AddSubaccountModal from "@/components/AddSubaccountModal";
 import SellSubaccountModal from "@/components/SellSubaccountModal";
 import { PhoneRegistrationDialog } from "@/components/PhoneRegistrationDialog";
+import { GhlInstallPopup } from "@/components/GhlInstallPopup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ function DashboardContent() {
   const [addSubaccountOpen, setAddSubaccountOpen] = useState(false);
   const [sellSubaccountOpen, setSellSubaccountOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [ghlInstallPopupOpen, setGhlInstallPopupOpen] = useState(false);
 
   // Si el usuario es admin o system_admin, redirigir al panel de admin
   useEffect(() => {
@@ -166,6 +168,15 @@ function DashboardContent() {
 
   const handleCleanDemo = () => {
     cleanDemoMutation.mutate();
+  };
+
+  const handleGhlInstallSuccess = () => {
+    toast({
+      title: "¡Conexión exitosa!",
+      description: "Tu cuenta de GoHighLevel ha sido conectada correctamente",
+    });
+    // Recargar subcuentas después de la instalación
+    queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
   };
 
   const getInstancesForSubaccount = (subaccountId: string) => {
@@ -402,7 +413,7 @@ function DashboardContent() {
                 </div>
               </CardContent>
               <CardFooter className="justify-center pt-4 border-t">
-                <Button onClick={handleAddSubaccount} size="lg" data-testid="button-add-first-subaccount">
+                <Button onClick={() => setGhlInstallPopupOpen(true)} size="lg" data-testid="button-add-first-subaccount">
                   <Plus className="w-5 h-5 mr-2" />
                   Conectar con GoHighLevel
                 </Button>
@@ -557,6 +568,13 @@ function DashboardContent() {
       <SellSubaccountModal
         open={sellSubaccountOpen}
         onOpenChange={setSellSubaccountOpen}
+      />
+
+      {/* GHL Install Popup */}
+      <GhlInstallPopup
+        isOpen={ghlInstallPopupOpen}
+        onClose={() => setGhlInstallPopupOpen(false)}
+        onSuccess={handleGhlInstallSuccess}
       />
     </div>
   );

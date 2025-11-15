@@ -3,7 +3,11 @@ import { Play } from "lucide-react";
 import heroImage from '@assets/generated_images/AI_WhatsApp_dashboard_hero_5c133378.png';
 import { useLocation } from "wouter";
 
-export default function Hero() {
+interface HeroProps {
+  onConnectGhl?: () => void;
+}
+
+export default function Hero({ onConnectGhl }: HeroProps) {
   const [, setLocation] = useLocation();
 
   return (
@@ -27,17 +31,17 @@ export default function Hero() {
             </p>
             
             <div className="flex flex-wrap gap-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="text-base px-8"
                 data-testid="button-get-started"
-                onClick={() => setLocation("/register")}
+                onClick={onConnectGhl || (() => setLocation("/register"))}
               >
                 Comenzar Ahora
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="text-base px-8 gap-2"
                 data-testid="button-watch-demo"
               >

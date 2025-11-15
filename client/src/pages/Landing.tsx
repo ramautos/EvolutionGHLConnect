@@ -1,15 +1,31 @@
+import { useState } from "react";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import Contact from "@/components/Contact";
 import Pricing from "@/components/Pricing";
 import Footer from "@/components/Footer";
+import { GhlInstallPopup } from "@/components/GhlInstallPopup";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [ghlInstallPopupOpen, setGhlInstallPopupOpen] = useState(false);
+
+  const handleGhlInstallSuccess = () => {
+    toast({
+      title: "¡Conexión exitosa!",
+      description: "Tu cuenta de GoHighLevel ha sido conectada. Redirigiendo al dashboard...",
+    });
+    // Redirigir al dashboard después de la instalación
+    setTimeout(() => {
+      setLocation("/dashboard");
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen">
@@ -53,7 +69,7 @@ export default function Landing() {
       </nav>
       
       <div className="pt-20">
-        <Hero />
+        <Hero onConnectGhl={() => setGhlInstallPopupOpen(true)} />
         <div id="features">
           <Features />
         </div>
@@ -75,14 +91,21 @@ export default function Landing() {
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Únete a más de 2,000 empresas que ya están usando nuestra plataforma
             </p>
-            <Button size="lg" className="px-8" data-testid="button-final-cta" onClick={() => setLocation("/register")}>
+            <Button size="lg" className="px-8" data-testid="button-final-cta" onClick={() => setGhlInstallPopupOpen(true)}>
               Comenzar Ahora - Es Gratis
             </Button>
           </div>
         </section>
-        
+
         <Footer />
       </div>
+
+      {/* GHL Install Popup */}
+      <GhlInstallPopup
+        isOpen={ghlInstallPopupOpen}
+        onClose={() => setGhlInstallPopupOpen(false)}
+        onSuccess={handleGhlInstallSuccess}
+      />
     </div>
   );
 }
