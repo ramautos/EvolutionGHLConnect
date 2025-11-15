@@ -52,7 +52,7 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
   });
 
   // Función para celebrar la conexión
-  const celebrate Connection = (phoneNumber: string) => {
+  const celebrateConnection = (phoneNumber: string) => {
     console.log(`🎉 Iniciando celebración para ${phoneNumber}`);
     setPhoneDetected(phoneNumber);
     setIsScanning(false);
