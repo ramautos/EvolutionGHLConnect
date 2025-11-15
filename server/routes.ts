@@ -4022,13 +4022,34 @@ ${ghlErrorDetails}
     try {
       const event = req.body;
       console.log("Evolution API webhook received:", JSON.stringify(event, null, 2));
-      
+
       if (!event || typeof event.event !== "string" || typeof event.instance !== "string") {
         console.error("Invalid webhook payload: missing required fields");
         res.status(400).json({ error: "Invalid payload" });
         return;
       }
-      
+
+      // Reenviar eventos de mensajes a n8n si está configurado
+      const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
+      if (n8nWebhookUrl && (event.event === "messages.upsert" || event.event === "messages.update")) {
+        console.log(`📨 Reenviando evento ${event.event} a n8n: ${n8nWebhookUrl}`);
+        try {
+          const n8nResponse = await fetch(n8nWebhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(event),
+          });
+
+          if (n8nResponse.ok) {
+            console.log(`✅ Evento reenviado exitosamente a n8n: ${n8nResponse.status}`);
+          } else {
+            console.error(`⚠️ Error reenviando a n8n: ${n8nResponse.status} ${n8nResponse.statusText}`);
+          }
+        } catch (n8nError) {
+          console.error(`❌ Error conectando con n8n:`, n8nError);
+        }
+      }
+
       if (event.event === "connection.update") {
         const instanceName = event.instance;
         const state = event.data?.state;
