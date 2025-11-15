@@ -3288,6 +3288,46 @@ ${ghlErrorDetails}
         const instance = await storage.createWhatsappInstance(validatedData);
 
         // ============================================
+        // CREAR INSTANCIA EN EVOLUTION API AUTOMÁTICAMENTE
+        // ============================================
+        try {
+          console.log(`🆕 Creando instancia ${instance.evolutionInstanceName} en Evolution API...`);
+          
+          // Eliminar si existe
+          try {
+            await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
+            await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+            console.log(`🗑️ Instancia existente eliminada`);
+          } catch (error) {
+            console.log(`ℹ️ Instancia no existe aún (esperado)`);
+          }
+
+          // Crear instancia
+          await evolutionAPI.createInstance(instance.evolutionInstanceName);
+          console.log(`✅ Instancia creada en Evolution API`);
+
+          // Configurar webhook por defecto
+          const defaultWebhook = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+          console.log(`🔗 Configurando webhook: ${defaultWebhook}`);
+          await evolutionAPI.setWebhook(instance.evolutionInstanceName, defaultWebhook);
+          console.log(`✅ Webhook configurado`);
+
+          // Generar QR automáticamente
+          const qrData = await evolutionAPI.getQRCode(instance.evolutionInstanceName);
+          await storage.updateWhatsappInstance(instance.id, {
+            status: "qr_generated",
+            qrCode: qrData.code,
+          });
+          console.log(`✅ QR generado automáticamente`);
+          
+          instance.qrCode = qrData.code;
+          instance.status = "qr_generated";
+        } catch (evolutionError) {
+          console.error("❌ Error creando instancia en Evolution API:", evolutionError);
+          // No fallar - la instancia queda en BD y se puede reintentar
+        }
+
+        // ============================================
         // INTEGRACIÓN AUTOMÁTICA CON N8N (COBRO MANUAL)
         // ============================================
         try {
@@ -3371,6 +3411,46 @@ ${ghlErrorDetails}
       // Si está en período de prueba, permitir crear instancia sin restricciones
       if (isInTrial) {
         const instance = await storage.createWhatsappInstance(validatedData);
+
+        // ============================================
+        // CREAR INSTANCIA EN EVOLUTION API AUTOMÁTICAMENTE
+        // ============================================
+        try {
+          console.log(`🆕 Creando instancia ${instance.evolutionInstanceName} en Evolution API...`);
+          
+          // Eliminar si existe
+          try {
+            await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
+            await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+            console.log(`🗑️ Instancia existente eliminada`);
+          } catch (error) {
+            console.log(`ℹ️ Instancia no existe aún (esperado)`);
+          }
+
+          // Crear instancia
+          await evolutionAPI.createInstance(instance.evolutionInstanceName);
+          console.log(`✅ Instancia creada en Evolution API`);
+
+          // Configurar webhook por defecto
+          const defaultWebhook = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+          console.log(`🔗 Configurando webhook: ${defaultWebhook}`);
+          await evolutionAPI.setWebhook(instance.evolutionInstanceName, defaultWebhook);
+          console.log(`✅ Webhook configurado`);
+
+          // Generar QR automáticamente
+          const qrData = await evolutionAPI.getQRCode(instance.evolutionInstanceName);
+          await storage.updateWhatsappInstance(instance.id, {
+            status: "qr_generated",
+            qrCode: qrData.code,
+          });
+          console.log(`✅ QR generado automáticamente`);
+          
+          instance.qrCode = qrData.code;
+          instance.status = "qr_generated";
+        } catch (evolutionError) {
+          console.error("❌ Error creando instancia en Evolution API:", evolutionError);
+          // No fallar - la instancia queda en BD y se puede reintentar
+        }
 
         // ============================================
         // INTEGRACIÓN AUTOMÁTICA CON N8N (TRIAL)
@@ -3556,6 +3636,46 @@ ${ghlErrorDetails}
 
       // Crear la instancia
       const instance = await storage.createWhatsappInstance(validatedData);
+
+      // ============================================
+      // CREAR INSTANCIA EN EVOLUTION API AUTOMÁTICAMENTE
+      // ============================================
+      try {
+        console.log(`🆕 Creando instancia ${instance.evolutionInstanceName} en Evolution API...`);
+        
+        // Eliminar si existe
+        try {
+          await evolutionAPI.getInstanceState(instance.evolutionInstanceName);
+          await evolutionAPI.deleteInstance(instance.evolutionInstanceName);
+          console.log(`🗑️ Instancia existente eliminada`);
+        } catch (error) {
+          console.log(`ℹ️ Instancia no existe aún (esperado)`);
+        }
+
+        // Crear instancia
+        await evolutionAPI.createInstance(instance.evolutionInstanceName);
+        console.log(`✅ Instancia creada en Evolution API`);
+
+        // Configurar webhook por defecto
+        const defaultWebhook = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+        console.log(`🔗 Configurando webhook: ${defaultWebhook}`);
+        await evolutionAPI.setWebhook(instance.evolutionInstanceName, defaultWebhook);
+        console.log(`✅ Webhook configurado`);
+
+        // Generar QR automáticamente
+        const qrData = await evolutionAPI.getQRCode(instance.evolutionInstanceName);
+        await storage.updateWhatsappInstance(instance.id, {
+          status: "qr_generated",
+          qrCode: qrData.code,
+        });
+        console.log(`✅ QR generado automáticamente`);
+        
+        instance.qrCode = qrData.code;
+        instance.status = "qr_generated";
+      } catch (evolutionError) {
+        console.error("❌ Error creando instancia en Evolution API:", evolutionError);
+        // No fallar - la instancia queda en BD y se puede reintentar
+      }
 
       // ============================================
       // INTEGRACIÓN AUTOMÁTICA CON N8N
