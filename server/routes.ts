@@ -3753,17 +3753,9 @@ ${ghlErrorDetails}
       console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
       await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-      // Configurar webhook automáticamente para recibir eventos de Evolution API
-      // IMPORTANTE: Cuando el usuario escanea el QR, Evolution API notificará a este webhook
-      try {
-        const webhookUrl = 'https://whatsapp.cloude.es/api/webhooks/evolution';
-        console.log(`🔗 Configuring webhook for instance ${whatsappInstance.evolutionInstanceName}: ${webhookUrl}`);
-        await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
-        console.log(`✅ Webhook configured successfully`);
-      } catch (webhookError) {
-        console.error('⚠️ Failed to configure webhook:', webhookError);
-        // Continuar aunque falle el webhook - no es crítico para la creación
-      }
+      // NOTA: No configuramos webhook aquí para no reemplazar el webhook de n8n
+      // que está configurado por defecto en Coolify para recibir mensajes.
+      // El frontend detectará la conexión mediante polling directo a Evolution API (cada 1s)
 
       const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
