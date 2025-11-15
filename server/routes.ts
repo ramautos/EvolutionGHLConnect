@@ -3751,39 +3751,38 @@ ${ghlErrorDetails}
         return;
       }
       
-      // Verificar si la instancia ya existe
-      let instanceExists = false;
+      // Eliminar instancia existente en Evolution API para prevenir sufijos _1, _2, etc.
       try {
-        console.log(`🔍 Verificando si instancia ${whatsappInstance.evolutionInstanceName} existe...`);
+        console.log(`🔍 Checking if instance ${whatsappInstance.evolutionInstanceName} exists in Evolution API...`);
         await evolutionAPI.getInstanceState(whatsappInstance.evolutionInstanceName);
-        instanceExists = true;
-        console.log(`✅ Instancia existe`);
+        // Si llegamos aquí, la instancia existe - eliminarla primero
+        console.log(`🗑️ Instance ${whatsappInstance.evolutionInstanceName} exists, deleting before creating new one...`);
+        await evolutionAPI.deleteInstance(whatsappInstance.evolutionInstanceName);
+        console.log(`✅ Old instance deleted successfully`);
       } catch (error) {
-        console.log(`ℹ️ Instancia no existe, creando nueva...`);
+        // Si falla getInstanceState, la instancia no existe - esto está bien
+        console.log(`ℹ️ Instance ${whatsappInstance.evolutionInstanceName} doesn't exist yet (this is expected)`);
       }
 
-      // Crear instancia solo si NO existe
-      if (!instanceExists) {
-        console.log(`🆕 Creando instancia ${whatsappInstance.evolutionInstanceName}...`);
-        await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
-        console.log(`✅ Instancia creada`);
+      // Crear nueva instancia limpia
+      console.log(`🆕 Creating fresh instance ${whatsappInstance.evolutionInstanceName}...`);
+      await evolutionAPI.createInstance(whatsappInstance.evolutionInstanceName);
 
-        // Esperar 2 segundos para que Evolution API esté lista
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      // SIEMPRE configurar webhook (nueva o existente)
+      // Configurar webhook AUTOMÁTICAMENTE apuntando DIRECTAMENTE a n8n
+      // Evolution API → n8n (sin pasar por el backend de Replit)
       try {
         const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
-        console.log(`🔗 Configurando webhook: ${webhookUrl}`);
+        console.log(`🔗 Configurando webhook automático para ${whatsappInstance.evolutionInstanceName}`);
+        console.log(`📡 Webhook URL n8n: ${webhookUrl}`);
+        console.log(`📋 Todos los eventos van directamente a n8n`);
+
         await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
-        console.log(`✅ Webhook configurado`);
+        console.log(`✅ Webhook configurado exitosamente apuntando a n8n`);
       } catch (webhookError) {
         console.error('⚠️ Error configurando webhook:', webhookError);
+        // Continuar aunque falle - el polling sigue como respaldo para detección de conexión
       }
 
-      // Obtener QR code
-      console.log(`📱 Obteniendo código QR...`);
       const qrData = await evolutionAPI.getQRCode(whatsappInstance.evolutionInstanceName);
 
       await storage.updateWhatsappInstance(req.params.id, {
