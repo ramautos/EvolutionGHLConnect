@@ -142,23 +142,33 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
 
     setSocket(newSocket);
 
-    // Polling como fallback (verifica cada 2 segundos)
-    console.log(`⏱️ Iniciando polling de fallback cada 2 segundos`);
+    // Polling agresivo consultando directamente Evolution API (cada 1 segundo)
+    console.log(`⏱️ Iniciando polling directo a Evolution API cada 1 segundo`);
     const pollingInterval = setInterval(async () => {
       try {
-        const res = await apiRequest("GET", `/api/instances/${instanceId}`);
-        const instance = await res.json();
+        // Consultar estado directamente desde Evolution API, no desde BD
+        const res = await apiRequest("GET", `/api/instances/${instanceId}/status`);
+        const statusData = await res.json();
 
-        if (instance.status === "connected" && instance.phoneNumber && !phoneDetected) {
-          console.log(`✅ Polling detectó conexión: ${instance.phoneNumber}`);
-          celebrateConnection(instance.phoneNumber);
+        console.log(`📊 Polling check: state=${statusData.state}, status=${statusData.status}`);
+
+        // Si Evolution API reporta "open" significa que está conectado
+        if (statusData.state === "open" && !phoneDetected) {
+          console.log(`✅ Polling detectó conexión via Evolution API!`);
+
+          // Obtener datos completos de la instancia para el número de teléfono
+          const instanceRes = await apiRequest("GET", `/api/instances/${instanceId}`);
+          const instance = await instanceRes.json();
+
+          const phone = instance.phoneNumber || "Conectado";
+          celebrateConnection(phone);
           clearInterval(pollingInterval);
           pollingIntervalRef.current = null;
         }
       } catch (error) {
-        console.error("Error en polling:", error);
+        console.error("❌ Error en polling:", error);
       }
-    }, 2000);
+    }, 1000); // Cada 1 segundo para respuesta más rápida
 
     pollingIntervalRef.current = pollingInterval;
 
