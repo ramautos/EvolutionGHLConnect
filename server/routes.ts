@@ -4398,16 +4398,90 @@ ${ghlErrorDetails}
   // WEBHOOK DESDE N8N - NOTIFICACIONES DE CONEXIÓN
   // ============================================
   // Este endpoint recibe notificaciones procesadas desde n8n
-  // n8n recibe eventos de Evolution API y los procesa antes de enviarlos aquí
+  // Flujo: Evolution API → n8n → Backend Replit → WebSocket Frontend
   
   app.post("/api/webhooks/n8n-connection", async (req, res) => {
     try {
       console.log(`📥 Webhook recibida desde n8n:`, JSON.stringify(req.body, null, 2));
       
-      // TODO: Procesar datos enviados por n8n
-      // Esperando información del usuario sobre la estructura de datos que n8n enviará
+      // n8n puede enviar un array o un objeto
+      const data = Array.isArray(req.body) ? req.body[0] : req.body;
       
-      res.json({ success: true, message: "Webhook n8n recibida" });
+      if (!data) {
+        console.error("❌ No se recibieron datos");
+        res.status(400).json({ error: "No data received" });
+        return;
+      }
+      
+      const { instance: instanceName, wuid, state, profilePictureUrl, statusReason } = data;
+      
+      console.log(`📊 Datos procesados:`);
+      console.log(`   Instance: ${instanceName}`);
+      console.log(`   WUID: ${wuid}`);
+      console.log(`   State: ${state}`);
+      console.log(`   Status Reason: ${statusReason}`);
+      
+      // Solo procesar si el estado es "open" (conectado)
+      if (state !== "open") {
+        console.log(`ℹ️ Estado no es 'open', ignorando evento`);
+        res.json({ success: true, message: "Event ignored (state not open)" });
+        return;
+      }
+      
+      if (!instanceName) {
+        console.error("❌ No se recibió instance name");
+        res.status(400).json({ error: "Missing instance name" });
+        return;
+      }
+      
+      // Extraer número de teléfono del wuid
+      // Formato: "18094973030@s.whatsapp.net" → "18094973030"
+      let phoneNumber = null;
+      if (wuid) {
+        phoneNumber = wuid.split('@')[0];
+        console.log(`📱 Número de teléfono extraído: ${phoneNumber}`);
+      }
+      
+      // Buscar la instancia en la base de datos
+      const instances = await db
+        .select()
+        .from(whatsappInstances)
+        .where(eq(whatsappInstances.evolutionInstanceName, instanceName));
+      
+      if (instances.length === 0) {
+        console.warn(`⚠️ No se encontró instancia con nombre ${instanceName}`);
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+      
+      const instance = instances[0];
+      console.log(`✅ Instancia encontrada: ${instance.id}`);
+      
+      // Actualizar la instancia en la base de datos
+      await storage.updateWhatsappInstance(instance.id, {
+        status: "connected",
+        connectedAt: new Date(),
+        phoneNumber: phoneNumber,
+      });
+      
+      console.log(`✅ Instancia ${instance.id} actualizada a conectada`);
+      
+      // Emitir evento WebSocket al frontend
+      io.to(`instance-${instance.id}`).emit("instance-connected", {
+        instanceId: instance.id,
+        phoneNumber: phoneNumber,
+        connectedAt: new Date(),
+      });
+      
+      console.log(`🔔 Evento WebSocket emitido para instancia ${instance.id}`);
+      console.log(`🎉 WhatsApp conectado exitosamente: ${phoneNumber}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Connection processed successfully",
+        instanceId: instance.id,
+        phoneNumber: phoneNumber
+      });
     } catch (error) {
       console.error("❌ Error procesando webhook desde n8n:", error);
       res.status(500).json({ error: "Error processing webhook" });
