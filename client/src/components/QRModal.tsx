@@ -30,6 +30,7 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const confettiIntervalRef = useRef<any>(null);
   const closeTimeoutRef = useRef<any>(null);
+  const pollingIntervalRef = useRef<any>(null);
 
   const generateQRMutation = useMutation({
     mutationFn: async () => {
@@ -50,85 +51,132 @@ export default function QRModal({ isOpen, onClose, instanceId }: QRModalProps) {
     },
   });
 
+  // Función para celebrar la conexión
+  const celebrate Connection = (phoneNumber: string) => {
+    console.log(`🎉 Iniciando celebración para ${phoneNumber}`);
+    setPhoneDetected(phoneNumber);
+    setIsScanning(false);
+    queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount"] });
+
+    // 🎉 Lanzar confeti celebratorio
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
+
+    const interval: any = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        confettiIntervalRef.current = null;
+        return;
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+      });
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+      });
+    }, 250);
+
+    confettiIntervalRef.current = interval;
+
+    // Toast celebratorio
+    toast({
+      title: "¡Felicidades!",
+      description: `WhatsApp conectado exitosamente con ${phoneNumber}`,
+    });
+
+    // Cerrar modal después de 3 segundos
+    closeTimeoutRef.current = setTimeout(() => {
+      onClose();
+    }, 3000);
+  };
+
   useEffect(() => {
     if (!isOpen || !instanceId) return;
 
     generateQRMutation.mutate();
 
-    const newSocket = io(window.location.origin);
+    // WebSocket con logs detallados
+    console.log(`🔌 Conectando WebSocket para instancia: ${instanceId}`);
+    const newSocket = io(window.location.origin, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+    });
 
     newSocket.on("connect", () => {
-      console.log("Connected to WebSocket");
+      console.log(`✅ WebSocket conectado - ID: ${newSocket.id}`);
+      console.log(`📡 Suscribiéndose a room: instance-${instanceId}`);
       newSocket.emit("subscribe-instance", instanceId);
     });
 
+    newSocket.on("connect_error", (error) => {
+      console.error("❌ Error de conexión WebSocket:", error);
+    });
+
     newSocket.on("instance-connected", (data: { instanceId: string; phoneNumber: string }) => {
+      console.log(`🎉 Evento WebSocket recibido:`, data);
       if (data.instanceId === instanceId) {
-        setPhoneDetected(data.phoneNumber);
-        setIsScanning(false);
-        queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
-        queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount"] });
-        
-        // 🎉 Lanzar confeti celebratorio
-        const duration = 3000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
-        const randomInRange = (min: number, max: number) => {
-          return Math.random() * (max - min) + min;
-        };
-
-        const interval: any = setInterval(() => {
-          const timeLeft = animationEnd - Date.now();
-
-          if (timeLeft <= 0) {
-            clearInterval(interval);
-            confettiIntervalRef.current = null;
-            return;
-          }
-
-          const particleCount = 50 * (timeLeft / duration);
-          
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
-          });
-          confetti({
-            ...defaults,
-            particleCount,
-            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
-          });
-        }, 250);
-        
-        confettiIntervalRef.current = interval;
-        
-        // Toast celebratorio (sin emojis)
-        toast({
-          title: "¡Felicidades!",
-          description: `WhatsApp conectado exitosamente con ${data.phoneNumber}`,
-        });
-        
-        // Cerrar modal después de 3 segundos (tiempo para ver el confeti)
-        closeTimeoutRef.current = setTimeout(() => {
-          onClose();
-        }, 3000);
+        console.log(`✅ Coincide con instancia actual, celebrando...`);
+        celebrateConnection(data.phoneNumber);
+        // Detener polling si está activo
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       }
     });
 
     setSocket(newSocket);
 
+    // Polling como fallback (verifica cada 2 segundos)
+    console.log(`⏱️ Iniciando polling de fallback cada 2 segundos`);
+    const pollingInterval = setInterval(async () => {
+      try {
+        const res = await apiRequest("GET", `/api/instances/${instanceId}`);
+        const instance = await res.json();
+
+        if (instance.status === "connected" && instance.phoneNumber && !phoneDetected) {
+          console.log(`✅ Polling detectó conexión: ${instance.phoneNumber}`);
+          celebrateConnection(instance.phoneNumber);
+          clearInterval(pollingInterval);
+          pollingIntervalRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error en polling:", error);
+      }
+    }, 2000);
+
+    pollingIntervalRef.current = pollingInterval;
+
     return () => {
+      console.log(`🔌 Desconectando WebSocket y limpiando recursos`);
       newSocket.disconnect();
-      // Limpiar interval de confeti si el modal se cierra antes de tiempo
+
       if (confettiIntervalRef.current) {
         clearInterval(confettiIntervalRef.current);
         confettiIntervalRef.current = null;
       }
-      // Limpiar timeout de cierre si el modal se cierra manualmente
       if (closeTimeoutRef.current) {
         clearTimeout(closeTimeoutRef.current);
         closeTimeoutRef.current = null;
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
     };
   }, [isOpen, instanceId]);
