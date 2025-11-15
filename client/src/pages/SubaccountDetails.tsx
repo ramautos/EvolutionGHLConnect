@@ -152,30 +152,45 @@ export default function SubaccountDetails() {
       // Invalidar queries para refrescar la lista
       await queryClient.invalidateQueries({ queryKey: ["/api/instances/subaccount", subaccountId] });
       
-      // Generar automáticamente el código QR para la nueva instancia
-      if (data.whatsappInstance?.id) {
-        try {
-          const qrRes = await apiRequest("POST", `/api/instances/${data.whatsappInstance.id}/generate-qr`, {});
-          const qrData = await qrRes.json();
-          
-          // Mostrar el modal con el código QR
-          setSelectedInstance({ 
-            ...data.whatsappInstance, 
-            qrCode: qrData.qrCode 
-          });
+      // Verificar si el QR ya fue generado automáticamente por el backend
+      const instance = data.instance || data.whatsappInstance;
+      if (instance?.id) {
+        // Si el QR ya existe, mostrarlo directamente
+        if (instance.qrCode) {
+          console.log("✅ QR generado automáticamente por el backend");
+          setSelectedInstance(instance);
           setQrModalOpen(true);
           
           toast({
             title: "¡Listo para escanear!",
             description: "Escanea el código QR con WhatsApp para conectar tu cuenta",
           });
-        } catch (error) {
-          console.error("Error generating QR after instance creation:", error);
-          toast({
-            title: "Instancia creada",
-            description: "Haz clic en 'Generar QR' para conectar WhatsApp",
-            variant: "default",
-          });
+        } else {
+          // Si no hay QR, intentar generarlo manualmente
+          console.log("⚠️ QR no generado automáticamente, intentando generar...");
+          try {
+            const qrRes = await apiRequest("POST", `/api/instances/${instance.id}/generate-qr`, {});
+            const qrData = await qrRes.json();
+            
+            // Mostrar el modal con el código QR
+            setSelectedInstance({ 
+              ...instance, 
+              qrCode: qrData.qrCode 
+            });
+            setQrModalOpen(true);
+            
+            toast({
+              title: "¡Listo para escanear!",
+              description: "Escanea el código QR con WhatsApp para conectar tu cuenta",
+            });
+          } catch (error) {
+            console.error("Error generating QR after instance creation:", error);
+            toast({
+              title: "Instancia creada",
+              description: "Haz clic en 'Generar QR' para conectar WhatsApp",
+              variant: "default",
+            });
+          }
         }
       }
     },
