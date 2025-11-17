@@ -2992,7 +2992,42 @@ ${ghlErrorDetails}
     }
   });
 
-  // Actualizar Ajustes de API (Eleven Labs y Gemini) por locationId
+  // ============================================
+  // RUTAS DE CONFIGURACIÓN API (Por location)
+  // ============================================
+
+  // GET - Obtener configuración API de una subcuenta por locationId
+  app.get("/api/subaccounts/:locationId/api-settings", isAuthenticated, async (req, res) => {
+    try {
+      const { locationId } = req.params;
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+
+      if (!subaccount) {
+        res.status(404).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // Verificar que la subcuenta pertenece al usuario
+      const user = req.user as any;
+      if (subaccount.id !== user.id && user.role !== "admin" && user.role !== "system_admin") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+
+      // Devolver solo los datos de configuración API (sin datos sensibles innecesarios)
+      res.json({
+        elevenLabsApiKey: subaccount.elevenLabsApiKey || "",
+        elevenLabsVoiceId: subaccount.elevenLabsVoiceId || "",
+        openaiApiKey: subaccount.openaiApiKey || "",
+        notificationPhone: subaccount.notificationPhone || "",
+      });
+    } catch (error) {
+      console.error("Error fetching API settings:", error);
+      res.status(500).json({ error: "Failed to fetch API settings" });
+    }
+  });
+
+  // PATCH - Actualizar Ajustes de API (Eleven Labs y OpenAI) por locationId
   app.patch("/api/subaccounts/:locationId/api-settings", isAuthenticated, async (req, res) => {
     try {
       const { locationId } = req.params;

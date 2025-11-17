@@ -89,7 +89,23 @@ export default function SubaccountDetails() {
     enabled: !!subaccount?.locationId,
   });
 
-  // No inicializar API keys por seguridad - los inputs son write-only
+  // Obtener configuración API existente
+  const { data: apiSettings } = useQuery<{
+    elevenLabsApiKey: string;
+    elevenLabsVoiceId: string;
+    openaiApiKey: string;
+    notificationPhone: string;
+  }>({
+    queryKey: ["/api/subaccounts", subaccount?.locationId, "api-settings"],
+    enabled: !!subaccount?.locationId,
+  });
+
+  // Sincronizar notificationPhone con los datos cargados
+  useEffect(() => {
+    if (apiSettings?.notificationPhone && !isEditingPhone) {
+      setNotificationPhone(apiSettings.notificationPhone);
+    }
+  }, [apiSettings?.notificationPhone, isEditingPhone]);
 
   // Obtener instancias
   const { data: instances = [], isLoading: instancesLoading } = useQuery<WhatsappInstance[]>({
@@ -1012,8 +1028,8 @@ export default function SubaccountDetails() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Badge variant={(subaccount as any).hasElevenLabsKey ? "default" : "secondary"}>
-                  {(subaccount as any).hasElevenLabsKey ? (
+                <Badge variant={apiSettings?.elevenLabsApiKey ? "default" : "secondary"}>
+                  {apiSettings?.elevenLabsApiKey ? (
                     <>
                       <Check className="w-3 h-3 mr-1" />
                       Configurado
@@ -1030,9 +1046,9 @@ export default function SubaccountDetails() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={openaiLogo} 
-                      alt="OpenAI" 
+                    <img
+                      src={openaiLogo}
+                      alt="OpenAI"
                       className="w-10 h-10 rounded object-cover"
                     />
                     <div>
@@ -1052,8 +1068,8 @@ export default function SubaccountDetails() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Badge variant={(subaccount as any).hasOpenaiKey ? "default" : "secondary"}>
-                  {(subaccount as any).hasOpenaiKey ? (
+                <Badge variant={apiSettings?.openaiApiKey ? "default" : "secondary"}>
+                  {apiSettings?.openaiApiKey ? (
                     <>
                       <Check className="w-3 h-3 mr-1" />
                       Configurado
@@ -1348,7 +1364,7 @@ export default function SubaccountDetails() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="elevenlabs-key">API Key</Label>
-                {(subaccount as any)?.hasElevenLabsKey && (
+                {apiSettings?.elevenLabsApiKey && (
                   <Badge variant="default" className="text-xs">
                     <Check className="w-3 h-3 mr-1" />
                     Ya configurada
@@ -1424,7 +1440,7 @@ export default function SubaccountDetails() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="openai-key">API Key</Label>
-                {(subaccount as any)?.hasOpenaiKey && (
+                {apiSettings?.openaiApiKey && (
                   <Badge variant="default" className="text-xs">
                     <Check className="w-3 h-3 mr-1" />
                     Ya configurada
