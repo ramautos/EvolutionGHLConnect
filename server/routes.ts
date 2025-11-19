@@ -3954,6 +3954,32 @@ ${ghlErrorDetails}
     }
   });
 
+  // Endpoint para actualizar webhook de instancia existente (habilitar base64)
+  app.post("/api/instances/:id/update-webhook", isAuthenticated, async (req, res) => {
+    try {
+      const whatsappInstance = await storage.getWhatsappInstance(req.params.id);
+      if (!whatsappInstance) {
+        res.status(404).json({ error: "Instance not found" });
+        return;
+      }
+
+      const webhookUrl = process.env.N8N_WEBHOOK_URL || 'https://n8nqr.cloude.es/webhook/evolution1';
+      console.log(`🔄 Actualizando webhook para ${whatsappInstance.evolutionInstanceName} con base64 habilitado`);
+
+      await evolutionAPI.setWebhook(whatsappInstance.evolutionInstanceName, webhookUrl);
+      console.log(`✅ Webhook actualizado con base64: true`);
+
+      res.json({
+        success: true,
+        message: "Webhook updated with base64 enabled",
+        webhookUrl
+      });
+    } catch (error) {
+      console.error("Error updating webhook:", error);
+      res.status(500).json({ error: "Failed to update webhook" });
+    }
+  });
+
   app.get("/api/instances/:id/status", async (req, res) => {
     try {
       const whatsappInstance = await storage.getWhatsappInstance(req.params.id);

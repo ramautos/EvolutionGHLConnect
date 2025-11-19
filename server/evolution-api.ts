@@ -38,6 +38,8 @@ interface WebhookConfig {
   url: string;
   enabled: boolean;
   events: string[];
+  base64: boolean;
+  byEvents: boolean;
 }
 
 interface SendMessageResponse {
@@ -99,12 +101,29 @@ export class EvolutionAPIService {
     return await response.json();
   }
 
-  async createInstance(instanceName: string): Promise<CreateInstanceResponse> {
-    return this.request<CreateInstanceResponse>('POST', '/instance/create', {
+  async createInstance(instanceName: string, webhookUrl?: string): Promise<CreateInstanceResponse> {
+    const payload: any = {
       instanceName,
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
-    });
+    };
+
+    // Si se proporciona webhookUrl, configurar webhook con base64 habilitado
+    if (webhookUrl) {
+      payload.webhook = {
+        url: webhookUrl,
+        enabled: true,
+        events: [
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE',
+          'CONNECTION_UPDATE'
+        ],
+        base64: true,
+        byEvents: false
+      };
+    }
+
+    return this.request<CreateInstanceResponse>('POST', '/instance/create', payload);
   }
 
   async getQRCode(instanceName: string): Promise<QRCodeResponse> {
@@ -139,7 +158,9 @@ export class EvolutionAPIService {
         'MESSAGES_UPSERT',
         'MESSAGES_UPDATE',
         'CONNECTION_UPDATE'
-      ]
+      ],
+      base64: true,
+      byEvents: false
     };
 
     await this.request('POST', `/webhook/set/${instanceName}`, {
