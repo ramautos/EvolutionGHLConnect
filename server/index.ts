@@ -1,11 +1,16 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { setupSecurityMiddleware } from "./security";
 
 const app = express();
 
 // Trust proxy for secure cookies behind Cloudflare/reverse proxy
 app.set('trust proxy', 1);
+
+// Security middleware (Rate Limiting, Helmet, CSRF)
+setupSecurityMiddleware(app);
 
 // Health check endpoint at / - smart routing to avoid intercepting SPA traffic
 // Uses Express content negotiation to distinguish health checks from browser requests
