@@ -35,10 +35,9 @@ export default function InstallSubaccount() {
     setIsInstalling(true);
 
     // Construir URL de OAuth con state que incluye el token
-    const clientId = import.meta.env.VITE_GHL_CLIENT_ID;
-    const protocol = window.location.protocol;
-    const host = window.location.host;
-    const redirectUri = `${protocol}//${host}/api/auth/oauth/callback`;
+    const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
+    // Usar n8n webhook como redirect para procesar OAuth correctamente
+    const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
 
     // State especial que indica que es una instalación vendida
     const state = JSON.stringify({

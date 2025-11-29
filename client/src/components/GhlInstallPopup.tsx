@@ -97,16 +97,28 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
       setErrorMessage("");
 
       // Construir URL de OAuth
-      const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "";
-      // Usar el backend para procesar OAuth correctamente
-      const redirectUri = `${window.location.origin}/api/auth/oauth/callback`;
+      const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
+      // Usar n8n webhook como redirect para procesar OAuth correctamente
+      const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
       const scopes = [
         "contacts.readonly",
         "contacts.write",
         "conversations.readonly",
         "conversations.write",
-        "opportunities.readonly",
+        "conversations/message.readonly",
+        "conversations/message.write",
         "locations.readonly",
+        "locations/customValues.readonly",
+        "locations/customValues.write",
+        "locations/customFields.readonly",
+        "locations/customFields.write",
+        "locations/tags.write",
+        "socialplanner/tag.readonly",
+        "locations/tasks.readonly",
+        "locations/tags.readonly",
+        "users.readonly",
+        "companies.readonly",
+        "locations/templates.readonly",
       ].join(" ");
 
       // Generar state seguro
