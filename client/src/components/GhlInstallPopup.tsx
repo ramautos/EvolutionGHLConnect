@@ -96,7 +96,21 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
       setInstallState("authorizing");
       setErrorMessage("");
 
-      // Construir URL de OAuth
+      // 1. Generar OAuth state en el backend (se guarda en la base de datos)
+      const stateResponse = await fetch("/api/ghl/generate-oauth-state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!stateResponse.ok) {
+        throw new Error("No se pudo generar el state de OAuth. Verifica que estés autenticado.");
+      }
+
+      const { state } = await stateResponse.json();
+      console.log("✅ OAuth state generado:", state);
+
+      // 2. Construir URL de OAuth
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
       // Usar n8n webhook como redirect para procesar OAuth correctamente
       const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
@@ -120,11 +134,6 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
         "companies.readonly",
         "locations/templates.readonly",
       ].join(" ");
-
-      // Generar state seguro
-      const state = generateState();
-      // No guardamos state en sessionStorage porque el backend lo maneja
-      // sessionStorage.setItem("oauth_state", state);
 
       const oauthUrl =
         `https://marketplace.gohighlevel.com/oauth/chooselocation?` +
@@ -156,13 +165,6 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
       setInstallState("error");
       setErrorMessage(error.message || "Error al iniciar la instalación");
     }
-  };
-
-  const generateState = () => {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
   };
 
   const handleRetry = () => {
