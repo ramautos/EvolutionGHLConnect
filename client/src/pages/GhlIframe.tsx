@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Loader2, RefreshCw, Ban, Phone, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,30 +8,34 @@ import type { Subaccount } from "@shared/schema";
 /**
  * Página para el iframe de GoHighLevel (Custom Page)
  *
- * Usa URL template variables de GHL:
- * URL: https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}
+ * Métodos de detección de locationId (en orden de prioridad):
+ * 1. URL params: ?locationId=xxx (Custom Menu Link creado por API)
+ * 2. SSO postMessage: REQUEST_USER_DATA (si URL params no funcionan)
  *
- * GHL reemplaza automáticamente {{location.id}} con el ID real.
- * NO usa SSO - solo parámetros URL.
+ * Docs: https://marketplace.gohighlevel.com/docs/other/user-context-marketplace-apps
  */
 
 export default function GhlIframe() {
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<string>("Iniciando...");
   const [error, setError] = useState<string | null>(null);
   const [subaccount, setSubaccount] = useState<Subaccount | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
+  const ssoAttempted = useRef(false);
+  const locationFoundRef = useRef(false);
 
-  // Función para buscar subcuenta por locationId (sin autenticación)
+  // Función para buscar subcuenta por locationId
   const findSubaccountByLocation = useCallback(async (locationId: string) => {
+    if (locationFoundRef.current) return; // Evitar llamadas duplicadas
+    locationFoundRef.current = true;
+
     try {
       console.log("🔍 Buscando subcuenta para locationId:", locationId);
+      setStatus("Buscando cuenta...");
 
-      // Llamada directa sin apiRequest para evitar problemas de auth
       const response = await fetch(`/api/subaccounts/by-location/${locationId}`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
@@ -52,12 +56,54 @@ export default function GhlIframe() {
       setLoading(false);
     } catch (err: any) {
       console.error("❌ Error:", err);
+      locationFoundRef.current = false; // Permitir reintentos
       setError(err.message || "Error desconocido");
       setLoading(false);
     }
   }, []);
 
-  // Inicialización - solo usa parámetros URL
+  // Escuchar respuestas SSO de GHL
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      // Ignorar mensajes propios y de otros orígenes no relevantes
+      if (event.source === window) return;
+      if (locationFoundRef.current) return;
+
+      const data = event.data;
+      console.log("📥 Mensaje recibido:", data);
+
+      // Agregar a debug info
+      setDebugInfo(prev => prev + `\nMsg: ${JSON.stringify(data).substring(0, 100)}`);
+
+      let locationId: string | null = null;
+
+      // Formato 1: REQUEST_USER_DATA_RESPONSE (oficial GHL)
+      if (data?.message === "REQUEST_USER_DATA_RESPONSE" && data?.payload) {
+        console.log("📥 SSO Response recibido");
+        locationId = data.payload.activeLocation || data.payload.locationId;
+      }
+
+      // Formato 2: Datos directos con locationId
+      if (!locationId && (data?.locationId || data?.activeLocation)) {
+        locationId = data.locationId || data.activeLocation;
+      }
+
+      // Formato 3: Datos anidados
+      if (!locationId && data?.data?.locationId) {
+        locationId = data.data.locationId;
+      }
+
+      if (locationId && !locationId.includes("{{")) {
+        console.log("✅ LocationId obtenido via SSO:", locationId);
+        await findSubaccountByLocation(locationId);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [findSubaccountByLocation]);
+
+  // Inicialización
   useEffect(() => {
     async function initialize() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -65,45 +111,67 @@ export default function GhlIframe() {
       const fullUrl = window.location.href;
 
       console.log("🚀 GhlIframe inicializando...");
-      console.log("📍 URL completa:", fullUrl);
+      console.log("📍 URL:", fullUrl);
       console.log("📍 locationId:", locationId);
 
-      // Guardar info de debug
       setDebugInfo(`URL: ${fullUrl}\nlocationId: ${locationId || "no encontrado"}`);
 
-      // Verificar que tenemos locationId
-      if (!locationId) {
-        setError(
-          "Falta el parámetro locationId en la URL.\n\n" +
-          "Configura la Custom Page URL en GHL Marketplace:\n" +
-          "https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}"
-        );
-        setLoading(false);
+      // MÉTODO 1: URL params con locationId válido
+      if (locationId && !locationId.includes("{{") && !locationId.includes("}}")) {
+        console.log("✅ Usando locationId de URL");
+        await findSubaccountByLocation(locationId);
         return;
       }
 
-      // Verificar que GHL reemplazó las variables
-      if (locationId.includes("{{") || locationId.includes("}}")) {
-        setError(
-          "GHL no reemplazó las variables de la URL.\n\n" +
-          "Esto puede ocurrir si:\n" +
-          "1. La Custom Page no está configurada correctamente\n" +
-          "2. Estás accediendo directamente a la URL (no desde GHL)\n\n" +
-          "Verifica la configuración en el Marketplace."
-        );
-        setLoading(false);
-        return;
-      }
+      // MÉTODO 2: SSO - solicitar datos a GHL via postMessage
+      if (!ssoAttempted.current) {
+        ssoAttempted.current = true;
+        setStatus("Solicitando datos a GHL...");
+        console.log("📨 URL params no válidos, intentando SSO...");
 
-      // Buscar la subcuenta
-      await findSubaccountByLocation(locationId);
+        if (window.parent && window.parent !== window) {
+          // Enviar REQUEST_USER_DATA (formato oficial de GHL)
+          console.log("📨 Enviando REQUEST_USER_DATA a GHL...");
+          window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
+
+          // Timeout: si no hay respuesta en 5 segundos, mostrar error
+          setTimeout(() => {
+            if (!locationFoundRef.current && loading) {
+              console.log("⏰ Timeout SSO - no hubo respuesta");
+              setError(
+                "No se pudo obtener el contexto de GoHighLevel.\n\n" +
+                "Posibles causas:\n" +
+                "1. La app no fue instalada correctamente\n" +
+                "2. Accedes directamente a la URL (no desde GHL)\n" +
+                "3. El Custom Menu Link no se creó durante la instalación\n\n" +
+                "Solución: Desinstala y reinstala la app desde el Marketplace."
+              );
+              setLoading(false);
+            }
+          }, 5000);
+        } else {
+          console.warn("⚠️ No estamos en un iframe");
+          setError(
+            "Esta página debe abrirse desde GoHighLevel.\n\n" +
+            "Si eres administrador, verifica que:\n" +
+            "1. La app esté instalada en la subcuenta\n" +
+            "2. Accedas desde el menú lateral de GHL"
+          );
+          setLoading(false);
+        }
+      }
     }
 
     initialize();
-  }, [findSubaccountByLocation]);
+  }, [findSubaccountByLocation, loading]);
 
   // Función para reintentar
   const handleRetry = () => {
+    locationFoundRef.current = false;
+    ssoAttempted.current = false;
+    setError(null);
+    setLoading(true);
+    setStatus("Reintentando...");
     window.location.reload();
   };
 
@@ -113,10 +181,8 @@ export default function GhlIframe() {
       <div className="ghl-iframe-container min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <Card className="p-8 max-w-md w-full text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Cargando...</h2>
-          <p className="text-muted-foreground">
-            Conectando con tu cuenta
-          </p>
+          <h2 className="text-xl font-semibold mb-2">Conectando...</h2>
+          <p className="text-muted-foreground text-sm">{status}</p>
         </Card>
       </div>
     );
@@ -144,7 +210,7 @@ export default function GhlIframe() {
                 <summary className="text-xs text-muted-foreground cursor-pointer">
                   Info técnica
                 </summary>
-                <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-auto">
+                <pre className="text-xs bg-gray-100 p-2 rounded mt-2 overflow-auto max-h-32">
                   {debugInfo}
                 </pre>
               </details>
@@ -171,7 +237,7 @@ export default function GhlIframe() {
           </p>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-red-700">
-              Para reactivar tu cuenta o resolver cualquier duda, contacta con tu administrador.
+              Para reactivar tu cuenta, contacta con tu administrador.
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
@@ -183,7 +249,7 @@ export default function GhlIframe() {
     );
   }
 
-  // Usuario autenticado correctamente - Mostrar el dashboard adaptado para iframe
+  // Usuario autenticado - Mostrar dashboard
   if (subaccount) {
     return (
       <div className="ghl-iframe-mode">
