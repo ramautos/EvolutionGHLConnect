@@ -30,6 +30,7 @@ export const whatsappRateLimiter = rateLimit({
 });
 
 // Helmet config
+// IMPORTANTE: Permitir que GHL cargue la app en un iframe (Custom Pages)
 export const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
@@ -40,10 +41,21 @@ export const helmetConfig = helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       connectSrc: ["'self'", "https://api.stripe.com", "https://evolution.cloude.es", "wss:", "ws:"],
       frameSrc: ["'self'", "https://js.stripe.com"],
+      // Permitir que GHL cargue esta app en un iframe
+      frameAncestors: [
+        "'self'",
+        "https://*.gohighlevel.com",
+        "https://*.highlevel.com",
+        "https://*.leadconnectorhq.com",
+        "https://app.gohighlevel.com",
+        "https://app.highlevel.com",
+      ],
     },
   },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
+  // Desactivar X-Frame-Options porque usamos frame-ancestors en CSP
+  frameguard: false,
 });
 
 export function setupSecurityMiddleware(app: Express): void {
