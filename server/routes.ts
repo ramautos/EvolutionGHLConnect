@@ -1063,6 +1063,44 @@ ${ghlErrorDetails}
       console.log(`✅ Subaccount created successfully: ${subaccount.email} (${subaccount.locationId})`);
       console.log(`✅ WhatsApp instance created: ${instanceName}`);
 
+      // 9. Crear Custom Menu Link en GHL automáticamente
+      let customMenuCreated = false;
+      try {
+        // Obtener access token del cliente
+        if (cliente.accesstoken) {
+          const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
+
+          console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
+
+          const menuResult = await ghlApi.createCustomMenuLink(
+            validatedData.locationId,
+            cliente.accesstoken,
+            {
+              title: "WhatsApp AI",
+              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
+              icon: {
+                name: "whatsapp",
+                fontFamily: "fab"
+              },
+              iframe: true,
+              showOnMobile: true,
+            }
+          );
+
+          if (menuResult.success) {
+            console.log(`✅ Custom Menu Link creado: ${menuResult.menuId}`);
+            customMenuCreated = true;
+          } else {
+            console.warn(`⚠️ No se pudo crear Custom Menu Link: ${menuResult.error}`);
+          }
+        } else {
+          console.warn("⚠️ No hay access token disponible para crear Custom Menu Link");
+        }
+      } catch (menuError) {
+        console.error("⚠️ Error creando Custom Menu Link:", menuError);
+        // No bloqueamos el flujo si falla
+      }
+
       res.json({
         success: true,
         message: "Subaccount created successfully",
@@ -1077,7 +1115,8 @@ ${ghlErrorDetails}
           id: whatsappInstance.id,
           instanceName: instanceName,
           status: whatsappInstance.status,
-        }
+        },
+        customMenuCreated,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1284,6 +1323,46 @@ ${ghlErrorDetails}
         console.log(`⚠️ Subaccount created without owner - instance creation skipped. User must claim this subaccount.`);
       }
 
+      // 6. Crear Custom Menu Link en GHL automáticamente
+      let customMenuCreated = false;
+      try {
+        // Obtener access token del cliente desde GHL storage
+        const cliente = await ghlStorage.getClienteByLocationId(validatedData.locationId);
+
+        if (cliente?.accesstoken) {
+          const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
+
+          console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
+
+          const menuResult = await ghlApi.createCustomMenuLink(
+            validatedData.locationId,
+            cliente.accesstoken,
+            {
+              title: "WhatsApp AI",
+              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
+              icon: {
+                name: "whatsapp",
+                fontFamily: "fab"
+              },
+              iframe: true,
+              showOnMobile: true,
+            }
+          );
+
+          if (menuResult.success) {
+            console.log(`✅ Custom Menu Link creado: ${menuResult.menuId}`);
+            customMenuCreated = true;
+          } else {
+            console.warn(`⚠️ No se pudo crear Custom Menu Link: ${menuResult.error}`);
+          }
+        } else {
+          console.warn("⚠️ No hay access token disponible para crear Custom Menu Link");
+        }
+      } catch (menuError) {
+        console.error("⚠️ Error creando Custom Menu Link:", menuError);
+        // No bloqueamos el flujo si falla
+      }
+
       res.json({
         success: true,
         message: companyId ? "Subaccount created successfully" : "Subaccount created - pending claim",
@@ -1301,7 +1380,8 @@ ${ghlErrorDetails}
         } : {
           created: false,
           message: companyId ? "Instance will be created when user first logs in" : "Instance will be created after claim",
-        }
+        },
+        customMenuCreated,
       });
     } catch (error: any) {
       console.error("❌ Error in register-subaccount webhook:", error);
