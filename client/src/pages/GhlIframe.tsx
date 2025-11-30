@@ -114,47 +114,43 @@ export default function GhlIframe() {
 
   useEffect(() => {
     async function initializeAuth() {
-      // Si ya hay usuario autenticado, usar sus datos
-      if (user) {
-        setSubaccountId(user.id);
-        setLoading(false);
-        return;
-      }
+      // Verificar si estamos en un iframe de GHL
+      const isInIframe = window.parent !== window;
 
-      // Método 1: Verificar si hay ssoKey en la URL (para testing o modo alternativo)
+      // Método 1: Verificar si hay ssoKey en la URL (para testing)
       const urlParams = new URLSearchParams(window.location.search);
       const ssoKeyFromUrl = urlParams.get("ssoKey");
 
       if (ssoKeyFromUrl) {
-        console.log("🔗 SSO key encontrado en URL");
+        console.log("🔗 SSO key encontrado en URL (modo testing)");
         await authenticateWithSsoKey(ssoKeyFromUrl);
         return;
       }
 
-      // Método 2: Solicitar SSO via postMessage (flujo estándar de GHL)
-      // Verificar si estamos en un iframe
-      const isInIframe = window.parent !== window;
+      // Si NO estamos en iframe, mostrar error (no usar usuario logueado)
+      if (!isInIframe) {
+        setError("Esta página debe abrirse desde GoHighLevel.\n\nPara testing, agrega ?ssoKey=TOKEN a la URL.");
+        setLoading(false);
+        return;
+      }
 
-      if (isInIframe && !ssoRequested) {
+      // Método 2: Solicitar SSO via postMessage (flujo estándar de GHL)
+      if (!ssoRequested) {
         requestSsoFromGhl();
 
         // Timeout si no recibimos respuesta en 5 segundos
         setTimeout(() => {
-          if (loading && !user && !subaccountId) {
+          if (loading && !subaccountId) {
             console.warn("⏱️ Timeout esperando SSO de GHL");
-            setError("No se recibió respuesta de SSO de GoHighLevel. Verifica que la app esté correctamente instalada.");
+            setError("No se recibió respuesta de SSO de GoHighLevel.\n\nVerifica que la app esté correctamente instalada y que el Shared Secret (SSO Key) esté configurado.");
             setLoading(false);
           }
         }, 5000);
-      } else if (!isInIframe) {
-        // No estamos en iframe y no hay ssoKey
-        setError("Esta página debe abrirse desde GoHighLevel. Si estás probando, agrega ?ssoKey=TOKEN a la URL.");
-        setLoading(false);
       }
     }
 
     initializeAuth();
-  }, [user, authenticateWithSsoKey, requestSsoFromGhl, ssoRequested, loading, subaccountId]);
+  }, [authenticateWithSsoKey, requestSsoFromGhl, ssoRequested, loading, subaccountId]);
 
   // Función para reintentar
   const handleRetry = () => {
