@@ -171,8 +171,8 @@ function Router() {
       </Route>
       <Route path="/old-dashboard" component={DashboardGHL} />
 
-      {/* GHL Iframe - SSO Authentication (no requiere ProtectedRoute, usa SSO) */}
-      <Route path="/ghl-iframe" component={GhlIframe} />
+      {/* Custom Page para iframe dentro de GoHighLevel - SSO Authentication */}
+      <Route path="/app-dashboard" component={GhlIframe} />
 
       {/* OAuth Callback - Public route for popup OAuth flow */}
       <Route path="/oauth/callback" component={OAuthCallback} />
