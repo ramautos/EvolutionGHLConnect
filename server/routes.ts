@@ -2640,6 +2640,7 @@ ${ghlErrorDetails}
   // Obtener subcuenta por locationId (para Custom Pages de GHL)
   // Este endpoint es público porque se accede desde el iframe de GHL
   // GHL ya autentica al usuario mediante su sistema
+  // Busca primero por GHL locationId, luego por ID interno
   app.get("/api/subaccounts/by-location/:locationId", async (req, res) => {
     try {
       const { locationId } = req.params;
@@ -2651,11 +2652,17 @@ ${ghlErrorDetails}
         return;
       }
 
-      // Buscar la subcuenta por ghlLocationId
-      const subaccount = await storage.getSubaccountByLocationId(locationId);
+      // Primero buscar por GHL locationId
+      let subaccount = await storage.getSubaccountByLocationId(locationId);
+
+      // Si no encuentra, intentar buscar por ID interno
+      if (!subaccount) {
+        console.log("🔍 No encontrado por locationId, buscando por ID interno...");
+        subaccount = await storage.getSubaccount(locationId);
+      }
 
       if (!subaccount) {
-        console.log("❌ Subcuenta no encontrada para locationId:", locationId);
+        console.log("❌ Subcuenta no encontrada para:", locationId);
         res.status(404).json({
           error: "Subcuenta no encontrada",
           message: "No existe una subcuenta para este locationId. La app debe estar instalada primero."
@@ -2663,7 +2670,7 @@ ${ghlErrorDetails}
         return;
       }
 
-      console.log("✅ Subcuenta encontrada:", subaccount.id, subaccount.name);
+      console.log("✅ Subcuenta encontrada:", subaccount.id, subaccount.name, "locationId:", subaccount.locationId);
 
       // SEGURIDAD: No exponer API keys sensibles
       const { elevenLabsApiKey, openaiApiKey, ...safeSubaccount } = subaccount;
