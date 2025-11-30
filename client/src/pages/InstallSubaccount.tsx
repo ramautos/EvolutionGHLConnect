@@ -46,7 +46,8 @@ export default function InstallSubaccount() {
     });
 
     // Scopes correctos de la aplicación (coinciden con AddSubaccountModal)
-    const scopes = 'contacts.readonly+contacts.write+conversations.readonly+conversations.write+conversations/message.readonly+conversations/message.write+locations.readonly+locations/customValues.readonly+locations/customValues.write+locations/customFields.readonly+locations/customFields.write+locations/tags.write+socialplanner/tag.readonly+locations/tasks.readonly+locations/tags.readonly+users.readonly+companies.readonly+locations/templates.readonly';
+    // Incluye custom-menu-link para crear menús automáticamente en GHL
+    const scopes = 'contacts.readonly+contacts.write+conversations.readonly+conversations.write+conversations/message.readonly+conversations/message.write+locations.readonly+locations/customValues.readonly+locations/customValues.write+locations/customFields.readonly+locations/customFields.write+locations/tags.write+socialplanner/tag.readonly+locations/tasks.readonly+locations/tags.readonly+users.readonly+companies.readonly+locations/templates.readonly+custom-menu-link.readonly+custom-menu-link.write';
 
     const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${clientId}&scope=${scopes}&state=${encodeURIComponent(state)}`;
 

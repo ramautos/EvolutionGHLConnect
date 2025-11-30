@@ -114,6 +114,7 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
       // Usar n8n webhook como redirect para procesar OAuth correctamente
       const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
+      // Incluye custom-menu-link para crear menús automáticamente en GHL
       const scopes = [
         "contacts.readonly",
         "contacts.write",
@@ -133,6 +134,8 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
         "users.readonly",
         "companies.readonly",
         "locations/templates.readonly",
+        "custom-menu-link.readonly",
+        "custom-menu-link.write",
       ].join(" ");
 
       const oauthUrl =
