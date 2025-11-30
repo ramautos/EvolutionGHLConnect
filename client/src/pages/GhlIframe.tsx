@@ -9,16 +9,18 @@ import type { Subaccount } from "@shared/schema";
 /**
  * Página para el iframe de GoHighLevel (Custom Page)
  *
- * URL: /app-dashboard?locationId={{location.id}}
- *
- * GHL reemplaza automáticamente {{location.id}} con el ID real de la location.
- * Configurar esta URL en GHL Marketplace → Tu App → Custom Page
+ * Usa SSO para obtener el locationId:
+ * 1. Frontend solicita SSO via postMessage
+ * 2. GHL responde con datos encriptados
+ * 3. Backend descifra con GHL_APP_SSO_KEY
+ * 4. Se obtiene activeLocation (locationId)
  */
 
 export default function GhlIframe() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subaccount, setSubaccount] = useState<Subaccount | null>(null);
+  const [ssoRequested, setSsoRequested] = useState(false);
 
   // Función para buscar subcuenta por locationId
   const findSubaccountByLocation = useCallback(async (locationId: string) => {
@@ -50,45 +52,111 @@ export default function GhlIframe() {
     }
   }, []);
 
-  // Inicialización - usa solo parámetros URL
+  // Función para autenticar con SSO (postMessage)
+  const authenticateWithSso = useCallback(async (ssoData: string) => {
+    try {
+      console.log("🔐 Descifrando SSO data...");
+
+      const response = await apiRequest("POST", "/api/ghl/decrypt-sso", { ssoKey: ssoData });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al descifrar SSO");
+      }
+
+      const data = await response.json();
+
+      // El locationId puede venir como activeLocation o locationId
+      const locationId = data.ghlData?.activeLocation || data.ghlData?.locationId;
+
+      if (!data.success || !locationId) {
+        console.error("SSO Response:", data);
+        throw new Error("Respuesta SSO inválida - no se encontró locationId");
+      }
+
+      console.log("✅ SSO descifrado - LocationId:", locationId);
+      await findSubaccountByLocation(locationId);
+    } catch (err: any) {
+      console.error("❌ Error SSO:", err);
+      setError(err.message || "Error de autenticación SSO");
+      setLoading(false);
+    }
+  }, [findSubaccountByLocation]);
+
+  // Solicitar SSO via postMessage
+  const requestSsoFromGhl = useCallback(() => {
+    console.log("📨 Solicitando SSO a GHL via postMessage...");
+    setSsoRequested(true);
+
+    if (window.parent && window.parent !== window) {
+      // Solicitar SSO al parent (GHL)
+      window.parent.postMessage({ action: "getSSO" }, "*");
+    } else {
+      console.warn("⚠️ No estamos en un iframe");
+      setError("Esta página debe abrirse desde GoHighLevel.");
+      setLoading(false);
+    }
+  }, []);
+
+  // Escuchar respuestas de GHL (SSO)
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      console.log("📥 Mensaje recibido:", event.data);
+
+      // GHL envía el SSO data en diferentes formatos
+      if (event.data && (event.data.ssoData || event.data.data)) {
+        const ssoData = event.data.ssoData || event.data.data;
+        console.log("📥 SSO data recibido via postMessage");
+        await authenticateWithSso(ssoData);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [authenticateWithSso]);
+
+  // Inicialización
   useEffect(() => {
     async function initialize() {
       const urlParams = new URLSearchParams(window.location.search);
       const locationId = urlParams.get("locationId");
 
-      // Verificar que locationId exista
-      if (!locationId) {
-        setError(
-          "Falta el parámetro locationId en la URL.\n\n" +
-          "Configura la Custom Page URL en GHL Marketplace:\n" +
-          "https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}"
-        );
-        setLoading(false);
+      // Si hay locationId válido en URL, usarlo directamente
+      if (locationId && !locationId.includes("{{")) {
+        console.log("📍 Usando locationId de URL:", locationId);
+        await findSubaccountByLocation(locationId);
         return;
       }
 
-      // Verificar que GHL haya reemplazado las variables
-      if (locationId.includes("{{")) {
-        setError(
-          "GHL no reemplazó las variables de la URL.\n\n" +
-          "Verifica la configuración de Custom Page en el Marketplace."
-        );
-        setLoading(false);
-        return;
-      }
+      // Si no, usar SSO
+      console.log("📍 Usando SSO para obtener locationId...");
+      if (!ssoRequested) {
+        requestSsoFromGhl();
 
-      // Buscar la subcuenta
-      console.log("📍 Usando locationId de URL:", locationId);
-      await findSubaccountByLocation(locationId);
+        // Timeout de 10 segundos
+        setTimeout(() => {
+          if (loading && !subaccount && !error) {
+            setError(
+              "No se recibió respuesta de GoHighLevel.\n\n" +
+              "Verifica que:\n" +
+              "1. La app esté instalada en esta ubicación\n" +
+              "2. El SSO Key esté configurado correctamente\n" +
+              "3. Estés accediendo desde dentro de GHL"
+            );
+            setLoading(false);
+          }
+        }, 10000);
+      }
     }
 
     initialize();
-  }, [findSubaccountByLocation]);
+  }, [findSubaccountByLocation, requestSsoFromGhl, ssoRequested, loading, subaccount, error]);
 
   // Función para reintentar
   const handleRetry = () => {
     setError(null);
     setLoading(true);
+    setSsoRequested(false);
     window.location.reload();
   };
 
@@ -98,9 +166,9 @@ export default function GhlIframe() {
       <div className="ghl-iframe-container min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <Card className="p-8 max-w-md w-full text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Cargando...</h2>
+          <h2 className="text-xl font-semibold mb-2">Conectando...</h2>
           <p className="text-muted-foreground">
-            Conectando con tu cuenta
+            Autenticando con GoHighLevel
           </p>
         </Card>
       </div>
@@ -116,7 +184,7 @@ export default function GhlIframe() {
             <span className="text-3xl">⚠️</span>
           </div>
           <h2 className="text-xl font-semibold mb-2 text-destructive">
-            Error de Configuración
+            Error de Conexión
           </h2>
           <p className="text-muted-foreground mb-4 whitespace-pre-line">{error}</p>
           <div className="space-y-3">
@@ -125,7 +193,7 @@ export default function GhlIframe() {
               Reintentar
             </Button>
             <p className="text-sm text-muted-foreground">
-              Si el problema persiste, verifica la configuración en GHL Marketplace.
+              Si el problema persiste, contacta al soporte.
             </p>
           </div>
         </Card>
@@ -165,18 +233,11 @@ export default function GhlIframe() {
   if (subaccount) {
     return (
       <div className="ghl-iframe-mode">
-        {/*
-          Wrapper especial para modo iframe dentro de GHL
-          CSS oculta elementos innecesarios (navbar, sidebar, etc.)
-        */}
         <style>{`
-          /* Estilos para modo iframe de GHL */
           .ghl-iframe-mode {
             min-height: 100vh;
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
           }
-
-          /* Ocultar elementos de navegación en modo iframe */
           .ghl-iframe-mode header,
           .ghl-iframe-mode nav,
           .ghl-iframe-mode .main-nav,
@@ -184,8 +245,6 @@ export default function GhlIframe() {
           .ghl-iframe-mode .footer {
             display: none !important;
           }
-
-          /* Ajustar el contenido principal */
           .ghl-iframe-mode main,
           .ghl-iframe-mode .main-content {
             margin: 0 !important;
