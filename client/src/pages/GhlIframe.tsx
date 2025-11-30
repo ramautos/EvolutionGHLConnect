@@ -10,10 +10,12 @@ import type { Subaccount } from "@shared/schema";
  * Página para el iframe de GoHighLevel (Custom Page)
  *
  * Usa SSO para obtener el locationId:
- * 1. Frontend solicita SSO via postMessage
- * 2. GHL responde con datos encriptados
+ * 1. Frontend envía REQUEST_USER_DATA via postMessage
+ * 2. GHL responde con REQUEST_USER_DATA_RESPONSE (datos encriptados)
  * 3. Backend descifra con GHL_APP_SSO_KEY
  * 4. Se obtiene activeLocation (locationId)
+ *
+ * Docs: https://marketplace.gohighlevel.com/docs/other/user-context-marketplace-apps
  */
 
 export default function GhlIframe() {
@@ -52,68 +54,136 @@ export default function GhlIframe() {
     }
   }, []);
 
-  // Función para autenticar con SSO (postMessage)
-  const authenticateWithSso = useCallback(async (ssoData: string) => {
+  // Función para procesar datos de usuario de GHL
+  const processUserData = useCallback(async (userData: any) => {
     try {
-      console.log("🔐 Descifrando SSO data...");
+      console.log("🔐 Procesando datos de usuario GHL:", userData);
 
-      const response = await apiRequest("POST", "/api/ghl/decrypt-sso", { ssoKey: ssoData });
+      // GHL puede enviar los datos en varios formatos
+      // 1. Datos directos (no encriptados) con locationId
+      // 2. Datos encriptados que necesitan descifrar
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al descifrar SSO");
+      // Intentar obtener locationId directamente
+      const locationId = userData.activeLocation || userData.locationId || userData.location_id;
+
+      if (locationId) {
+        console.log("✅ LocationId obtenido directamente:", locationId);
+        await findSubaccountByLocation(locationId);
+        return;
       }
 
-      const data = await response.json();
+      // Si hay datos encriptados, enviar al backend para descifrar
+      if (typeof userData === "string" || userData.encrypted || userData.ssoData) {
+        const ssoData = typeof userData === "string" ? userData : (userData.ssoData || userData.encrypted);
+        console.log("🔐 Descifrando SSO data...");
 
-      // El locationId puede venir como activeLocation o locationId
-      const locationId = data.ghlData?.activeLocation || data.ghlData?.locationId;
+        const response = await apiRequest("POST", "/api/ghl/decrypt-sso", { ssoKey: ssoData });
 
-      if (!data.success || !locationId) {
-        console.error("SSO Response:", data);
-        throw new Error("Respuesta SSO inválida - no se encontró locationId");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Error al descifrar SSO");
+        }
+
+        const data = await response.json();
+        const decryptedLocationId = data.ghlData?.activeLocation || data.ghlData?.locationId;
+
+        if (!data.success || !decryptedLocationId) {
+          console.error("SSO Response:", data);
+          throw new Error("Respuesta SSO inválida - no se encontró locationId");
+        }
+
+        console.log("✅ SSO descifrado - LocationId:", decryptedLocationId);
+        await findSubaccountByLocation(decryptedLocationId);
+        return;
       }
 
-      console.log("✅ SSO descifrado - LocationId:", locationId);
-      await findSubaccountByLocation(locationId);
+      throw new Error("No se pudo obtener el locationId de los datos de GHL");
     } catch (err: any) {
-      console.error("❌ Error SSO:", err);
-      setError(err.message || "Error de autenticación SSO");
+      console.error("❌ Error procesando datos:", err);
+      setError(err.message || "Error de autenticación");
       setLoading(false);
     }
   }, [findSubaccountByLocation]);
 
-  // Solicitar SSO via postMessage
-  const requestSsoFromGhl = useCallback(() => {
-    console.log("📨 Solicitando SSO a GHL via postMessage...");
+  // Solicitar datos de usuario a GHL via postMessage
+  const requestUserDataFromGhl = useCallback(() => {
+    console.log("📨 Solicitando datos de usuario a GHL...");
     setSsoRequested(true);
 
     if (window.parent && window.parent !== window) {
-      // Solicitar SSO al parent (GHL)
-      window.parent.postMessage({ action: "getSSO" }, "*");
+      // Método 1: REQUEST_USER_DATA (formato oficial de GHL)
+      window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
+
+      // Método 2: getSSO (formato alternativo)
+      setTimeout(() => {
+        window.parent.postMessage({ action: "getSSO" }, "*");
+      }, 500);
+
+      // Método 3: Intentar obtener token directamente
+      setTimeout(() => {
+        try {
+          // @ts-ignore - getToken puede estar disponible en el contexto de GHL
+          if (typeof window.getToken === "function") {
+            console.log("📨 Intentando window.getToken()...");
+            // @ts-ignore
+            window.getToken().then((token: string) => {
+              console.log("✅ Token obtenido via getToken()");
+              processUserData({ token });
+            }).catch((e: any) => console.log("getToken no disponible:", e));
+          }
+        } catch (e) {
+          console.log("getToken no disponible");
+        }
+      }, 1000);
     } else {
       console.warn("⚠️ No estamos en un iframe");
       setError("Esta página debe abrirse desde GoHighLevel.");
       setLoading(false);
     }
-  }, []);
+  }, [processUserData]);
 
-  // Escuchar respuestas de GHL (SSO)
+  // Escuchar respuestas de GHL
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       console.log("📥 Mensaje recibido:", event.data);
 
-      // GHL envía el SSO data en diferentes formatos
-      if (event.data && (event.data.ssoData || event.data.data)) {
-        const ssoData = event.data.ssoData || event.data.data;
-        console.log("📥 SSO data recibido via postMessage");
-        await authenticateWithSso(ssoData);
+      // Ignorar mensajes propios
+      if (event.source === window) return;
+
+      const data = event.data;
+
+      // Formato 1: REQUEST_USER_DATA_RESPONSE (oficial GHL)
+      if (data?.message === "REQUEST_USER_DATA_RESPONSE" && data?.payload) {
+        console.log("📥 REQUEST_USER_DATA_RESPONSE recibido");
+        await processUserData(data.payload);
+        return;
+      }
+
+      // Formato 2: Respuesta directa con datos de usuario
+      if (data?.locationId || data?.activeLocation || data?.location_id) {
+        console.log("📥 Datos de usuario recibidos directamente");
+        await processUserData(data);
+        return;
+      }
+
+      // Formato 3: SSO data encriptado
+      if (data?.ssoData || data?.encrypted) {
+        console.log("📥 SSO data encriptado recibido");
+        await processUserData(data.ssoData || data.encrypted);
+        return;
+      }
+
+      // Formato 4: Respuesta genérica con data
+      if (data?.data && (data.data.locationId || data.data.activeLocation)) {
+        console.log("📥 Datos anidados recibidos");
+        await processUserData(data.data);
+        return;
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [authenticateWithSso]);
+  }, [processUserData]);
 
   // Inicialización
   useEffect(() => {
@@ -128,10 +198,10 @@ export default function GhlIframe() {
         return;
       }
 
-      // Si no, usar SSO
-      console.log("📍 Usando SSO para obtener locationId...");
+      // Si no, solicitar datos a GHL
+      console.log("📍 Solicitando datos de usuario a GHL...");
       if (!ssoRequested) {
-        requestSsoFromGhl();
+        requestUserDataFromGhl();
 
         // Timeout de 10 segundos
         setTimeout(() => {
@@ -150,7 +220,7 @@ export default function GhlIframe() {
     }
 
     initialize();
-  }, [findSubaccountByLocation, requestSsoFromGhl, ssoRequested, loading, subaccount, error]);
+  }, [findSubaccountByLocation, requestUserDataFromGhl, ssoRequested, loading, subaccount, error]);
 
   // Función para reintentar
   const handleRetry = () => {
