@@ -11,7 +11,7 @@ y no requiere scopes adicionales ni llamadas API.
 Usa esta URL exacta en la configuracion de tu app en GHL Marketplace:
 
 ```
-https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}&userId={{user.id}}&email={{user.email}}
+https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}
 ```
 
 ### Variables Template de GHL
@@ -19,10 +19,10 @@ https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}&userId={{use
 | Variable | Descripcion |
 |----------|-------------|
 | `{{location.id}}` | ID de la location/subaccount donde esta instalada la app |
-| `{{user.id}}` | ID del usuario que abre la app |
-| `{{user.email}}` | Email del usuario |
 
-GHL reemplaza automaticamente estas variables cuando carga el iframe.
+GHL reemplaza automaticamente `{{location.id}}` con el ID real cuando carga el iframe.
+
+**Nota:** Solo se necesita el `locationId`. No es necesario pasar `userId` ni `email`.
 
 ## Pasos de Configuracion
 
@@ -41,7 +41,7 @@ GHL reemplaza automaticamente estas variables cuando carga el iframe.
 | Campo | Valor |
 |-------|-------|
 | **Name/Title** | WhatsApp AI |
-| **URL** | `https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}&userId={{user.id}}&email={{user.email}}` |
+| **URL** | `https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}` |
 | **Icon** | Link (o el icono que prefieras) |
 | **Open Type** | Embedded/iFrame |
 | **Show on Mobile** | Si (opcional) |
