@@ -38,8 +38,8 @@ export const helmetConfig = helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      connectSrc: ["'self'", "https://api.stripe.com", "https://evolution.cloude.es", "wss:", "ws:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://static.cloudflareinsights.com"],
+      connectSrc: ["'self'", "https://api.stripe.com", "https://evolution.cloude.es", "https://cloudflareinsights.com", "wss:", "ws:"],
       frameSrc: ["'self'", "https://js.stripe.com"],
       // Permitir CUALQUIER origen para iframes (necesario para dominios white-label de GHL)
       frameAncestors: ["*"],
