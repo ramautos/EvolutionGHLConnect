@@ -40,12 +40,20 @@ import elevenLabsLogo from "@assets/ElevenLabs_1762127966161.png";
 import { io } from "socket.io-client";
 import confetti from "canvas-confetti";
 
-export default function SubaccountDetails() {
+interface SubaccountDetailsProps {
+  subaccountData?: Subaccount;
+  isGhlIframe?: boolean;
+}
+
+export default function SubaccountDetails({ subaccountData, isGhlIframe = false }: SubaccountDetailsProps) {
   const { user } = useUser();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/subaccount/:id");
   const locationIdParam = params?.id; // Ahora es el locationId de GHL, no el ID interno
+
+  // Si viene de GhlIframe, usar la subcuenta proporcionada directamente
+  const isFromGhlIframe = !!subaccountData;
 
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -75,14 +83,15 @@ export default function SubaccountDetails() {
     { id: "business", name: "Business", price: 25, priceId: "price_business", instances: 5, extraPrice: 5 },
   ] as const;
 
-  // Obtener subcuenta
+  // Obtener subcuenta - solo si NO viene de GhlIframe
   const { data: subaccounts = [], isLoading: subaccountLoading } = useQuery<Subaccount[]>({
     queryKey: ["/api/subaccounts/user", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && !isFromGhlIframe,
   });
 
   // Buscar por locationId (el parámetro de la URL ahora es el locationId de GHL)
-  const subaccount = subaccounts.find(s => s.locationId === locationIdParam);
+  // Si viene de GhlIframe, usar la subcuenta proporcionada directamente
+  const subaccount = isFromGhlIframe ? subaccountData : subaccounts.find(s => s.locationId === locationIdParam);
   const subaccountId = subaccount?.id; // ID interno para las APIs
 
   // Obtener lista de triggers
@@ -728,7 +737,17 @@ export default function SubaccountDetails() {
     };
   }, [qrModalOpen, selectedInstance?.id, subaccountId, toast]);
 
-  if (subaccountLoading || instancesLoading) {
+  // Si viene de GhlIframe, no mostrar loading (la subcuenta ya viene cargada)
+  if (!isFromGhlIframe && (subaccountLoading || instancesLoading)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Si estamos en modo iframe y aún cargando instancias, mostrar loading
+  if (isFromGhlIframe && instancesLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -745,10 +764,12 @@ export default function SubaccountDetails() {
             <CardDescription>La subcuenta que buscas no existe</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setLocation("/dashboard")} data-testid="button-back-not-found">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver al Dashboard
-            </Button>
+            {!isGhlIframe && (
+              <Button onClick={() => setLocation("/dashboard")} data-testid="button-back-not-found">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver al Dashboard
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -760,18 +781,20 @@ export default function SubaccountDetails() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header - Ocultar botón "Volver" en modo iframe */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocation("/dashboard")}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
-          </Button>
+          {!isGhlIframe && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/dashboard")}
+              data-testid="button-back"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Volver
+            </Button>
+          )}
           <div className="flex-1">
             <h1 className="text-lg font-bold">{subaccount.name}</h1>
             <p className="text-xs text-muted-foreground">Gestión de WhatsApp</p>

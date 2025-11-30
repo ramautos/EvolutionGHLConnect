@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SubaccountDetails from "@/pages/SubaccountDetails";
+import type { Subaccount } from "@shared/schema";
 
 /**
  * Página especial para el iframe de GoHighLevel (Custom Menu Link / Custom Page)
@@ -22,7 +23,7 @@ import SubaccountDetails from "@/pages/SubaccountDetails";
 export default function GhlIframe() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [subaccountId, setSubaccountId] = useState<string | null>(null);
+  const [subaccount, setSubaccount] = useState<Subaccount | null>(null);
   const [ssoRequested, setSsoRequested] = useState(false);
 
   // Función para buscar subcuenta por locationId
@@ -46,7 +47,7 @@ export default function GhlIframe() {
 
       const data = await response.json();
       console.log("✅ Subcuenta encontrada:", data.subaccount?.id);
-      setSubaccountId(data.subaccount.id);
+      setSubaccount(data.subaccount);
       setLoading(false);
     } catch (err: any) {
       console.error("❌ Error:", err);
@@ -129,7 +130,7 @@ export default function GhlIframe() {
 
         // Timeout de 8 segundos
         setTimeout(() => {
-          if (loading && !subaccountId) {
+          if (loading && !subaccount) {
             setError(
               "No se recibió respuesta de GoHighLevel.\n\n" +
               "Verifica que:\n" +
@@ -143,7 +144,7 @@ export default function GhlIframe() {
     }
 
     initialize();
-  }, [findSubaccountByLocation, requestSsoFromGhl, ssoRequested, loading, subaccountId]);
+  }, [findSubaccountByLocation, requestSsoFromGhl, ssoRequested, loading, subaccount]);
 
   // Función para reintentar
   const handleRetry = () => {
@@ -194,7 +195,7 @@ export default function GhlIframe() {
   }
 
   // Usuario autenticado correctamente - Mostrar el dashboard adaptado para iframe
-  if (subaccountId) {
+  if (subaccount) {
     return (
       <div className="ghl-iframe-mode">
         {/*
@@ -225,7 +226,7 @@ export default function GhlIframe() {
             max-width: 100% !important;
           }
         `}</style>
-        <SubaccountDetails />
+        <SubaccountDetails subaccountData={subaccount} isGhlIframe={true} />
       </div>
     );
   }
