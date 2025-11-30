@@ -341,6 +341,8 @@ export class GhlApiService {
 
   /**
    * Crea un Custom Menu Link en una location de GHL
+   * Docs: https://marketplace.gohighlevel.com/docs/ghl/custom-menus/create-custom-menu
+   *
    * @param locationId - ID de la location
    * @param accessToken - Access token válido para la location
    * @param menuLinkData - Datos del menu link
@@ -349,38 +351,115 @@ export class GhlApiService {
     locationId: string,
     accessToken: string,
     menuLinkData: {
-      name: string;
+      title: string;
       url: string;
-      icon?: string;
+      icon?: {
+        name: string;
+        fontFamily: string;
+      };
+      showOnMobile?: boolean;
+      iframe?: boolean;
     }
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; menuId?: string; error?: string }> {
     try {
       console.log(`📎 Creando Custom Menu Link para location ${locationId}:`, menuLinkData);
 
-      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/customMenuLinks`, {
+      // Endpoint según la documentación de GHL
+      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
           Version: GHL_API_VERSION,
         },
-        body: JSON.stringify(menuLinkData),
+        body: JSON.stringify({
+          ...menuLinkData,
+          showOnMobile: menuLinkData.showOnMobile ?? true,
+          iframe: menuLinkData.iframe ?? true,
+        }),
       });
 
       if (!response.ok) {
-        const error = await response.text();
+        const errorText = await response.text();
+        let errorJson;
+        try {
+          errorJson = JSON.parse(errorText);
+        } catch {
+          errorJson = { message: errorText };
+        }
         console.error("❌ Error creando Custom Menu Link:", {
           status: response.status,
-          error
+          error: errorJson
         });
-        return false;
+        return { success: false, error: errorJson.message || errorText };
       }
 
       const result = await response.json();
       console.log("✅ Custom Menu Link creado exitosamente:", result);
+      return { success: true, menuId: result.id };
+    } catch (error: any) {
+      console.error("❌ Error en createCustomMenuLink:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Obtiene los Custom Menu Links de una location
+   */
+  async getCustomMenuLinks(
+    locationId: string,
+    accessToken: string
+  ): Promise<any[]> {
+    try {
+      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Version: GHL_API_VERSION,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("❌ Error obteniendo Custom Menu Links:", error);
+        return [];
+      }
+
+      const result = await response.json();
+      return result.menus || result.customMenus || result || [];
+    } catch (error) {
+      console.error("❌ Error en getCustomMenuLinks:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Elimina un Custom Menu Link
+   */
+  async deleteCustomMenuLink(
+    locationId: string,
+    menuId: string,
+    accessToken: string
+  ): Promise<boolean> {
+    try {
+      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus/${menuId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Version: GHL_API_VERSION,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("❌ Error eliminando Custom Menu Link:", error);
+        return false;
+      }
+
+      console.log("✅ Custom Menu Link eliminado exitosamente");
       return true;
     } catch (error) {
-      console.error("❌ Error en createCustomMenuLink:", error);
+      console.error("❌ Error en deleteCustomMenuLink:", error);
       return false;
     }
   }

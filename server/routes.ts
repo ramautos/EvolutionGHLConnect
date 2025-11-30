@@ -634,24 +634,28 @@ ${ghlErrorDetails}
         try {
           console.log("📎 Creando Custom Menu Link automáticamente para location:", locationId);
 
-          const appUrl = process.env.REPLIT_DEV_DOMAIN
-            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : "https://whatsapp.cloude.es";
+          const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
 
-          const menuLinkCreated = await ghlApi.createCustomMenuLink(
+          // Usar el nuevo formato de API de GHL Custom Menus
+          const menuLinkResult = await ghlApi.createCustomMenuLink(
             locationId,
             tokenResponse.access_token,
             {
-              name: "WhatsApp Dashboard",
-              url: `${appUrl}/ghl-iframe?ssoKey={{ssoKey}}`,
-              // icon: `${appUrl}/logo.png`, // Opcional: puedes agregar un ícono
+              title: "WhatsApp AI",
+              url: `${appUrl}/app-dashboard?locationId=${locationId}`,
+              icon: {
+                name: "whatsapp",
+                fontFamily: "fab"  // Font Awesome Brands
+              },
+              iframe: true,
+              showOnMobile: true,
             }
           );
 
-          if (menuLinkCreated) {
-            console.log("✅ Custom Menu Link creado exitosamente");
+          if (menuLinkResult.success) {
+            console.log("✅ Custom Menu Link creado exitosamente, ID:", menuLinkResult.menuId);
           } else {
-            console.warn("⚠️ No se pudo crear Custom Menu Link, pero continuamos el flujo");
+            console.warn("⚠️ No se pudo crear Custom Menu Link:", menuLinkResult.error);
           }
         } catch (menuLinkError) {
           console.error("⚠️ Error creando Custom Menu Link:", menuLinkError);
