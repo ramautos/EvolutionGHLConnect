@@ -395,18 +395,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSubaccountByLocationId(locationId: string): Promise<Subaccount | undefined> {
-    // IMPORTANTE: Excluir system_admin y admin para evitar conflictos
-    // El super admin NO debe interferir con instalaciones normales de GHL
+    // Buscar subcuenta por locationId de GHL
+    // Nota: Para Custom Pages/Menu Links de GHL, necesitamos encontrar la subcuenta
+    // sin importar su rol, ya que el locationId es único por instalación
     const [subaccount] = await db
       .select()
       .from(subaccounts)
-      .where(
-        and(
-          eq(subaccounts.locationId, locationId),
-          not(eq(subaccounts.role, "system_admin")),
-          not(eq(subaccounts.role, "admin"))
-        )
-      );
+      .where(eq(subaccounts.locationId, locationId));
     return subaccount || undefined;
   }
 
