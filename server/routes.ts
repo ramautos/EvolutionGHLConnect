@@ -2637,6 +2637,51 @@ ${ghlErrorDetails}
     }
   });
 
+  // Obtener subcuenta por locationId (para Custom Pages de GHL)
+  // Este endpoint es público porque se accede desde el iframe de GHL
+  // GHL ya autentica al usuario mediante su sistema
+  app.get("/api/subaccounts/by-location/:locationId", async (req, res) => {
+    try {
+      const { locationId } = req.params;
+
+      console.log("🔍 Buscando subcuenta por locationId:", locationId);
+
+      if (!locationId) {
+        res.status(400).json({ error: "locationId es requerido" });
+        return;
+      }
+
+      // Buscar la subcuenta por ghlLocationId
+      const subaccount = await storage.getSubaccountByLocationId(locationId);
+
+      if (!subaccount) {
+        console.log("❌ Subcuenta no encontrada para locationId:", locationId);
+        res.status(404).json({
+          error: "Subcuenta no encontrada",
+          message: "No existe una subcuenta para este locationId. La app debe estar instalada primero."
+        });
+        return;
+      }
+
+      console.log("✅ Subcuenta encontrada:", subaccount.id, subaccount.name);
+
+      // SEGURIDAD: No exponer API keys sensibles
+      const { elevenLabsApiKey, openaiApiKey, ...safeSubaccount } = subaccount;
+
+      res.json({
+        success: true,
+        subaccount: {
+          ...safeSubaccount,
+          hasElevenLabsKey: !!elevenLabsApiKey,
+          hasOpenaiKey: !!openaiApiKey,
+        }
+      });
+    } catch (error) {
+      console.error("Error getting subaccount by locationId:", error);
+      res.status(500).json({ error: "Error al buscar subcuenta" });
+    }
+  });
+
   // Vender Subcuenta - Generar subcuenta manual con link único
   app.post("/api/subaccounts/sell", isAuthenticated, async (req, res) => {
     try {

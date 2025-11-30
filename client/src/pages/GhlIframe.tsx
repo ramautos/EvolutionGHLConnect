@@ -1,9 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import { useUser } from "@/contexts/UserContext";
 import { Card } from "@/components/ui/card";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SubaccountDetails from "@/pages/SubaccountDetails";
 
@@ -11,152 +9,113 @@ import SubaccountDetails from "@/pages/SubaccountDetails";
  * Página especial para el iframe de GoHighLevel (Custom Menu Link / Custom Page)
  *
  * Esta página se abre cuando el usuario hace clic en el Custom Menu Link
- * dentro de GHL. Usa SSO via postMessage para autenticar.
+ * dentro de GHL. Usa variables de template de GHL en la URL.
  *
- * Flujo SSO (postMessage):
- * 1. GHL carga el iframe con tu URL
- * 2. Frontend solicita SSO: window.parent.postMessage({ action: 'getSSO' }, '*')
- * 3. GHL responde con ssoData cifrado via postMessage
- * 4. Frontend envía al backend: POST /api/ghl/decrypt-sso
- * 5. Backend descifra y devuelve los datos del usuario
- * 6. Frontend establece el usuario en contexto
- * 7. Muestra el dashboard adaptado para iframe
+ * URL configurada en GHL:
+ * https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}&userId={{user.id}}&email={{user.email}}
  *
- * Flujo alternativo (URL param - para testing):
- * 1. GHL abre: /ghl-iframe?ssoKey=ENCRYPTED_TOKEN
- * 2. Frontend lee el ssoKey de la URL
- * 3. Continúa desde paso 4 arriba
+ * Flujo:
+ * 1. Usuario hace clic en Custom Menu Link en GHL
+ * 2. GHL reemplaza las variables: {{location.id}}, {{user.id}}, {{user.email}}
+ * 3. GHL carga el iframe con la URL completa
+ * 4. Frontend lee los parámetros de la URL
+ * 5. Frontend busca la subcuenta por locationId
+ * 6. Muestra el dashboard adaptado para iframe
+ *
+ * Variables disponibles de GHL:
+ * - {{location.id}} - ID de la ubicación/subcuenta
+ * - {{location.name}} - Nombre de la ubicación
+ * - {{user.id}} - ID del usuario logueado
+ * - {{user.name}} - Nombre del usuario
+ * - {{user.email}} - Email del usuario
+ * - {{user.phone}} - Teléfono del usuario
+ * - {{company.id}} - ID de la agencia
  */
 
-interface GhlSsoData {
-  locationId: string;
-  companyId: string;
-  userId: string;
-  email?: string;
-  name?: string;
-  userType?: string;
+interface GhlUrlParams {
+  locationId: string | null;
+  userId: string | null;
+  email: string | null;
+  userName: string | null;
+  companyId: string | null;
 }
 
 export default function GhlIframe() {
-  const [, navigate] = useLocation();
-  const { user, setUser } = useUser();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subaccountId, setSubaccountId] = useState<string | null>(null);
-  const [locationId, setLocationId] = useState<string | null>(null);
-  const [ssoRequested, setSsoRequested] = useState(false);
-
-  // Función para descifrar SSO y autenticar
-  const authenticateWithSsoKey = useCallback(async (ssoKey: string) => {
-    try {
-      console.log("🔐 Descifrando SSO key...");
-
-      const response = await apiRequest("POST", "/api/ghl/decrypt-sso", {
-        ssoKey,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al autenticar con SSO");
-      }
-
-      const data = await response.json();
-
-      if (!data.success || !data.user) {
-        throw new Error("Respuesta inválida del servidor");
-      }
-
-      console.log("✅ Autenticado exitosamente con SSO");
-      console.log("Usuario:", data.user.email);
-      console.log("Location ID:", data.ghlData.locationId);
-
-      // Establecer el usuario y locationId
-      setUser(data.user);
-      setSubaccountId(data.user.id);
-      setLocationId(data.ghlData.locationId);
-      setLoading(false);
-    } catch (err: any) {
-      console.error("❌ Error en autenticación SSO:", err);
-      setError(err.message || "Error desconocido");
-      setLoading(false);
-    }
-  }, [setUser]);
-
-  // Solicitar SSO via postMessage
-  const requestSsoFromGhl = useCallback(() => {
-    console.log("📨 Solicitando SSO a GHL via postMessage...");
-    setSsoRequested(true);
-
-    // Enviar solicitud de SSO al parent (GHL)
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ action: "getSSO" }, "*");
-    } else {
-      console.warn("⚠️ No estamos en un iframe, no se puede solicitar SSO via postMessage");
-    }
-  }, []);
+  const [ghlParams, setGhlParams] = useState<GhlUrlParams | null>(null);
 
   useEffect(() => {
-    // Handler para mensajes de GHL
-    const handleMessage = async (event: MessageEvent) => {
-      // Verificar que el mensaje tiene datos SSO
-      if (event.data && event.data.ssoData) {
-        console.log("📥 SSO data recibido via postMessage");
-        await authenticateWithSsoKey(event.data.ssoData);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [authenticateWithSsoKey]);
-
-  useEffect(() => {
-    async function initializeAuth() {
-      // Verificar si estamos en un iframe de GHL
-      const isInIframe = window.parent !== window;
-
-      // Método 1: Verificar si hay ssoKey en la URL (para testing)
+    async function initializeFromUrl() {
+      // Leer parámetros de la URL (inyectados por GHL)
       const urlParams = new URLSearchParams(window.location.search);
-      const ssoKeyFromUrl = urlParams.get("ssoKey");
 
-      if (ssoKeyFromUrl) {
-        console.log("🔗 SSO key encontrado en URL (modo testing)");
-        await authenticateWithSsoKey(ssoKeyFromUrl);
-        return;
-      }
+      const params: GhlUrlParams = {
+        locationId: urlParams.get("locationId"),
+        userId: urlParams.get("userId"),
+        email: urlParams.get("email"),
+        userName: urlParams.get("userName") || urlParams.get("name"),
+        companyId: urlParams.get("companyId"),
+      };
 
-      // Si NO estamos en iframe, mostrar error (no usar usuario logueado)
-      if (!isInIframe) {
-        setError("Esta página debe abrirse desde GoHighLevel.\n\nPara testing, agrega ?ssoKey=TOKEN a la URL.");
+      console.log("📍 Parámetros de URL de GHL:", params);
+
+      // Verificar que tenemos el locationId (requerido)
+      if (!params.locationId) {
+        setError(
+          "No se recibió el locationId de GoHighLevel.\n\n" +
+          "Configura la URL del Custom Menu Link así:\n" +
+          "https://whatsapp.cloude.es/app-dashboard?locationId={{location.id}}&userId={{user.id}}&email={{user.email}}"
+        );
         setLoading(false);
         return;
       }
 
-      // Método 2: Solicitar SSO via postMessage (flujo estándar de GHL)
-      if (!ssoRequested) {
-        requestSsoFromGhl();
+      setGhlParams(params);
 
-        // Timeout si no recibimos respuesta en 5 segundos
-        setTimeout(() => {
-          if (loading && !subaccountId) {
-            console.warn("⏱️ Timeout esperando SSO de GHL");
-            setError("No se recibió respuesta de SSO de GoHighLevel.\n\nVerifica que la app esté correctamente instalada y que el Shared Secret (SSO Key) esté configurado.");
-            setLoading(false);
+      try {
+        // Buscar la subcuenta por locationId
+        console.log("🔍 Buscando subcuenta para locationId:", params.locationId);
+
+        const response = await apiRequest("GET", `/api/subaccounts/by-location/${params.locationId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError(
+              `No se encontró una subcuenta para este location.\n\n` +
+              `Location ID: ${params.locationId}\n\n` +
+              `La app debe estar instalada primero desde el Marketplace de GHL.`
+            );
+          } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Error al buscar subcuenta");
           }
-        }, 5000);
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json();
+
+        console.log("✅ Subcuenta encontrada:", data.subaccount?.id);
+        setSubaccountId(data.subaccount.id);
+        setLoading(false);
+
+      } catch (err: any) {
+        console.error("❌ Error:", err);
+        setError(err.message || "Error desconocido");
+        setLoading(false);
       }
     }
 
-    initializeAuth();
-  }, [authenticateWithSsoKey, requestSsoFromGhl, ssoRequested, loading, subaccountId]);
+    initializeFromUrl();
+  }, []);
 
   // Función para reintentar
   const handleRetry = () => {
     setError(null);
     setLoading(true);
-    setSsoRequested(false);
+    window.location.reload();
   };
 
   // Estado de carga
