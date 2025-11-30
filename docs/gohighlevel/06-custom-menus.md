@@ -66,16 +66,28 @@ Cuando usas Custom Menu Links con iFrame:
 
 ## Scopes Requeridos
 
-Para usar la Custom Menus API necesitas scopes como:
+Para usar la Custom Menus API necesitas estos scopes en tu app del Marketplace:
 ```
-custom-menus.readonly
-custom-menus.write
+custom-menu-link.readonly
+custom-menu-link.write
 ```
+
+**NOTA:** Los scopes se llaman `custom-menu-link` pero los endpoints usan `/custom-menus/`.
+
+## Endpoints de la API
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/custom-menus/` | Crear nuevo menu link |
+| GET | `/custom-menus/?locationId={id}` | Obtener menus de una location |
+| GET | `/custom-menus/:customMenuId` | Obtener un menu específico |
+| PUT | `/custom-menus/:customMenuId` | Actualizar un menu |
+| DELETE | `/custom-menus/:customMenuId` | Eliminar un menu |
 
 ## Ejemplo de Implementación
 
 ```javascript
-// Crear custom menu
+// Crear custom menu - el locationId va en el body
 const response = await fetch('https://services.leadconnectorhq.com/custom-menus/', {
   method: 'POST',
   headers: {
@@ -84,10 +96,15 @@ const response = await fetch('https://services.leadconnectorhq.com/custom-menus/
     'Version': '2021-07-28'
   },
   body: JSON.stringify({
-    name: 'Mi App',
+    locationId: 'tu-location-id',
+    title: 'Mi App',
     url: 'https://miapp.com/dashboard',
-    icon: 'link',
-    openType: 'iframe'
+    icon: {
+      name: 'link',
+      fontFamily: 'fas'
+    },
+    iframe: true,
+    showOnMobile: true
   })
 });
 ```

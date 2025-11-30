@@ -636,19 +636,15 @@ ${ghlErrorDetails}
 
           const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
 
-          // Usar el nuevo formato de API de GHL Custom Menus
+          // Crear Custom Menu Link con parámetros correctos de GHL API
           const menuLinkResult = await ghlApi.createCustomMenuLink(
             locationId,
             tokenResponse.access_token,
             {
-              title: "WhatsApp AI",
+              name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId=${locationId}`,
-              icon: {
-                name: "whatsapp",
-                fontFamily: "fab"  // Font Awesome Brands
-              },
-              iframe: true,
-              showOnMobile: true,
+              icon: "link",  // Icono simple como string
+              openType: "iframe",  // Abrir como iframe en GHL
             }
           );
 
@@ -1076,14 +1072,10 @@ ${ghlErrorDetails}
             validatedData.locationId,
             cliente.accesstoken,
             {
-              title: "WhatsApp AI",
+              name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
-              icon: {
-                name: "whatsapp",
-                fontFamily: "fab"
-              },
-              iframe: true,
-              showOnMobile: true,
+              icon: "link",
+              openType: "iframe",
             }
           );
 
@@ -1338,14 +1330,10 @@ ${ghlErrorDetails}
             validatedData.locationId,
             cliente.accesstoken,
             {
-              title: "WhatsApp AI",
+              name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
-              icon: {
-                name: "whatsapp",
-                fontFamily: "fab"
-              },
-              iframe: true,
-              showOnMobile: true,
+              icon: "link",
+              openType: "iframe",
             }
           );
 

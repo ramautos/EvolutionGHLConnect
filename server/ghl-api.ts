@@ -343,6 +343,14 @@ export class GhlApiService {
    * Crea un Custom Menu Link en una location de GHL
    * Docs: https://marketplace.gohighlevel.com/docs/ghl/custom-menus/create-custom-menu
    *
+   * Endpoint: POST /custom-menus/
+   * Parámetros según documentación GHL:
+   * - name: Nombre del menú (visible en sidebar)
+   * - url: URL que se abrirá
+   * - icon: Nombre del icono (string)
+   * - openType: 'iframe' | 'new_tab' | 'current_tab'
+   * - locationId: ID de la location
+   *
    * @param locationId - ID de la location
    * @param accessToken - Access token válido para la location
    * @param menuLinkData - Datos del menu link
@@ -351,32 +359,32 @@ export class GhlApiService {
     locationId: string,
     accessToken: string,
     menuLinkData: {
-      title: string;
+      name: string;
       url: string;
-      icon?: {
-        name: string;
-        fontFamily: string;
-      };
-      showOnMobile?: boolean;
-      iframe?: boolean;
+      icon?: string;
+      openType?: 'iframe' | 'new_tab' | 'current_tab';
     }
   ): Promise<{ success: boolean; menuId?: string; error?: string }> {
     try {
-      console.log(`📎 Creando Custom Menu Link para location ${locationId}:`, menuLinkData);
+      // Construir body según formato de GHL
+      const requestBody = {
+        name: menuLinkData.name,
+        url: menuLinkData.url,
+        icon: menuLinkData.icon || 'link',
+        openType: menuLinkData.openType || 'iframe',
+        locationId: locationId,
+      };
 
-      // Endpoint según la documentación de GHL
-      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus`, {
+      console.log(`📎 Creando Custom Menu Link para location ${locationId}:`, requestBody);
+
+      const response = await fetch(`${GHL_BASE_URL}/custom-menus/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
           Version: GHL_API_VERSION,
         },
-        body: JSON.stringify({
-          ...menuLinkData,
-          showOnMobile: menuLinkData.showOnMobile ?? true,
-          iframe: menuLinkData.iframe ?? true,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -389,14 +397,16 @@ export class GhlApiService {
         }
         console.error("❌ Error creando Custom Menu Link:", {
           status: response.status,
+          statusText: response.statusText,
+          body: requestBody,
           error: errorJson
         });
-        return { success: false, error: errorJson.message || errorText };
+        return { success: false, error: errorJson.message || errorJson.error || errorText };
       }
 
       const result = await response.json();
       console.log("✅ Custom Menu Link creado exitosamente:", result);
-      return { success: true, menuId: result.id };
+      return { success: true, menuId: result.id || result.customMenuId };
     } catch (error: any) {
       console.error("❌ Error en createCustomMenuLink:", error);
       return { success: false, error: error.message };
@@ -405,13 +415,14 @@ export class GhlApiService {
 
   /**
    * Obtiene los Custom Menu Links de una location
+   * Endpoint: GET /custom-menus/?locationId={locationId}
    */
   async getCustomMenuLinks(
     locationId: string,
     accessToken: string
   ): Promise<any[]> {
     try {
-      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus`, {
+      const response = await fetch(`${GHL_BASE_URL}/custom-menus/?locationId=${locationId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -435,6 +446,7 @@ export class GhlApiService {
 
   /**
    * Elimina un Custom Menu Link
+   * Endpoint: DELETE /custom-menus/:customMenuId
    */
   async deleteCustomMenuLink(
     locationId: string,
@@ -442,7 +454,7 @@ export class GhlApiService {
     accessToken: string
   ): Promise<boolean> {
     try {
-      const response = await fetch(`${GHL_BASE_URL}/locations/${locationId}/custom-menus/${menuId}`, {
+      const response = await fetch(`${GHL_BASE_URL}/custom-menus/${menuId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${accessToken}`,
