@@ -85,6 +85,11 @@ export const subaccounts = pgTable("subaccounts", {
   billingEnabled: boolean("billing_enabled").notNull().default(true),
   manuallyActivated: boolean("manually_activated").notNull().default(true),
 
+  // Suspensión manual por el administrador/agencia
+  suspended: boolean("suspended").notNull().default(false),
+  suspendedAt: timestamp("suspended_at"),
+  suspendedReason: text("suspended_reason"),
+
   // Subcuentas Vendidas (Manual Sales)
   isSold: boolean("is_sold").notNull().default(false), // Marca si es subcuenta vendida
   accessToken: text("access_token"), // Token único para link de instalación
@@ -101,6 +106,7 @@ export const subaccounts = pgTable("subaccounts", {
   roleIdx: index("subaccounts_role_idx").on(table.role),
   accessTokenIdx: index("subaccounts_access_token_idx").on(table.accessToken),
   isSoldIdx: index("subaccounts_is_sold_idx").on(table.isSold),
+  suspendedIdx: index("subaccounts_suspended_idx").on(table.suspended),
   // FOREIGN KEY para auto-referencia: subcuenta vendida por otra subcuenta (agencia)
   soldByAgencyFk: foreignKey({
     columns: [table.soldByAgencyId],

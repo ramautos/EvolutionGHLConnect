@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Ban, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SubaccountDetails from "@/pages/SubaccountDetails";
 import type { Subaccount } from "@shared/schema";
@@ -188,6 +188,34 @@ export default function GhlIframe() {
             <p className="text-sm text-muted-foreground">
               Si el problema persiste, cierra y vuelve a abrir el dashboard desde GHL.
             </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Verificar si la cuenta está suspendida
+  if (subaccount && (subaccount as any).suspended) {
+    return (
+      <div className="ghl-iframe-container min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <Card className="p-8 max-w-md w-full text-center border-2 border-red-300 shadow-lg">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Ban className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-red-700">
+            Cuenta Suspendida
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {(subaccount as any).suspendedReason || "Tu cuenta ha sido suspendida temporalmente."}
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-red-700">
+              Para reactivar tu cuenta o resolver cualquier duda, contacta con tu administrador.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <Phone className="w-4 h-4" />
+            <span>Contacta al soporte de tu agencia</span>
           </div>
         </Card>
       </div>

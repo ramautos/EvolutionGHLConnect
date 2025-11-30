@@ -2193,22 +2193,142 @@ ${ghlErrorDetails}
     try {
       const { id } = req.params;
       const { manuallyActivated } = req.body;
-      
+
       if (typeof manuallyActivated !== "boolean") {
         res.status(400).json({ error: "manuallyActivated debe ser un booleano" });
         return;
       }
-      
+
       const subaccount = await storage.updateSubaccountActivation(id, manuallyActivated);
       if (!subaccount) {
         res.status(404).json({ error: "Subcuenta no encontrada" });
         return;
       }
-      
+
       res.json(subaccount);
     } catch (error) {
       console.error("Error updating subaccount activation:", error);
       res.status(500).json({ error: "Error al actualizar activación" });
+    }
+  });
+
+  // ============================================
+  // SUSPENDER / ELIMINAR SUBCUENTAS (Admin o propietario)
+  // ============================================
+
+  // Suspender una subcuenta
+  app.patch("/api/subaccounts/:id/suspend", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const user = req.user as any;
+
+      // Verificar que el usuario tiene permiso (admin, agencia propietaria, o system_admin)
+      const subaccount = await storage.getSubaccount(id);
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada" });
+        return;
+      }
+
+      // Verificar permisos: admin, system_admin, o agencia que vendió la subcuenta
+      const isOwner = subaccount.soldByAgencyId === user.id || subaccount.companyId === user.companyId;
+      const isAdmin = user.role === "admin" || user.role === "system_admin";
+
+      if (!isOwner && !isAdmin) {
+        res.status(403).json({ error: "No tienes permiso para suspender esta subcuenta" });
+        return;
+      }
+
+      const updated = await storage.suspendSubaccount(id, reason);
+      if (!updated) {
+        res.status(500).json({ error: "Error al suspender la subcuenta" });
+        return;
+      }
+
+      console.log(`🚫 Subcuenta ${id} suspendida por usuario ${user.id}`);
+      res.json({ success: true, subaccount: updated });
+    } catch (error) {
+      console.error("Error suspending subaccount:", error);
+      res.status(500).json({ error: "Error al suspender la subcuenta" });
+    }
+  });
+
+  // Reactivar una subcuenta suspendida
+  app.patch("/api/subaccounts/:id/unsuspend", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user as any;
+
+      // Verificar que el usuario tiene permiso
+      const subaccount = await storage.getSubaccount(id);
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada" });
+        return;
+      }
+
+      // Verificar permisos
+      const isOwner = subaccount.soldByAgencyId === user.id || subaccount.companyId === user.companyId;
+      const isAdmin = user.role === "admin" || user.role === "system_admin";
+
+      if (!isOwner && !isAdmin) {
+        res.status(403).json({ error: "No tienes permiso para reactivar esta subcuenta" });
+        return;
+      }
+
+      const updated = await storage.unsuspendSubaccount(id);
+      if (!updated) {
+        res.status(500).json({ error: "Error al reactivar la subcuenta" });
+        return;
+      }
+
+      console.log(`✅ Subcuenta ${id} reactivada por usuario ${user.id}`);
+      res.json({ success: true, subaccount: updated });
+    } catch (error) {
+      console.error("Error unsuspending subaccount:", error);
+      res.status(500).json({ error: "Error al reactivar la subcuenta" });
+    }
+  });
+
+  // Eliminar una subcuenta (con confirmación)
+  app.delete("/api/subaccounts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { confirm } = req.query;
+      const user = req.user as any;
+
+      if (confirm !== "true") {
+        res.status(400).json({ error: "Debes confirmar la eliminación con ?confirm=true" });
+        return;
+      }
+
+      // Verificar que el usuario tiene permiso
+      const subaccount = await storage.getSubaccount(id);
+      if (!subaccount) {
+        res.status(404).json({ error: "Subcuenta no encontrada" });
+        return;
+      }
+
+      // Verificar permisos
+      const isOwner = subaccount.soldByAgencyId === user.id || subaccount.companyId === user.companyId;
+      const isAdmin = user.role === "admin" || user.role === "system_admin";
+
+      if (!isOwner && !isAdmin) {
+        res.status(403).json({ error: "No tienes permiso para eliminar esta subcuenta" });
+        return;
+      }
+
+      // Eliminar la subcuenta (esto también elimina instancias de WhatsApp por CASCADE)
+      const deleted = await storage.deleteSubaccount(id);
+      if (!deleted) {
+        res.status(500).json({ error: "Error al eliminar la subcuenta" });
+        return;
+      }
+
+      console.log(`🗑️ Subcuenta ${id} eliminada por usuario ${user.id}`);
+      res.json({ success: true, message: "Subcuenta eliminada correctamente" });
+    } catch (error) {
+      console.error("Error deleting subaccount:", error);
+      res.status(500).json({ error: "Error al eliminar la subcuenta" });
     }
   });
 

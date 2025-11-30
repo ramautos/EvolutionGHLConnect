@@ -10,7 +10,7 @@ import { GhlInstallPopup } from "@/components/GhlInstallPopup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart, TestTube2, Trash2 } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart, TestTube2, Trash2, MoreVertical, Ban, PlayCircle, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -23,6 +23,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Subaccount, WhatsappInstance } from "@shared/schema";
 
 export default function Dashboard() {
@@ -41,6 +51,11 @@ function DashboardContent() {
   const [sellSubaccountOpen, setSellSubaccountOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [ghlInstallPopupOpen, setGhlInstallPopupOpen] = useState(false);
+
+  // Estados para suspender/eliminar subcuentas
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSubaccount, setSelectedSubaccount] = useState<Subaccount | null>(null);
 
   // Si el usuario es admin o system_admin, redirigir al panel de admin
   useEffect(() => {
@@ -157,6 +172,89 @@ function DashboardContent() {
       toast({
         title: "Error",
         description: error.message || "No se pudieron eliminar los datos de demostración",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para suspender subcuenta
+  const suspendMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      const response = await apiRequest("PATCH", `/api/subaccounts/${id}/suspend`, { reason });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al suspender");
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Subcuenta suspendida",
+        description: "La subcuenta ha sido suspendida correctamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      setSuspendDialogOpen(false);
+      setSelectedSubaccount(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo suspender la subcuenta",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para reactivar subcuenta
+  const unsuspendMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PATCH", `/api/subaccounts/${id}/unsuspend`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al reactivar");
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Subcuenta reactivada",
+        description: "La subcuenta ha sido reactivada correctamente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo reactivar la subcuenta",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para eliminar subcuenta
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/subaccounts/${id}?confirm=true`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al eliminar");
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Subcuenta eliminada",
+        description: "La subcuenta ha sido eliminada permanentemente",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subaccounts/user", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/instances/user", user?.id] });
+      setDeleteDialogOpen(false);
+      setSelectedSubaccount(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la subcuenta",
         variant: "destructive",
       });
     },
@@ -458,7 +556,7 @@ function DashboardContent() {
                   <Card
                     key={subaccount.id}
                     data-testid={`card-subaccount-${subaccount.id}`}
-                    className={`hover-elevate ${(subaccount as any).isSold ? 'border-2 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
+                    className={`hover-elevate ${(subaccount as any).isSold ? 'border-2 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20' : ''} ${(subaccount as any).suspended ? 'border-2 border-red-500 bg-red-50/50 dark:bg-red-950/20 opacity-75' : ''}`}
                   >
                     <CardHeader>
                       <div className="flex items-start justify-between mb-3">
@@ -467,15 +565,23 @@ function DashboardContent() {
                           <CardTitle className="text-lg">{subaccount.locationName || subaccount.name}</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
-                          {(subaccount as any).isSold && (
+                          {(subaccount as any).suspended && (
+                            <Badge variant="destructive" className="animate-pulse">
+                              <Ban className="w-3 h-3 mr-1" />
+                              Suspendida
+                            </Badge>
+                          )}
+                          {(subaccount as any).isSold && !(subaccount as any).suspended && (
                             <Badge variant="outline" className="border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-950">
                               <ShoppingCart className="w-3 h-3 mr-1" />
                               Vendida
                             </Badge>
                           )}
-                          <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
-                            {status.label}
-                          </Badge>
+                          {!(subaccount as any).suspended && (
+                            <Badge variant={status.variant} data-testid={`badge-status-${subaccount.id}`}>
+                              {status.label}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <CardDescription className="line-clamp-2 mb-3">
@@ -537,17 +643,68 @@ function DashboardContent() {
                       )}
                     </CardContent>
 
-                    <CardFooter>
+                    <CardFooter className="flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full"
+                        className="flex-1"
                         onClick={() => setLocation(`/subaccount/${subaccount.locationId}`)}
                         data-testid={`button-manage-${subaccount.id}`}
+                        disabled={(subaccount as any).suspended}
                       >
                         <Settings className="w-4 h-4 mr-2" />
                         Gestionar
                       </Button>
+
+                      {/* Menú de opciones: Suspender/Eliminar */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid={`button-options-${subaccount.id}`}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Opciones</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+
+                          {/* Suspender / Reactivar */}
+                          {(subaccount as any).suspended ? (
+                            <DropdownMenuItem
+                              onClick={() => unsuspendMutation.mutate(subaccount.id)}
+                              disabled={unsuspendMutation.isPending}
+                              className="text-green-600"
+                            >
+                              <PlayCircle className="w-4 h-4 mr-2" />
+                              {unsuspendMutation.isPending ? "Reactivando..." : "Reactivar cuenta"}
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedSubaccount(subaccount);
+                                setSuspendDialogOpen(true);
+                              }}
+                              className="text-orange-600"
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Suspender cuenta
+                            </DropdownMenuItem>
+                          )}
+
+                          <DropdownMenuSeparator />
+
+                          {/* Eliminar */}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedSubaccount(subaccount);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar cuenta
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </CardFooter>
                   </Card>
                 );
@@ -576,6 +733,70 @@ function DashboardContent() {
         onClose={() => setGhlInstallPopupOpen(false)}
         onSuccess={handleGhlInstallSuccess}
       />
+
+      {/* Dialog de confirmación para suspender */}
+      <AlertDialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Suspender subcuenta
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro que deseas suspender la subcuenta{" "}
+              <strong>{selectedSubaccount?.locationName || selectedSubaccount?.name}</strong>?
+              <br /><br />
+              El usuario verá un mensaje de "Cuenta suspendida" y no podrá acceder al dashboard.
+              Puedes reactivarla en cualquier momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedSubaccount(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedSubaccount && suspendMutation.mutate({ id: selectedSubaccount.id })}
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={suspendMutation.isPending}
+            >
+              {suspendMutation.isPending ? "Suspendiendo..." : "Suspender"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de confirmación para eliminar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Eliminar subcuenta
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro que deseas eliminar permanentemente la subcuenta{" "}
+              <strong>{selectedSubaccount?.locationName || selectedSubaccount?.name}</strong>?
+              <br /><br />
+              <span className="text-red-600 font-medium">
+                Esta acción no se puede deshacer. Se eliminarán todas las instancias de WhatsApp
+                asociadas y los datos de configuración.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedSubaccount(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedSubaccount && deleteMutation.mutate(selectedSubaccount.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

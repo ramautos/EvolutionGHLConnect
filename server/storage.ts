@@ -541,6 +541,41 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
+  /**
+   * Suspende una subcuenta
+   * @param id - ID de la subcuenta
+   * @param reason - Razón de la suspensión (opcional)
+   */
+  async suspendSubaccount(id: string, reason?: string): Promise<Subaccount | undefined> {
+    const [updated] = await db
+      .update(subaccounts)
+      .set({
+        suspended: true,
+        suspendedAt: new Date(),
+        suspendedReason: reason || "Cuenta suspendida por el administrador",
+      })
+      .where(eq(subaccounts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  /**
+   * Reactiva una subcuenta suspendida
+   * @param id - ID de la subcuenta
+   */
+  async unsuspendSubaccount(id: string): Promise<Subaccount | undefined> {
+    const [updated] = await db
+      .update(subaccounts)
+      .set({
+        suspended: false,
+        suspendedAt: null,
+        suspendedReason: null,
+      })
+      .where(eq(subaccounts.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   // ============================================
   // WHATSAPP INSTANCE OPERATIONS
   // ============================================
