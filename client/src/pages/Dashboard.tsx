@@ -542,7 +542,7 @@ function DashboardContent() {
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => setLocation(`/subaccount/${subaccount.id}`)}
+                        onClick={() => setLocation(`/subaccount/${subaccount.locationId}`)}
                         data-testid={`button-manage-${subaccount.id}`}
                       >
                         <Settings className="w-4 h-4 mr-2" />

@@ -45,7 +45,7 @@ export default function SubaccountDetails() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/subaccount/:id");
-  const subaccountId = params?.id;
+  const locationIdParam = params?.id; // Ahora es el locationId de GHL, no el ID interno
 
   const [createInstanceOpen, setCreateInstanceOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -81,7 +81,9 @@ export default function SubaccountDetails() {
     enabled: !!user?.id,
   });
 
-  const subaccount = subaccounts.find(s => s.id === subaccountId);
+  // Buscar por locationId (el parámetro de la URL ahora es el locationId de GHL)
+  const subaccount = subaccounts.find(s => s.locationId === locationIdParam);
+  const subaccountId = subaccount?.id; // ID interno para las APIs
 
   // Obtener lista de triggers
   const { data: triggers = [], isLoading: triggersLoading } = useQuery<any[]>({
