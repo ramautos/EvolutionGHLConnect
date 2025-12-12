@@ -637,13 +637,14 @@ ${ghlErrorDetails}
           const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
 
           // Crear Custom Menu Link con parámetros correctos de GHL API
+          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente en Custom Menu Links
           const menuLinkResult = await ghlApi.createCustomMenuLink(
             locationId,
             tokenResponse.access_token,
             {
               name: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId=${locationId}`,
-              icon: "link",  // Icono simple como string
+              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              icon: "whatsapp",  // Icono de WhatsApp
               openType: "iframe",  // Abrir como iframe en GHL
             }
           );
@@ -1068,13 +1069,14 @@ ${ghlErrorDetails}
 
           console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
 
+          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente
           const menuResult = await ghlApi.createCustomMenuLink(
             validatedData.locationId,
             cliente.accesstoken,
             {
               name: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
-              icon: "link",
+              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              icon: "whatsapp",
               openType: "iframe",
             }
           );
@@ -1326,13 +1328,14 @@ ${ghlErrorDetails}
 
           console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
 
+          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente
           const menuResult = await ghlApi.createCustomMenuLink(
             validatedData.locationId,
             cliente.accesstoken,
             {
               name: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
-              icon: "link",
+              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              icon: "whatsapp",
               openType: "iframe",
             }
           );
