@@ -642,9 +642,10 @@ ${ghlErrorDetails}
             locationId,
             tokenResponse.access_token,
             {
-              name: "WhatsApp AI",
+              title: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
-              icon: "whatsapp",
+              iconName: "whatsapp",
+              iconFontFamily: "fab",  // Font Awesome Brands
               openMode: "iframe",
             }
           );
@@ -1074,9 +1075,10 @@ ${ghlErrorDetails}
             validatedData.locationId,
             cliente.accesstoken,
             {
-              name: "WhatsApp AI",
+              title: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
-              icon: "whatsapp",
+              iconName: "whatsapp",
+              iconFontFamily: "fab",
               openMode: "iframe",
             }
           );
@@ -1333,9 +1335,10 @@ ${ghlErrorDetails}
             validatedData.locationId,
             cliente.accesstoken,
             {
-              name: "WhatsApp AI",
+              title: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
-              icon: "whatsapp",
+              iconName: "whatsapp",
+              iconFontFamily: "fab",
               openMode: "iframe",
             }
           );

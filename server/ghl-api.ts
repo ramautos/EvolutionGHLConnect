@@ -359,9 +359,10 @@ export class GhlApiService {
     locationId: string,
     accessToken: string,
     menuLinkData: {
-      name: string;
+      title: string;
       url: string;
-      icon?: string;
+      iconName?: string;
+      iconFontFamily?: string;
       openMode?: 'iframe' | 'new_tab' | 'current_tab';
     }
   ): Promise<{ success: boolean; menuId?: string; error?: string }> {
@@ -369,9 +370,12 @@ export class GhlApiService {
       // Construir body según formato oficial de GHL API
       // Docs: https://marketplace.gohighlevel.com/docs/ghl/custom-menus/create-custom-menu
       const requestBody = {
-        name: menuLinkData.name,
+        title: menuLinkData.title,
         url: menuLinkData.url,
-        icon: menuLinkData.icon || 'link',
+        icon: {
+          name: menuLinkData.iconName || 'link',
+          fontFamily: menuLinkData.iconFontFamily || 'fas',  // fas = Font Awesome Solid, fab = Brands
+        },
         showOnCompany: true,
         showOnLocation: true,
         showToAllLocations: false,  // Solo para esta location específica
