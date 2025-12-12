@@ -644,8 +644,8 @@ ${ghlErrorDetails}
             {
               name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
-              icon: "whatsapp",  // Icono de WhatsApp
-              openType: "iframe",  // Abrir como iframe en GHL
+              icon: "whatsapp",
+              openMode: "iframe",
             }
           );
 
@@ -1077,7 +1077,7 @@ ${ghlErrorDetails}
               name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
               icon: "whatsapp",
-              openType: "iframe",
+              openMode: "iframe",
             }
           );
 
@@ -1336,7 +1336,7 @@ ${ghlErrorDetails}
               name: "WhatsApp AI",
               url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
               icon: "whatsapp",
-              openType: "iframe",
+              openMode: "iframe",
             }
           );
 

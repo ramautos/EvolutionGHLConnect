@@ -362,17 +362,24 @@ export class GhlApiService {
       name: string;
       url: string;
       icon?: string;
-      openType?: 'iframe' | 'new_tab' | 'current_tab';
+      openMode?: 'iframe' | 'new_tab' | 'current_tab';
     }
   ): Promise<{ success: boolean; menuId?: string; error?: string }> {
     try {
-      // Construir body según formato de GHL
+      // Construir body según formato oficial de GHL API
+      // Docs: https://marketplace.gohighlevel.com/docs/ghl/custom-menus/create-custom-menu
       const requestBody = {
         name: menuLinkData.name,
         url: menuLinkData.url,
         icon: menuLinkData.icon || 'link',
-        openType: menuLinkData.openType || 'iframe',
-        locationId: locationId,
+        showOnCompany: true,
+        showOnLocation: true,
+        showToAllLocations: false,  // Solo para esta location específica
+        openMode: menuLinkData.openMode || 'iframe',
+        locations: [locationId],  // Array de locations
+        userRole: 'all',
+        allowCamera: false,
+        allowMicrophone: false,
       };
 
       console.log(`📎 Creando Custom Menu Link para location ${locationId}:`, requestBody);
