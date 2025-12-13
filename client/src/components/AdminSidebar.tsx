@@ -81,10 +81,12 @@ interface BrandingData {
 export function AdminSidebar() {
   const [location] = useLocation();
 
-  // Fetch branding data
+  // Fetch branding data (silent on error to not block UI)
   const { data: branding } = useQuery<BrandingData>({
     queryKey: ["/api/branding/current"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: false, // Don't retry on failure
+    refetchOnWindowFocus: false,
   });
 
   // Helper to check if a menu item is active (handles nested routes)
