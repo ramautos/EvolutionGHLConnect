@@ -8,7 +8,9 @@ import {
   Building,
   BarChart3,
   FileText,
+  Palette,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +55,11 @@ const menuItems = [
 
 const configItems = [
   {
+    title: "Marca",
+    icon: Palette,
+    url: "/admin/branding",
+  },
+  {
     title: "API Tokens",
     icon: FileText,
     url: "/admin/api",
@@ -64,8 +71,21 @@ const configItems = [
   },
 ];
 
+interface BrandingData {
+  brandingEnabled: boolean;
+  logo: string | null;
+  brandingText: string | null;
+  companyName: string;
+}
+
 export function AdminSidebar() {
   const [location] = useLocation();
+
+  // Fetch branding data
+  const { data: branding } = useQuery<BrandingData>({
+    queryKey: ["/api/branding/current"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   // Helper to check if a menu item is active (handles nested routes)
   const isMenuItemActive = (itemUrl: string) => {
@@ -77,16 +97,32 @@ export function AdminSidebar() {
     return location.startsWith(itemUrl + "/") || location.startsWith(itemUrl + "?");
   };
 
+  // Determine what to show in header
+  const showCustomBranding = branding?.brandingEnabled && (branding?.logo || branding?.brandingText);
+  const displayName = showCustomBranding && branding?.brandingText
+    ? branding.brandingText
+    : "Admin Panel";
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-6 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <TrendingUp className="h-4 w-4" />
-          </div>
+          {showCustomBranding && branding?.logo ? (
+            <img
+              src={branding.logo}
+              alt="Logo"
+              className="h-8 w-8 rounded-lg object-contain bg-white p-0.5"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          )}
           <div>
-            <p className="text-sm font-semibold">Admin Panel</p>
-            <p className="text-xs text-muted-foreground">Gestión Empresarial</p>
+            <p className="text-sm font-semibold">{displayName}</p>
+            <p className="text-xs text-muted-foreground">
+              {showCustomBranding ? "Panel de Control" : "Gestión Empresarial"}
+            </p>
           </div>
         </div>
       </SidebarHeader>

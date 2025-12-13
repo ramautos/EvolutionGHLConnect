@@ -19,6 +19,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import CompaniesManagement from "@/pages/CompaniesManagement";
 import AdminAPI from "@/pages/AdminAPI";
 import AdminSettings from "@/pages/AdminSettings";
+import CompanyBranding from "@/pages/CompanyBranding";
 import Billing from "@/pages/Billing";
 import BillingSuccess from "@/pages/BillingSuccess";
 import Invoices from "@/pages/Invoices";
@@ -127,6 +128,13 @@ function Router() {
           </AdminLayout>
         </ProtectedRoute>
       </Route>
+      <Route path="/admin/branding">
+        <ProtectedRoute requireAdmin={true}>
+          <AdminLayout>
+            <CompanyBranding />
+          </AdminLayout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/settings">
         <ProtectedRoute requireAdmin={true}>
           <AdminLayout>
@@ -134,7 +142,7 @@ function Router() {
           </AdminLayout>
         </ProtectedRoute>
       </Route>
-      
+
       {/* Legacy Admin Route - Redirect to Dashboard */}
       <Route path="/admin">
         <ProtectedRoute requireAdmin={true}>

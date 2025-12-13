@@ -1478,6 +1478,127 @@ ${ghlErrorDetails}
     }
   });
 
+  // ============================================
+  // WHITE-LABEL BRANDING
+  // ============================================
+
+  // Obtener branding de la empresa del usuario actual
+  app.get("/api/branding/current", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const subaccount = await storage.getSubaccount(user.id);
+
+      if (!subaccount || !subaccount.companyId) {
+        res.json({ brandingEnabled: false });
+        return;
+      }
+
+      const company = await storage.getCompany(subaccount.companyId);
+      if (!company) {
+        res.json({ brandingEnabled: false });
+        return;
+      }
+
+      res.json({
+        brandingEnabled: company.brandingEnabled,
+        logo: company.logo,
+        brandingText: company.brandingText,
+        companyName: company.name,
+      });
+    } catch (error) {
+      console.error("Error getting current branding:", error);
+      res.status(500).json({ error: "Failed to get branding" });
+    }
+  });
+
+  // Obtener branding de una empresa específica
+  app.get("/api/companies/:id/branding", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user as any;
+      const subaccount = await storage.getSubaccount(user.id);
+
+      // Verificar permisos: admin o pertenece a la empresa
+      const isSystemAdmin = subaccount?.role === "system_admin";
+      const isCompanyAdmin = subaccount?.role === "admin" && subaccount?.companyId === id;
+      const belongsToCompany = subaccount?.companyId === id;
+
+      if (!isSystemAdmin && !isCompanyAdmin && !belongsToCompany) {
+        res.status(403).json({ error: "No tienes permiso para ver esta información" });
+        return;
+      }
+
+      const company = await storage.getCompany(id);
+      if (!company) {
+        res.status(404).json({ error: "Empresa no encontrada" });
+        return;
+      }
+
+      res.json({
+        brandingEnabled: company.brandingEnabled,
+        logo: company.logo,
+        brandingText: company.brandingText,
+        companyName: company.name,
+      });
+    } catch (error) {
+      console.error("Error getting company branding:", error);
+      res.status(500).json({ error: "Failed to get branding" });
+    }
+  });
+
+  // Actualizar branding de una empresa
+  app.put("/api/companies/:id/branding", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user as any;
+      const subaccount = await storage.getSubaccount(user.id);
+
+      // Solo admin de la empresa o system_admin puede modificar branding
+      const isSystemAdmin = subaccount?.role === "system_admin";
+      const isCompanyAdmin = subaccount?.role === "admin" && subaccount?.companyId === id;
+
+      if (!isSystemAdmin && !isCompanyAdmin) {
+        res.status(403).json({ error: "Solo el administrador puede modificar la marca" });
+        return;
+      }
+
+      const { logo, brandingText, brandingEnabled } = req.body;
+
+      // Validar tamaño del logo (max ~500KB en base64)
+      if (logo && logo.length > 700000) {
+        res.status(400).json({ error: "El logo es demasiado grande. Máximo 500KB" });
+        return;
+      }
+
+      // Validar longitud del texto
+      if (brandingText && brandingText.length > 50) {
+        res.status(400).json({ error: "El texto de marca no puede exceder 50 caracteres" });
+        return;
+      }
+
+      const updatedCompany = await storage.updateCompany(id, {
+        logo: logo ?? undefined,
+        brandingText: brandingText ?? undefined,
+        brandingEnabled: brandingEnabled ?? undefined,
+      });
+
+      if (!updatedCompany) {
+        res.status(404).json({ error: "Empresa no encontrada" });
+        return;
+      }
+
+      console.log(`✅ Branding actualizado para empresa: ${updatedCompany.name}`);
+      res.json({
+        brandingEnabled: updatedCompany.brandingEnabled,
+        logo: updatedCompany.logo,
+        brandingText: updatedCompany.brandingText,
+      });
+    } catch (error) {
+      console.error("Error updating company branding:", error);
+      res.status(500).json({ error: "Failed to update branding" });
+    }
+  });
+
   // Listar todos los usuarios (solo admin)
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {

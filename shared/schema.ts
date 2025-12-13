@@ -41,6 +41,11 @@ export const companies = pgTable("companies", {
   pricePerSubaccount: text("price_per_subaccount").default("10.00"), // Precio base por subcuenta (editable por admin)
   pricePerExtraInstance: text("price_per_extra_instance").default("5.00"), // Precio por instancia adicional (6+)
 
+  // White-label Branding
+  logo: text("logo"), // Base64 encoded image
+  brandingText: text("branding_text"), // Text next to logo
+  brandingEnabled: boolean("branding_enabled").notNull().default(false),
+
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -312,6 +317,10 @@ export const updateCompanySchema = z.object({
   manualBilling: z.boolean().optional(),
   pricePerSubaccount: z.string().optional(),
   pricePerExtraInstance: z.string().optional(),
+  // White-label Branding
+  logo: z.string().optional().nullable(),
+  brandingText: z.string().max(50, "Máximo 50 caracteres").optional().nullable(),
+  brandingEnabled: z.boolean().optional(),
 });
 
 export type InsertCompany = z.infer<typeof insertCompanySchema>;
