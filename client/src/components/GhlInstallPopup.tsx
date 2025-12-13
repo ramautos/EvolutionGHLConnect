@@ -136,6 +136,8 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
         "locations/templates.readonly",
         "custom-menu-link.readonly",
         "custom-menu-link.write",
+        "oauth.readonly",
+        "oauth.write",
       ].join(" ");
 
       // version_id requerido para usar los scopes actualizados de la app

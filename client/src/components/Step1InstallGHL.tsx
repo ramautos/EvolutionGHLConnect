@@ -59,6 +59,8 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
         "locations/templates.readonly",
         "custom-menu-link.readonly",
         "custom-menu-link.write",
+        "oauth.readonly",
+        "oauth.write",
       ].join(" ");
 
       const params = new URLSearchParams({
