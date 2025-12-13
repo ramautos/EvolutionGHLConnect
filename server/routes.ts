@@ -636,16 +636,16 @@ ${ghlErrorDetails}
 
           const appUrl = process.env.APP_URL || "https://whatsapp.cloude.es";
 
-          // Crear Custom Menu Link con parámetros correctos de GHL API
-          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente en Custom Menu Links
+          // Crear Custom Menu Link con el locationId REAL (no variable)
+          // Usamos el locationId directamente porque las variables de GHL no funcionan
           const menuLinkResult = await ghlApi.createCustomMenuLink(
             locationId,
             tokenResponse.access_token,
             {
               title: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              url: `${appUrl}/app-dashboard?locationId=${locationId}`,
               iconName: "whatsapp",
-              iconFontFamily: "fab",  // Font Awesome Brands
+              iconFontFamily: "fab",
               openMode: "iframe",
             }
           );
@@ -1070,13 +1070,13 @@ ${ghlErrorDetails}
 
           console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
 
-          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente
+          // Usar locationId REAL (no variable) porque las variables de GHL no funcionan
           const menuResult = await ghlApi.createCustomMenuLink(
             validatedData.locationId,
             cliente.accesstoken,
             {
               title: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
               iconName: "whatsapp",
               iconFontFamily: "fab",
               openMode: "iframe",
@@ -1330,13 +1330,13 @@ ${ghlErrorDetails}
 
           console.log(`📎 Creando Custom Menu Link para location ${validatedData.locationId}...`);
 
-          // IMPORTANTE: Usar {{location.id}} - GHL lo reemplaza automáticamente
+          // Usar locationId REAL (no variable) porque las variables de GHL no funcionan
           const menuResult = await ghlApi.createCustomMenuLink(
             validatedData.locationId,
             cliente.accesstoken,
             {
               title: "WhatsApp AI",
-              url: `${appUrl}/app-dashboard?locationId={{location.id}}`,
+              url: `${appUrl}/app-dashboard?locationId=${validatedData.locationId}`,
               iconName: "whatsapp",
               iconFontFamily: "fab",
               openMode: "iframe",
