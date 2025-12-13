@@ -1,5 +1,6 @@
 import { ghlStorage } from "./ghl-storage";
 import crypto from "crypto";
+import CryptoJS from "crypto-js";
 
 const GHL_BASE_URL = "https://services.leadconnectorhq.com";
 const GHL_API_VERSION = "2021-07-28";
@@ -295,6 +296,9 @@ export class GhlApiService {
 
   /**
    * Descifra un SSO key de GoHighLevel
+   * GHL usa CryptoJS con formato OpenSSL (prefijo "Salted__")
+   * El payload viene como: U2FsdGVkX1... (base64 de "Salted__" + salt + encrypted)
+   *
    * @param ssoKey - El SSO key encriptado recibido desde GHL
    * @returns Los datos descifrados (locationId, userId, companyId, timestamp)
    */
@@ -303,36 +307,47 @@ export class GhlApiService {
     userId: string;
     companyId: string;
     timestamp: number;
+    activeLocation?: string;
   } | null> {
     try {
       const ssoSecret = process.env.GHL_APP_SSO_KEY;
       if (!ssoSecret) {
-        console.error("GHL_APP_SSO_KEY no configurado");
+        console.error("❌ GHL_APP_SSO_KEY no configurado");
         return null;
       }
 
-      // El SSO key viene en formato base64url, convertir a base64
-      const base64 = ssoKey.replace(/-/g, '+').replace(/_/g, '/');
-      const encryptedData = Buffer.from(base64, 'base64');
+      console.log("🔐 Intentando descifrar SSO con CryptoJS...");
+      console.log("📦 Payload (primeros 50 chars):", ssoKey.substring(0, 50));
 
-      // GHL usa AES-256-CBC
-      // La clave SSO es la clave de descifrado
-      const key = crypto.createHash('sha256').update(ssoSecret).digest();
+      // GHL usa CryptoJS.AES.encrypt() que produce formato OpenSSL
+      // El payload ya está en base64 estándar
+      const decrypted = CryptoJS.AES.decrypt(ssoKey, ssoSecret);
+      const decryptedStr = decrypted.toString(CryptoJS.enc.Utf8);
 
-      // El IV son los primeros 16 bytes
-      const iv = encryptedData.slice(0, 16);
-      const encrypted = encryptedData.slice(16);
+      if (!decryptedStr) {
+        console.error("❌ Descifrado resultó en string vacío");
+        return null;
+      }
 
-      // Descifrar
-      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-      let decrypted = decipher.update(encrypted);
-      decrypted = Buffer.concat([decrypted, decipher.final()]);
+      console.log("📄 Descifrado exitoso, parseando JSON...");
 
       // Parsear JSON
-      const data = JSON.parse(decrypted.toString('utf8'));
+      const data = JSON.parse(decryptedStr);
 
-      console.log("✅ SSO Key descifrado exitosamente");
-      return data;
+      console.log("✅ SSO Key descifrado exitosamente:", {
+        locationId: data.locationId || data.activeLocation,
+        userId: data.userId,
+        companyId: data.companyId,
+      });
+
+      // GHL puede usar "activeLocation" o "locationId"
+      return {
+        locationId: data.locationId || data.activeLocation,
+        userId: data.userId,
+        companyId: data.companyId,
+        timestamp: data.timestamp || Date.now(),
+        activeLocation: data.activeLocation,
+      };
     } catch (error) {
       console.error("❌ Error descifrando SSO key:", error);
       return null;

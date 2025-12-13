@@ -11,6 +11,7 @@ import type { Subaccount } from "@shared/schema";
  * Métodos de detección de locationId (en orden de prioridad):
  * 1. URL params: ?locationId=xxx (Custom Menu Link creado por API)
  * 2. SSO postMessage: REQUEST_USER_DATA (si URL params no funcionan)
+ *    - GHL envía payload ENCRIPTADO que debe descifrarse en backend
  *
  * Docs: https://marketplace.gohighlevel.com/docs/other/user-context-marketplace-apps
  */
@@ -26,7 +27,7 @@ export default function GhlIframe() {
 
   // Función para buscar subcuenta por locationId
   const findSubaccountByLocation = useCallback(async (locationId: string) => {
-    if (locationFoundRef.current) return; // Evitar llamadas duplicadas
+    if (locationFoundRef.current) return;
     locationFoundRef.current = true;
 
     try {
@@ -56,16 +57,53 @@ export default function GhlIframe() {
       setLoading(false);
     } catch (err: any) {
       console.error("❌ Error:", err);
-      locationFoundRef.current = false; // Permitir reintentos
+      locationFoundRef.current = false;
       setError(err.message || "Error desconocido");
       setLoading(false);
     }
   }, []);
 
+  // Función para desencriptar SSO y obtener locationId
+  const decryptSsoAndFindSubaccount = useCallback(async (encryptedPayload: string) => {
+    try {
+      console.log("🔐 Descifrando SSO payload...");
+      setStatus("Descifrando datos de GHL...");
+
+      const response = await fetch("/api/ghl/decrypt-sso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ssoKey: encryptedPayload }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error descifrando SSO: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("✅ SSO descifrado:", data);
+
+      // Obtener locationId de los datos descifrados
+      const locationId = data.ghlData?.activeLocation ||
+                         data.ghlData?.locationId ||
+                         data.user?.locationId;
+
+      if (!locationId) {
+        throw new Error("No se encontró locationId en los datos SSO descifrados");
+      }
+
+      console.log("✅ LocationId obtenido via SSO:", locationId);
+      await findSubaccountByLocation(locationId);
+    } catch (err: any) {
+      console.error("❌ Error descifrando SSO:", err);
+      setError(err.message || "Error al descifrar datos de GHL");
+      setLoading(false);
+    }
+  }, [findSubaccountByLocation]);
+
   // Escuchar respuestas SSO de GHL
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      // Ignorar mensajes propios y de otros orígenes no relevantes
       if (event.source === window) return;
       if (locationFoundRef.current) return;
 
@@ -73,35 +111,48 @@ export default function GhlIframe() {
       console.log("📥 Mensaje recibido:", data);
 
       // Agregar a debug info
-      setDebugInfo(prev => prev + `\nMsg: ${JSON.stringify(data).substring(0, 100)}`);
+      setDebugInfo(prev => {
+        const msgPreview = typeof data === 'object' ? JSON.stringify(data).substring(0, 150) : String(data);
+        return prev + `\nMsg: ${msgPreview}`;
+      });
 
-      let locationId: string | null = null;
-
-      // Formato 1: REQUEST_USER_DATA_RESPONSE (oficial GHL)
+      // Formato: REQUEST_USER_DATA_RESPONSE con payload encriptado
       if (data?.message === "REQUEST_USER_DATA_RESPONSE" && data?.payload) {
-        console.log("📥 SSO Response recibido");
-        locationId = data.payload.activeLocation || data.payload.locationId;
+        console.log("🎉 SSO Response recibido");
+
+        const payload = data.payload;
+
+        // Si payload es string, está encriptado - enviar al backend
+        if (typeof payload === "string") {
+          console.log("🔐 Payload encriptado detectado, enviando al backend...");
+          await decryptSsoAndFindSubaccount(payload);
+          return;
+        }
+
+        // Si payload es objeto, intentar obtener locationId directamente
+        if (typeof payload === "object") {
+          const locationId = payload.activeLocation || payload.locationId;
+          if (locationId && !locationId.includes("{{")) {
+            console.log("✅ LocationId directo:", locationId);
+            await findSubaccountByLocation(locationId);
+            return;
+          }
+        }
       }
 
-      // Formato 2: Datos directos con locationId
-      if (!locationId && (data?.locationId || data?.activeLocation)) {
-        locationId = data.locationId || data.activeLocation;
-      }
-
-      // Formato 3: Datos anidados
-      if (!locationId && data?.data?.locationId) {
-        locationId = data.data.locationId;
-      }
-
-      if (locationId && !locationId.includes("{{")) {
-        console.log("✅ LocationId obtenido via SSO:", locationId);
-        await findSubaccountByLocation(locationId);
+      // Formato alternativo: datos directos con locationId
+      if (data?.locationId || data?.activeLocation) {
+        const locationId = data.locationId || data.activeLocation;
+        if (locationId && !locationId.includes("{{")) {
+          console.log("✅ LocationId via mensaje directo:", locationId);
+          await findSubaccountByLocation(locationId);
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [findSubaccountByLocation]);
+  }, [findSubaccountByLocation, decryptSsoAndFindSubaccount]);
 
   // Inicialización
   useEffect(() => {
@@ -130,25 +181,24 @@ export default function GhlIframe() {
         console.log("📨 URL params no válidos, intentando SSO...");
 
         if (window.parent && window.parent !== window) {
-          // Enviar REQUEST_USER_DATA (formato oficial de GHL)
           console.log("📨 Enviando REQUEST_USER_DATA a GHL...");
           window.parent.postMessage({ message: "REQUEST_USER_DATA" }, "*");
 
-          // Timeout: si no hay respuesta en 5 segundos, mostrar error
+          // Timeout: si no hay respuesta en 10 segundos
           setTimeout(() => {
             if (!locationFoundRef.current && loading) {
-              console.log("⏰ Timeout SSO - no hubo respuesta");
+              console.log("⏰ Timeout SSO - no hubo respuesta procesable");
               setError(
                 "No se pudo obtener el contexto de GoHighLevel.\n\n" +
                 "Posibles causas:\n" +
                 "1. La app no fue instalada correctamente\n" +
-                "2. Accedes directamente a la URL (no desde GHL)\n" +
+                "2. El SSO Key no está configurado en el servidor\n" +
                 "3. El Custom Menu Link no se creó durante la instalación\n\n" +
                 "Solución: Desinstala y reinstala la app desde el Marketplace."
               );
               setLoading(false);
             }
-          }, 5000);
+          }, 10000);
         } else {
           console.warn("⚠️ No estamos en un iframe");
           setError(
