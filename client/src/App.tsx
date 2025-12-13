@@ -167,6 +167,11 @@ function Router() {
           <Invoices />
         </ProtectedRoute>
       </Route>
+      <Route path="/branding">
+        <ProtectedRoute>
+          <CompanyBranding />
+        </ProtectedRoute>
+      </Route>
       <Route path="/locations">
         <ProtectedRoute>
           <LocationsDashboard />

@@ -10,7 +10,7 @@ import { GhlInstallPopup } from "@/components/GhlInstallPopup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart, TestTube2, Trash2, MoreVertical, Ban, PlayCircle, AlertTriangle } from "lucide-react";
+import { Plus, Building2, MessageSquare, Settings, LogOut, User, ChevronDown, CreditCard, Receipt, Search, ShoppingCart, TestTube2, Trash2, MoreVertical, Ban, PlayCircle, AlertTriangle, Palette } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -363,6 +363,10 @@ function DashboardContent() {
                 <DropdownMenuItem onClick={() => setLocation("/invoices")} data-testid="menu-invoices">
                   <Receipt className="w-4 h-4 mr-2" />
                   Facturas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/branding")} data-testid="menu-branding">
+                  <Palette className="w-4 h-4 mr-2" />
+                  Mi Marca
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} data-testid="menu-logout">
