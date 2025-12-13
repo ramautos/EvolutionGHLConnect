@@ -138,13 +138,17 @@ export function GhlInstallPopup({ isOpen, onClose, onSuccess }: GhlInstallPopupP
         "custom-menu-link.write",
       ].join(" ");
 
+      // version_id requerido para usar los scopes actualizados de la app
+      const versionId = "68a94abebdd32d0a7010600e";
+
       const oauthUrl =
         `https://marketplace.gohighlevel.com/oauth/chooselocation?` +
         `response_type=code` +
         `&client_id=${clientId}` +
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&scope=${encodeURIComponent(scopes)}` +
-        `&state=${state}`;
+        `&state=${state}` +
+        `&version_id=${versionId}`;
 
       // Abrir popup centrado
       const width = 600;

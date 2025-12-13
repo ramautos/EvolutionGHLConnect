@@ -30,12 +30,14 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
       const { state } = await response.json();
       
       // 2. Construir la URL de OAuth de GoHighLevel
-      const baseUrl = "https://marketplace.leadconnectorhq.com/oauth/chooselocation";
+      const baseUrl = "https://marketplace.gohighlevel.com/oauth/chooselocation";
       const clientId = import.meta.env.VITE_GHL_CLIENT_ID || "68a94abebdd32d0a7010600e-mgpykfcm";
-      
+      // version_id requerido para usar los scopes actualizados de la app
+      const versionId = "68a94abebdd32d0a7010600e";
+
       // n8n webhook que manejará el OAuth y redirigirá de vuelta a nuestra app
       const redirectUri = "https://ray.cloude.es/webhook/registrocuenta";
-      
+
       const scopes = [
         "contacts.readonly",
         "contacts.write",
@@ -54,7 +56,9 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
         "locations/tags.readonly",
         "users.readonly",
         "companies.readonly",
-        "locations/templates.readonly"
+        "locations/templates.readonly",
+        "custom-menu-link.readonly",
+        "custom-menu-link.write",
       ].join(" ");
 
       const params = new URLSearchParams({
@@ -64,6 +68,7 @@ export default function Step1InstallGHL({ onNext }: { onNext: () => void }) {
         scope: scopes,
         // Usar el state generado por el backend
         state: state,
+        version_id: versionId,
       });
 
       const authUrl = `${baseUrl}?${params.toString()}`;

@@ -49,7 +49,10 @@ export default function InstallSubaccount() {
     // Incluye custom-menu-link para crear menús automáticamente en GHL
     const scopes = 'contacts.readonly+contacts.write+conversations.readonly+conversations.write+conversations/message.readonly+conversations/message.write+locations.readonly+locations/customValues.readonly+locations/customValues.write+locations/customFields.readonly+locations/customFields.write+locations/tags.write+socialplanner/tag.readonly+locations/tasks.readonly+locations/tags.readonly+users.readonly+companies.readonly+locations/templates.readonly+custom-menu-link.readonly+custom-menu-link.write';
 
-    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${clientId}&scope=${scopes}&state=${encodeURIComponent(state)}`;
+    // version_id requerido para usar los scopes actualizados de la app
+    const versionId = "68a94abebdd32d0a7010600e";
+
+    const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${clientId}&scope=${scopes}&state=${encodeURIComponent(state)}&version_id=${versionId}`;
 
     // Redirigir a OAuth de GoHighLevel
     window.location.href = authUrl;
